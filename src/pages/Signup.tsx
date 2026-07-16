@@ -98,13 +98,13 @@ export default function Signup() {
           const { avatarUrl } = await userApi.uploadAvatar(photoFile);
           dispatch(updateUser({ avatarUrl }));
         }
-        await creatorApi.updateMyProfile({
-          category: category || undefined,
-          socials: {
-            ...(instagram && { instagram: instagram.startsWith('http') ? instagram : `https://instagram.com/${instagram}` }),
-            ...(youtube && { youtube: youtube.startsWith('http') ? youtube : `https://youtube.com/@${youtube}` }),
-          },
-        });
+      await creatorApi.updateMyProfile({
+  category: (category || undefined) as any,
+  socials: {
+    ...(instagram && { instagram: instagram.startsWith('http') ? instagram : `https://instagram.com/${instagram}` }),
+    ...(youtube && { youtube: youtube.startsWith('http') ? youtube : `https://youtube.com/@${youtube}` }),
+  },
+});
         navigate('/dashboard/creator');
       } else if (user.role === 'brand') {
         if (photoFile) {
