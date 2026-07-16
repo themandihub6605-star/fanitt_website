@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply text-white font-body antialiased;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(255, 90, 10, 0.18), transparent 30%),
+      radial-gradient(circle at 80% 10%, rgba(255, 226, 122, 0.14), transparent 25%),
+      radial-gradient(circle at 50% 80%, rgba(39, 47, 99, 0.28), transparent 35%),
+      linear-gradient(180deg, #080b16 0%, #0d1120 45%, #11172a 100%);
+    background-attachment: fixed;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display text-white tracking-tight;
+  }
+  ::selection {
+    @apply bg-orange-500/40 text-white;
+  }
+  :focus-visible {
+    outline: 2px solid #F4511E;
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/[0.06] backdrop-blur-xl border border-white/10;
+  }
+  .glass-dark {
+    @apply bg-black/30 backdrop-blur-xl border border-white/10;
+  }
+  .badge-dot {
+    @apply inline-block h-2.5 w-2.5 rounded-full bg-orange-500;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Skeleton shimmer - dark theme */
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.09) 37%, rgba(255,255,255,0.04) 63%);
+  background-size: 400px 100%;
+  animation: shimmer 1.6s linear infinite;
+}
