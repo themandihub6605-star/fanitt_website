@@ -688,6 +688,7 @@ export default function Signup() {
 }
 
 // ---- Shared small field components ----
+
 function TextField({
   icon: Icon,
   value,
@@ -703,6 +704,26 @@ function TextField({
   type?: string;
   required?: boolean;
 }) {
+  return (
+    <label className="block">
+      <div className="relative">
+        {Icon && <Icon size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />}
+        <input
+          required={required}
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={cn(
+            'w-full rounded-xl border border-white/10 bg-navy-800/70 py-3.5 pr-4 text-white placeholder:text-white/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20',
+            Icon ? 'pl-11' : 'pl-4'
+          )}
+        />
+      </div>
+    </label>
+  );
+}
+
 function StepNav({ onBack, onNext, loading }: { onBack: () => void; onNext: () => void; loading: boolean }) {
   return (
     <div className="flex gap-3 pt-1">
@@ -719,5 +740,4 @@ function StepNav({ onBack, onNext, loading }: { onBack: () => void; onNext: () =
       </button>
     </div>
   );
-}
 }
