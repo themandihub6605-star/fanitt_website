@@ -27,6 +27,7 @@ import {
   ChevronDown,
   ShieldCheck,
   Zap,
+  type LucideIcon,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { GoogleIcon } from '@/components/GoogleIcon';
@@ -44,14 +45,19 @@ import { categoryApi, type ApiCategory } from '@/services/categoryApi';
 import { cn } from '@/utils/cn';
 import type { Role } from '@/types/api';
 
+// This wizard only ever deals with these 4 — 'admin' is a separate,
+// invite-only role that never goes through Signup, so Record<Role, ...>
+// (which requires all 5) doesn't fit; this narrower alias does.
+type SignupRole = 'fan' | 'creator' | 'brand' | 'agency';
+
 const ROLES = [
-  { key: 'fan' as Role, label: 'Fan', icon: User, tagline: 'Follow creators, join live sessions, support who you love.' },
-  { key: 'creator' as Role, label: 'Creator', icon: Sparkles, tagline: 'Turn your content and skills into income.' },
-  { key: 'brand' as Role, label: 'Brand', icon: Building2, tagline: 'Find creators and run campaigns, escrow-protected.' },
-  { key: 'agency' as Role, label: 'Agency', icon: Users2, tagline: 'Refer creators & brands, earn commission.' },
+  { key: 'fan' as SignupRole, label: 'Fan', icon: User, tagline: 'Follow creators, join live sessions, support who you love.' },
+  { key: 'creator' as SignupRole, label: 'Creator', icon: Sparkles, tagline: 'Turn your content and skills into income.' },
+  { key: 'brand' as SignupRole, label: 'Brand', icon: Building2, tagline: 'Find creators and run campaigns, escrow-protected.' },
+  { key: 'agency' as SignupRole, label: 'Agency', icon: Users2, tagline: 'Refer creators & brands, earn commission.' },
 ];
 
-const ROLE_CONTENT: Record<Role, { headline: string; highlight: string; subtext: string; glow: [string, string] }> = {
+const ROLE_CONTENT: Record<SignupRole, { headline: string; highlight: string; subtext: string; glow: [string, string] }> = {
   fan: {
     headline: 'Discover, connect and',
     highlight: 'be inspired',
@@ -79,7 +85,7 @@ const ROLE_CONTENT: Record<Role, { headline: string; highlight: string; subtext:
 };
 
 // One real, role-relatable photo per tab — swaps as the person switches roles.
-const ROLE_IMAGES: Record<Role, string> = {
+const ROLE_IMAGES: Record<SignupRole, string> = {
   fan: 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?q=80&w=1200&auto=format&fit=crop', // concert crowd
   creator: 'https://images.unsplash.com/photo-1630797160666-38e8c5ba44c1?q=80&w=1200&auto=format&fit=crop', // filmmaker with camera
   brand: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=1200&auto=format&fit=crop', // business/marketing meeting
@@ -87,7 +93,7 @@ const ROLE_IMAGES: Record<Role, string> = {
 };
 
 // 5-step sequence: role -> personal -> work (skipped for Fan) -> social -> review.
-function getSlides(role: Role): string[] {
+function getSlides(role: SignupRole): string[] {
   const slides = ['role', 'personal'];
   if (role !== 'fan') slides.push('work');
   slides.push('social', 'review');
@@ -103,7 +109,7 @@ const SLIDE_LABELS: Record<string, string> = {
 };
 
 export default function Signup() {
-  const [role, setRole] = useState<Role>('creator');
+  const [role, setRole] = useState<SignupRole>('creator');
   const [slideIndex, setSlideIndex] = useState(0);
 
   const [error, setError] = useState('');
@@ -901,7 +907,7 @@ function TextField({
   type = 'text',
   required = false,
 }: {
-  icon?: React.ComponentType<{ size?: number; className?: string }>;
+  icon?: LucideIcon;
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
