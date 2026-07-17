@@ -24,6 +24,7 @@ import {
   CheckCircle2,
   Briefcase,
   Link2,
+  type LucideIcon,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { GoogleIcon } from '@/components/GoogleIcon';
@@ -47,7 +48,6 @@ const ROLES = [
   { key: 'brand' as Role, label: 'Brand', icon: Building2, tagline: 'Find creators and run campaigns, escrow-protected.' },
   { key: 'agency' as Role, label: 'Agency', icon: Users2, tagline: 'Refer creators & brands, earn commission.' },
 ];
-
 const ROLE_CONTENT: Record<Role, { headline: string; highlight: string; subtext: string; glow: [string, string] }> = {
   fan: {
     headline: 'Discover, connect and',
@@ -73,8 +73,13 @@ const ROLE_CONTENT: Record<Role, { headline: string; highlight: string; subtext:
     subtext: 'Manage rosters, refer creators and earn commission as part of the Fanitt Agency Network.',
     glow: ['#F9436E', '#FFB020'],
   },
+  admin: {
+    headline: 'Manage the',
+    highlight: 'Fanitt platform',
+    subtext: 'Oversee creators, brands, agencies and campaigns from one place.',
+    glow: ['#7C3AED', '#0EA5E9'],
+  },
 };
-
 // 5-step sequence: role -> personal -> work (skipped for Fan) -> social -> review.
 function getSlides(role: Role): string[] {
   const slides = ['role', 'personal'];
@@ -683,7 +688,6 @@ export default function Signup() {
 }
 
 // ---- Shared small field components ----
-
 function TextField({
   icon: Icon,
   value,
@@ -692,33 +696,13 @@ function TextField({
   type = 'text',
   required = false,
 }: {
-  icon?: React.ComponentType<{ size?: number; className?: string }>;
+  icon?: LucideIcon;
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   type?: string;
   required?: boolean;
 }) {
-  return (
-    <label className="block">
-      <div className="relative">
-        {Icon && <Icon size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />}
-        <input
-          required={required}
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className={cn(
-            'w-full rounded-xl border border-white/10 bg-navy-800/70 py-3.5 pr-4 text-white placeholder:text-white/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20',
-            Icon ? 'pl-11' : 'pl-4'
-          )}
-        />
-      </div>
-    </label>
-  );
-}
-
 function StepNav({ onBack, onNext, loading }: { onBack: () => void; onNext: () => void; loading: boolean }) {
   return (
     <div className="flex gap-3 pt-1">
