@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply text-white font-body antialiased;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255, 90, 31, 0.10), transparent 28%),
+      radial-gradient(circle at 85% 15%, rgba(236, 42, 120, 0.08), transparent 30%),
+      #0A0A0A;
+    background-attachment: fixed;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display text-white tracking-tight;
+  }
+  ::selection {
+    @apply bg-orange-500/40 text-white;
+  }
+  :focus-visible {
+    outline: 2px solid #FF5A1F;
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/[0.06] backdrop-blur-xl border border-white/10;
+  }
+  .glass-dark {
+    @apply bg-black/30 backdrop-blur-xl border border-white/10;
+  }
+  .badge-dot {
+    @apply inline-block h-2.5 w-2.5 rounded-full bg-orange-500;
+  }
+  .brand-gradient-text {
+    @apply bg-brand-gradient bg-clip-text text-transparent;
+  }
+  .brand-gradient-bg {
+    background: linear-gradient(135deg, #FF6A1F 0%, #F9436E 60%, #EC2A78 100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Skeleton shimmer - dark theme */
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.09) 37%, rgba(255,255,255,0.04) 63%);
+  background-size: 400px 100%;
+  animation: shimmer 1.6s linear infinite;
+}
