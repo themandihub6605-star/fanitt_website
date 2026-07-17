@@ -9,7 +9,7 @@ import { DashboardShell } from '@/layouts/DashboardShell';
 export function MainLayout({ children }: PropsWithChildren) {
   const location = useLocation();
   const isDashboard = location.pathname.startsWith('/dashboard');
-  const isChromeFree = location.pathname === '/get-started';
+  const isChromeFree = location.pathname === '/get-started' || location.pathname === '/signup';
 
   if (isDashboard) {
     return <DashboardShell>{children}</DashboardShell>;
