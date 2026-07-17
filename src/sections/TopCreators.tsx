@@ -14,7 +14,7 @@ export function TopCreators() {
   useEffect(() => {
     creatorApi
       .list({ page: 1 })
-      .then((d) => setCreators(d.creators.slice(0, 4)))
+      .then((d) => setCreators(d.creators.filter((c) => c.user).slice(0, 4)))
       .catch(() => setCreators([]))
       .finally(() => setLoaded(true));
   }, []);

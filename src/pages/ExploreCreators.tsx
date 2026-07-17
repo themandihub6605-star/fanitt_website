@@ -97,7 +97,7 @@ export default function ExploreCreators() {
   };
 
   const visibleCreators = useMemo(() => {
-    let list = [...creators];
+    let list = creators.filter((c) => c.user);
     if (availability === 'available') list = list.filter((c) => c.isAvailableForWork !== false);
     if (skillFilter !== 'All') list = list.filter((c) => c.skills?.includes(skillFilter));
     if (sortBy === 'rating') list.sort((a, b) => b.averageRating - a.averageRating);

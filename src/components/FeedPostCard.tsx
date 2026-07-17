@@ -78,7 +78,7 @@ export function FeedPostCard({ post, compact = false }: { post: ApiPost; compact
       {/* header */}
       <div className="flex items-center justify-between gap-3 p-4">
         <Link to={creator ? `/creator/${creator.slug}` : '#'} className="group flex min-w-0 items-center gap-3">
-          {creator?.user.avatarUrl ? (
+          {creator?.user?.avatarUrl ? (
             <img
               src={creator.user.avatarUrl}
               alt=""
@@ -86,11 +86,11 @@ export function FeedPostCard({ post, compact = false }: { post: ApiPost; compact
             />
           ) : (
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-orange-500/20 text-sm font-bold text-orange-300 ring-2 ring-white/10 transition-all group-hover:ring-orange-400/50">
-              {creator?.user.name.charAt(0).toUpperCase()}
+              {creator?.user?.name?.charAt(0).toUpperCase() || '?'}
             </span>
           )}
           <span className="flex min-w-0 items-center gap-1">
-            <span className="truncate text-sm font-bold text-white group-hover:text-orange-300">{creator?.user.name}</span>
+            <span className="truncate text-sm font-bold text-white group-hover:text-orange-300">{creator?.user?.name}</span>
             <BadgeCheck size={17} className="shrink-0 fill-emerald-500 text-white" strokeWidth={2.5} />
           </span>
         </Link>
@@ -197,7 +197,7 @@ export function FeedPostCard({ post, compact = false }: { post: ApiPost; compact
 
         {post.caption && (
           <p className={cn('mt-3 text-sm leading-relaxed text-white/80', compact && 'line-clamp-2')}>
-            {creator && <span className="mr-1.5 font-bold text-white">{creator.user.name}</span>}
+            {creator?.user && <span className="mr-1.5 font-bold text-white">{creator.user.name}</span>}
             {post.caption}
           </p>
         )}

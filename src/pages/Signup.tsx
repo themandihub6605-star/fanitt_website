@@ -24,7 +24,9 @@ import {
   CheckCircle2,
   Briefcase,
   Link2,
-  type LucideIcon,
+  ChevronDown,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { GoogleIcon } from '@/components/GoogleIcon';
@@ -48,6 +50,7 @@ const ROLES = [
   { key: 'brand' as Role, label: 'Brand', icon: Building2, tagline: 'Find creators and run campaigns, escrow-protected.' },
   { key: 'agency' as Role, label: 'Agency', icon: Users2, tagline: 'Refer creators & brands, earn commission.' },
 ];
+
 const ROLE_CONTENT: Record<Role, { headline: string; highlight: string; subtext: string; glow: [string, string] }> = {
   fan: {
     headline: 'Discover, connect and',
@@ -73,13 +76,16 @@ const ROLE_CONTENT: Record<Role, { headline: string; highlight: string; subtext:
     subtext: 'Manage rosters, refer creators and earn commission as part of the Fanitt Agency Network.',
     glow: ['#F9436E', '#FFB020'],
   },
-  admin: {
-    headline: 'Manage the',
-    highlight: 'Fanitt platform',
-    subtext: 'Oversee creators, brands, agencies and campaigns from one place.',
-    glow: ['#7C3AED', '#0EA5E9'],
-  },
 };
+
+// One real, role-relatable photo per tab — swaps as the person switches roles.
+const ROLE_IMAGES: Record<Role, string> = {
+  fan: 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?q=80&w=1200&auto=format&fit=crop', // concert crowd
+  creator: 'https://images.unsplash.com/photo-1630797160666-38e8c5ba44c1?q=80&w=1200&auto=format&fit=crop', // filmmaker with camera
+  brand: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=1200&auto=format&fit=crop', // business/marketing meeting
+  agency: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?q=80&w=1200&auto=format&fit=crop', // team discussion
+};
+
 // 5-step sequence: role -> personal -> work (skipped for Fan) -> social -> review.
 function getSlides(role: Role): string[] {
   const slides = ['role', 'personal'];
@@ -387,31 +393,113 @@ export default function Signup() {
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
-      {/* Left brand panel */}
-      <div className="relative hidden overflow-hidden bg-navy-900 px-14 py-16 lg:flex lg:flex-col lg:justify-center">
+      {/* Left brand panel — organic curved blob shape */}
+      <div className="relative hidden lg:block">
+        <motion.div
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+          className="absolute inset-y-0 left-0 flex w-[92%] flex-col justify-center overflow-hidden bg-navy-900 px-14 py-16"
+          style={{ borderRadius: '0 42% 42% 0 / 0 50% 50% 0' }}
+        >
+        {/* Real photo background — one per role, crossfades on switch. Visible
+         * enough to actually read as a photo, with just enough of a dark
+         * wash for the text on top to stay readable. */}
+        <AnimatePresence mode="wait">
+          <motion.img
+            key={role}
+            src={ROLE_IMAGES[role]}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            initial={{ opacity: 0, scale: 1.08 }}
+            animate={{ opacity: 0.8, scale: [1, 1.06, 1], x: [0, -10, 0], y: [0, 8, 0] }}
+            exit={{ opacity: 0 }}
+            transition={{
+              opacity: { duration: 0.9, ease: 'easeOut' },
+              scale: { duration: 16, repeat: Infinity, ease: 'easeInOut' },
+              x: { duration: 16, repeat: Infinity, ease: 'easeInOut' },
+              y: { duration: 16, repeat: Infinity, ease: 'easeInOut' },
+            }}
+          />
+        </AnimatePresence>
+        <div className="absolute inset-0 bg-gradient-to-b from-navy-900/35 via-navy-900/45 to-navy-900/85" />
+        <div className="absolute inset-0 bg-gradient-to-r from-navy-900/55 via-navy-900/10 to-navy-900/55" />
+        {/* Drifting colour glows — slow, ambient motion so the panel never feels static */}
         <AnimatePresence mode="wait">
           <motion.div key={role} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6, ease: 'easeOut' }} className="absolute inset-0">
-            <div className="absolute -left-20 top-[-15%] h-[26rem] w-[26rem] rounded-full blur-[120px]" style={{ background: ROLE_CONTENT[role].glow[0], opacity: 0.28 }} />
-            <div className="absolute -right-16 bottom-[-10%] h-[24rem] w-[24rem] rounded-full blur-[130px]" style={{ background: ROLE_CONTENT[role].glow[1], opacity: 0.22 }} />
+            <motion.div
+              className="absolute -left-20 top-[-15%] h-[26rem] w-[26rem] rounded-full blur-[120px]"
+              style={{ background: ROLE_CONTENT[role].glow[0], opacity: 0.28 }}
+              animate={{ x: [0, 30, -10, 0], y: [0, -20, 15, 0] }}
+              transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            <motion.div
+              className="absolute -right-16 bottom-[-10%] h-[24rem] w-[24rem] rounded-full blur-[130px]"
+              style={{ background: ROLE_CONTENT[role].glow[1], opacity: 0.22 }}
+              animate={{ x: [0, -25, 15, 0], y: [0, 20, -10, 0] }}
+              transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
+            />
           </motion.div>
         </AnimatePresence>
+
+        {/* Extra floating light particles over the photo — more movement, more premium feel */}
+        {[
+          { top: '18%', left: '15%', size: 4, delay: 0 },
+          { top: '30%', left: '75%', size: 3, delay: 0.8 },
+          { top: '58%', left: '20%', size: 5, delay: 1.4 },
+          { top: '70%', left: '65%', size: 3, delay: 0.4 },
+          { top: '85%', left: '35%', size: 4, delay: 1.8 },
+        ].map((p, i) => (
+          <motion.span
+            key={i}
+            className="absolute rounded-full bg-white/70"
+            style={{ top: p.top, left: p.left, width: p.size, height: p.size }}
+            animate={{ opacity: [0.15, 0.9, 0.15], y: [0, -18, 0] }}
+            transition={{ duration: 5 + i, repeat: Infinity, ease: 'easeInOut', delay: p.delay }}
+          />
+        ))}
+
+        {/* Large floating role icon watermark — swaps and gently bobs per role */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`icon-${role}`}
+            initial={{ opacity: 0, scale: 0.85, rotate: -8 }}
+            animate={{ opacity: 0.06, scale: 1, rotate: -6, y: [0, -14, 0] }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ opacity: { duration: 0.5 }, scale: { duration: 0.5 }, y: { duration: 6, repeat: Infinity, ease: 'easeInOut' } }}
+            className="pointer-events-none absolute -right-14 top-1/2 -translate-y-1/2"
+          >
+            {(() => {
+              const RoleIcon = ROLES.find((r) => r.key === role)?.icon || Sparkles;
+              return <RoleIcon size={360} strokeWidth={1} className="text-white" />;
+            })()}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Subtle dot texture for depth */}
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.08]"
           style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)', backgroundSize: '24px 24px' }}
         />
 
-        <Link to="/" className="relative mb-10 inline-flex w-fit">
-          <Logo className="h-12 w-auto" />
-        </Link>
 
-        <div className="relative mb-3 flex items-center gap-1.5">
-          {slides.map((s, i) => (
-            <span key={s} className={cn('h-1.5 rounded-full transition-all', i === slideIndex ? 'w-8 bg-orange-500' : i < slideIndex ? 'w-4 bg-orange-500/50' : 'w-4 bg-white/15')} />
-          ))}
-        </div>
-        <p className="relative mb-8 text-xs font-semibold text-white/40">
-          Step {slideIndex + 1} of {totalSteps} &middot; {SLIDE_LABELS[currentSlide]}
-        </p>
+        {/* Step pill — redesigned with animated fill bar instead of plain dots */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05 }} className="relative mb-8 inline-flex w-fit items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-1.5 pr-4">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[linear-gradient(135deg,#FF6A1F_0%,#F9436E_60%,#EC2A78_100%)] text-xs font-bold text-white">
+            {slideIndex + 1}
+          </span>
+          <div className="flex items-center gap-1">
+            <span className="h-1 w-20 overflow-hidden rounded-full bg-white/10">
+              <motion.span
+                className="block h-full rounded-full bg-[linear-gradient(90deg,#FF6A1F,#EC2A78)]"
+                initial={false}
+                animate={{ width: `${((slideIndex + 1) / totalSteps) * 100}%` }}
+                transition={{ duration: 0.4, ease: 'easeOut' }}
+              />
+            </span>
+          </div>
+          <span className="text-xs font-semibold text-white/50">{SLIDE_LABELS[currentSlide]}</span>
+        </motion.div>
 
         <AnimatePresence mode="wait">
           <motion.div key={role} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.35 }} className="relative">
@@ -422,23 +510,86 @@ export default function Signup() {
           </motion.div>
         </AnimatePresence>
 
-        <div className="relative mt-14 flex items-center gap-6 text-xs text-white/40">
-          <span>Secure &amp; Encrypted</span>
-          <span>Trusted by 50K+ creators &amp; brands</span>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
+          className="relative mt-14 flex items-center gap-5"
+        >
+          <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-white/50">
+            <ShieldCheck size={13} className="text-emerald-400" /> Secure &amp; Encrypted
+          </span>
+          <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-white/50">
+            <Zap size={13} className="text-orange-400" /> Trusted by 50K+
+          </span>
+        </motion.div>
+        </motion.div>
       </div>
 
       {/* Right wizard panel */}
-      <div className="flex items-center justify-center px-gutter py-16">
+      <div className="relative flex items-center justify-center overflow-hidden bg-navy-900 px-gutter py-16">
+        {/* Ambient drifting glows — visible on all sizes, always animating */}
+        <motion.div
+          className="pointer-events-none absolute -top-20 right-[10%] h-80 w-80 rounded-full bg-pink-500/10 blur-[110px]"
+          animate={{ x: [0, -20, 15, 0], y: [0, 20, -10, 0] }}
+          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="pointer-events-none absolute bottom-[-10%] left-[8%] h-72 w-72 rounded-full bg-orange-500/10 blur-[100px] lg:block"
+          animate={{ x: [0, 20, -15, 0], y: [0, -15, 10, 0] }}
+          transition={{ duration: 13, repeat: Infinity, ease: 'easeInOut' }}
+        />
+
+        {/* Floating accent particles for extra premium texture */}
+        {[
+          { top: '12%', left: '8%', size: 5, delay: 0 },
+          { top: '22%', right: '10%', size: 3, delay: 0.5 },
+          { top: '75%', left: '12%', size: 4, delay: 1 },
+          { top: '85%', right: '14%', size: 3, delay: 1.5 },
+        ].map((p, i) => (
+          <motion.span
+            key={i}
+            className="pointer-events-none absolute rounded-full bg-orange-400/40"
+            style={{ top: p.top, left: p.left, right: p.right, width: p.size, height: p.size }}
+            animate={{ opacity: [0.2, 0.8, 0.2], y: [0, -10, 0] }}
+            transition={{ duration: 4 + i, repeat: Infinity, ease: 'easeInOut', delay: p.delay }}
+          />
+        ))}
+
+        {/* Slowly rotating gradient ring behind the card — pure motion accent */}
+        <motion.div
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[30rem] w-[30rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-orange-400/[0.06]"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
+        />
+        <motion.div
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[22rem] w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-pink-400/[0.08]"
+          animate={{ rotate: -360 }}
+          transition={{ duration: 28, repeat: Infinity, ease: 'linear' }}
+        />
+
         <Container className="!max-w-lg !px-0">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="rounded-[2rem] border border-white/10 bg-navy-800/60 p-8 shadow-lifted">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            whileHover={{ boxShadow: '0 30px 60px -20px rgba(249,67,110,0.15)' }}
+            className="relative rounded-[2rem] border border-white/10 bg-navy-800/60 p-8 shadow-lifted backdrop-blur-sm"
+          >
             <Link to="/" className="mb-6 flex justify-center lg:hidden">
               <Logo />
             </Link>
 
             <div className="mb-6 flex items-center gap-1.5 lg:hidden">
               {slides.map((s, i) => (
-                <span key={s} className={cn('h-1.5 flex-1 rounded-full', i <= slideIndex ? 'bg-orange-500' : 'bg-white/10')} />
+                <span key={s} className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                  <motion.span
+                    className="block h-full rounded-full bg-[linear-gradient(90deg,#FF6A1F,#EC2A78)]"
+                    initial={false}
+                    animate={{ width: i <= slideIndex ? '100%' : '0%' }}
+                    transition={{ duration: 0.35, ease: 'easeOut' }}
+                  />
+                </span>
               ))}
             </div>
 
@@ -459,23 +610,48 @@ export default function Signup() {
                   </p>
 
                   <div className="mt-6 grid grid-cols-2 gap-3">
-                    {ROLES.map((r) => (
-                      <button
-                        key={r.key}
-                        type="button"
-                        onClick={() => setRole(r.key)}
-                        className={cn(
-                          'flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition-all',
-                          role === r.key ? 'border-orange-400/60 bg-orange-500/10' : 'border-white/10 bg-navy-800/50 hover:border-white/20'
-                        )}
-                      >
-                        <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl', role === r.key ? 'bg-orange-500 text-white' : 'bg-white/10 text-white/60')}>
-                          <r.icon size={17} />
-                        </span>
-                        <span className="text-sm font-bold text-white">{r.label}</span>
-                        <span className="text-[11px] leading-snug text-white/40">{r.tagline}</span>
-                      </button>
-                    ))}
+                    {ROLES.map((r, idx) => {
+                      const selected = role === r.key;
+                      return (
+                        <motion.button
+                          key={r.key}
+                          type="button"
+                          onClick={() => setRole(r.key)}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: idx * 0.05 }}
+                          whileHover={{ y: -3 }}
+                          whileTap={{ scale: 0.97 }}
+                          className={cn(
+                            'relative flex flex-col items-start gap-2 overflow-hidden rounded-2xl border p-4 text-left transition-colors duration-200',
+                            selected
+                              ? 'border-orange-400/60 bg-orange-500/10 shadow-[0_0_0_1px_rgba(251,146,60,0.15),0_8px_24px_-8px_rgba(249,67,110,0.35)]'
+                              : 'border-white/10 bg-navy-800/50 hover:border-white/25 hover:bg-navy-800/80'
+                          )}
+                        >
+                          {selected && (
+                            <motion.span
+                              layoutId="role-check"
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                              className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-white"
+                            >
+                              <CheckCircle2 size={13} strokeWidth={3} />
+                            </motion.span>
+                          )}
+                          <motion.span
+                            animate={selected ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+                            transition={{ duration: 0.35 }}
+                            className={cn('flex h-9 w-9 items-center justify-center rounded-xl transition-colors', selected ? 'bg-orange-500 text-white' : 'bg-white/10 text-white/60')}
+                          >
+                            <r.icon size={17} />
+                          </motion.span>
+                          <span className="text-sm font-bold text-white">{r.label}</span>
+                          <span className="text-[11px] leading-snug text-white/40">{r.tagline}</span>
+                        </motion.button>
+                      );
+                    })}
                   </div>
 
                   {viaGoogle ? (
@@ -537,9 +713,20 @@ export default function Signup() {
                       </label>
                       <label className="block">
                         <span className="mb-1.5 block text-sm font-semibold text-white/80">Category</span>
-                        <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white focus:border-orange-400">
-                          {categories.map((c) => <option key={c._id} value={c._id} className="bg-[#141414]">{c.label}</option>)}
-                        </select>
+                        <div className="relative">
+                          <select
+                            value={category}
+                            onChange={(e) => setCategory(e.target.value)}
+                            className="w-full appearance-none rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 pr-10 text-white outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+                          >
+                            {categories.map((c) => (
+                              <option key={c._id} value={c._id} className="bg-[#141414] text-white">
+                                {c.label}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/40" />
+                        </div>
                       </label>
                       <TextField icon={Tag} value={skills} onChange={setSkills} placeholder="Skills, comma separated" />
                       <TextField icon={LanguagesIcon} value={languages} onChange={setLanguages} placeholder="Languages" />
@@ -548,12 +735,29 @@ export default function Signup() {
                         <TextField icon={Briefcase} value={yearsOfExperience} onChange={setYearsOfExperience} placeholder="Years experience" type="number" />
                       </div>
                       <TextField icon={Link2} value={portfolioLink} onChange={setPortfolioLink} placeholder="Portfolio link (optional)" />
-                      <label className="flex items-center justify-between rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3.5">
-                        <span className="text-sm font-semibold text-white/80">Available for work</span>
-                        <button type="button" onClick={() => setIsAvailableForWork((v) => !v)} className={cn('relative h-6 w-11 rounded-full transition-colors', isAvailableForWork ? 'bg-emerald-500' : 'bg-white/15')}>
-                          <span className={cn('absolute top-1 h-4 w-4 rounded-full bg-white transition-transform', isAvailableForWork ? 'translate-x-6' : 'translate-x-1')} />
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3.5">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-white/80">Available for work</p>
+                          <p className="text-xs text-white/40">{isAvailableForWork ? 'Visible as open to bookings' : 'Hidden from new bookings'}</p>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={isAvailableForWork}
+                          onClick={() => setIsAvailableForWork((v) => !v)}
+                          className={cn(
+                            'relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200',
+                            isAvailableForWork ? 'bg-emerald-500' : 'bg-white/15'
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200',
+                              isAvailableForWork ? 'translate-x-5' : 'translate-x-0'
+                            )}
+                          />
                         </button>
-                      </label>
+                      </div>
                     </>
                   )}
 
@@ -697,7 +901,7 @@ function TextField({
   type = 'text',
   required = false,
 }: {
-  icon?: LucideIcon;
+  icon?: React.ComponentType<{ size?: number; className?: string }>;
   value: string;
   onChange: (v: string) => void;
   placeholder: string;

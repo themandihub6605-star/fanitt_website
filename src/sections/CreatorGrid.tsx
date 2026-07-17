@@ -33,21 +33,23 @@ export function CreatorGrid() {
         </div>
 
         <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-          {creators.map((creator, i) => (
-            <ParallaxItem key={creator._id} speed={i % 2 === 0 ? 16 : -16} className={i >= 4 ? 'hidden sm:block' : ''}>
-              <PortraitCard
-                creator={{
-                  name: creator.user.name,
-                  specialty: creator.category?.label || '',
-                  seed: creator._id,
-                  followers: creator.followerCount >= 1000 ? `${Math.floor(creator.followerCount / 1000)}K` : String(creator.followerCount),
-                  slug: creator.slug,
-                  avatarUrl: creator.user.avatarUrl,
-                }}
-                index={i}
-              />
-            </ParallaxItem>
-          ))}
+          {creators
+            .filter((creator) => creator.user)
+            .map((creator, i) => (
+              <ParallaxItem key={creator._id} speed={i % 2 === 0 ? 16 : -16} className={i >= 4 ? 'hidden sm:block' : ''}>
+                <PortraitCard
+                  creator={{
+                    name: creator.user.name,
+                    specialty: creator.category?.label || '',
+                    seed: creator._id,
+                    followers: creator.followerCount >= 1000 ? `${Math.floor(creator.followerCount / 1000)}K` : String(creator.followerCount),
+                    slug: creator.slug,
+                    avatarUrl: creator.user.avatarUrl,
+                  }}
+                  index={i}
+                />
+              </ParallaxItem>
+            ))}
         </div>
       </Container>
     </section>

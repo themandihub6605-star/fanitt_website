@@ -132,10 +132,15 @@ export function Navbar() {
           )}
         </div>
 
-        <div className="flex items-center gap-1 lg:hidden">
+        <div className="flex items-center gap-1.5 lg:hidden">
           <Link to="/explore" aria-label="Search" className="rounded-lg p-2 text-white/80 hover:text-white">
             <Search size={20} />
           </Link>
+          {!isAuthenticated && (
+            <Link to="/get-started">
+              <Button size="sm" className="!px-3 !py-1.5 !text-xs">Get Started</Button>
+            </Link>
+          )}
           {isAuthenticated && <NotificationsDropdown />}
           {isAuthenticated && <MobileProfileAvatar />}
           <button

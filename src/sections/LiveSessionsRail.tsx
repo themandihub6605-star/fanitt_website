@@ -27,7 +27,7 @@ export function LiveSessionsRail() {
   useEffect(() => {
     creatorApi
       .list({ page: 1 })
-      .then((d) => setFeatured(d.creators[0] || null))
+      .then((d) => setFeatured(d.creators.find((c) => c.user) || null))
       .catch(() => setFeatured(null));
   }, []);
 
