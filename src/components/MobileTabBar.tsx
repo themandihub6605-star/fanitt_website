@@ -149,7 +149,7 @@ export function MobileTabBar() {
             >
               <span className="relative inline-flex">
                 <tab.icon size={20} strokeWidth={active ? 2.4 : 2} />
-                {tab.isProfile && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#0A0A0A] bg-emerald-400" />}
+                {tab.isProfile && isAuthenticated && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#0A0A0A] bg-emerald-400" />}
               </span>
               {tab.label}
             </Link>
