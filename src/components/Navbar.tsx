@@ -100,7 +100,7 @@ export function Navbar() {
     >
     <div className="mx-auto flex h-20 max-w-[1240px] items-center justify-between px-gutter">
   <Link to="/" aria-label="Fanitt home">
-    <Logo className="h-20 w-auto sm:h-24" />
+    <Logo className="h-8 w-auto sm:h-9" />
   </Link>
 
         <nav className="hidden items-center gap-7 lg:flex">

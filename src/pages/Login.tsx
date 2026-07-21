@@ -88,7 +88,7 @@ export default function Login() {
 
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           <Link to="/" className="relative mb-10 inline-flex w-fit">
-            <Logo className="h-14 w-auto" />
+            <Logo className="h-9 w-auto" />
           </Link>
         </motion.div>
 
@@ -147,7 +147,7 @@ export default function Login() {
           className="w-full max-w-md"
         >
           <Link to="/" className="mb-8 flex justify-center lg:hidden">
-            <Logo className="h-14 w-auto" />
+            <Logo className="h-9 w-auto" />
           </Link>
 
           <h2 className="text-2xl font-bold text-white text-center lg:text-left">Welcome back</h2>

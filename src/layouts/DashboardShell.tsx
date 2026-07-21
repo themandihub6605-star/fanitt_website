@@ -93,7 +93,7 @@ export function DashboardShell({ children }: PropsWithChildren) {
       {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-white/10 bg-navy-800/40 px-4 py-6 lg:flex">
         <Link to="/" className="mb-8 px-2">
-          <Logo className="h-16 w-auto" />
+          <Logo className="h-8 w-auto" />
         </Link>
 
         <nav className="flex-1 space-y-1">
@@ -152,7 +152,7 @@ export function DashboardShell({ children }: PropsWithChildren) {
         {/* Topbar */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-white/10 bg-[#0A0A0A]/90 px-4 backdrop-blur-xl sm:px-6">
           <Link to="/" className="shrink-0 lg:hidden">
-            <Logo className="h-9 w-auto" />
+            <Logo className="h-7 w-auto" />
           </Link>
 
           <form onSubmit={handleSearch} className="hidden max-w-md flex-1 lg:block">

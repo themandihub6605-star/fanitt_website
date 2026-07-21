@@ -533,18 +533,23 @@ export default function Signup() {
       </div>
 
       {/* Right wizard panel */}
-      <div className="relative flex items-center justify-center overflow-hidden bg-navy-900 px-gutter py-16">
-        {/* Ambient drifting glows — visible on all sizes, always animating */}
-        <motion.div
-          className="pointer-events-none absolute -top-20 right-[10%] h-80 w-80 rounded-full bg-pink-500/10 blur-[110px]"
-          animate={{ x: [0, -20, 15, 0], y: [0, 20, -10, 0] }}
-          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="pointer-events-none absolute bottom-[-10%] left-[8%] h-72 w-72 rounded-full bg-orange-500/10 blur-[100px] lg:block"
-          animate={{ x: [0, 20, -15, 0], y: [0, -15, 10, 0] }}
-          transition={{ duration: 13, repeat: Infinity, ease: 'easeInOut' }}
-        />
+      <div className="relative flex h-full items-center justify-center px-gutter py-8 sm:py-12 lg:py-16">
+        {/* Decorative layer only — overflow-hidden lives here, not on the
+         * scrollable content wrapper above, so a tall card (e.g. the
+         * Personal Info step) can never get silently clipped top/bottom by
+         * flex centering + overflow-hidden fighting each other. */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          {/* Ambient drifting glows — visible on all sizes, always animating */}
+          <motion.div
+            className="absolute -top-20 right-[10%] h-80 w-80 rounded-full bg-pink-500/10 blur-[110px]"
+            animate={{ x: [0, -20, 15, 0], y: [0, 20, -10, 0] }}
+            transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="absolute bottom-[-10%] left-[8%] h-72 w-72 rounded-full bg-orange-500/10 blur-[100px] lg:block"
+            animate={{ x: [0, 20, -15, 0], y: [0, -15, 10, 0] }}
+            transition={{ duration: 13, repeat: Infinity, ease: 'easeInOut' }}
+          />
 
         {/* Floating accent particles for extra premium texture */}
         {[
@@ -573,6 +578,7 @@ export default function Signup() {
           animate={{ rotate: -360 }}
           transition={{ duration: 28, repeat: Infinity, ease: 'linear' }}
         />
+        </div>
 
         <Container className="!max-w-lg !px-0">
           <motion.div

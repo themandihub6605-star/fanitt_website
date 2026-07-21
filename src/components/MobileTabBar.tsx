@@ -41,10 +41,10 @@ export function MobileTabBar() {
     try {
       if (user?.role === 'creator') {
         const data = await creatorApi.getMyProfile();
-        navigate(`/creator/${data.slug}`);
+        navigate(`/creator/${data.slug}`, { state: { ownProfile: true } });
       } else if (user?.role === 'brand') {
         const data = await brandApi.getMyProfile();
-        navigate(`/brand/${data.slug}`);
+        navigate(`/brand/${data.slug}`, { state: { ownProfile: true } });
       }
     } catch {
       navigate(profileHref);
@@ -57,16 +57,38 @@ export function MobileTabBar() {
   // Brands post a campaign instead; everyone else/unauthenticated goes to sign up.
   const createHref = !isAuthenticated ? '/signup' : user?.role === 'brand' ? '/campaigns/new' : '/dashboard/creator';
 
+  // Tapping "Profile" (below) sends creators/brands to their own public
+  // profile URL, which normally looks identical to any other creator/brand
+  // page reached via Explore — this flag (carried in navigation state) is
+  // how the tabs tell those two cases apart.
+  const isOwnProfilePage = Boolean((location.state as { ownProfile?: boolean } | null)?.ownProfile);
+
   const TABS = [
-    { href: '/', label: 'Home', icon: Home, match: (p: string) => p === '/' },
-    { href: '/explore', label: 'Explore', icon: Compass, match: (p: string) => p.startsWith('/explore') || p.startsWith('/creator') },
+    {
+      href: '/',
+      label: 'Home',
+      icon: Home,
+      match: (p: string) => p === '/' || p === '/dashboard/creator' || p === '/dashboard/brand' || p === '/dashboard/agency',
+    },
+    {
+      href: '/explore',
+      label: 'Explore',
+      icon: Compass,
+      match: (p: string) => !isOwnProfilePage && (p.startsWith('/explore') || p.startsWith('/creator') || p.startsWith('/brand/')),
+    },
     { href: createHref, label: 'Create', icon: PlusCircle, match: () => false, isCreate: true },
     { href: '/messages', label: 'Inbox', icon: MessageSquare, match: (p: string) => p.startsWith('/messages') },
     {
       href: profileHref,
       label: 'Profile',
       icon: User,
-      match: (p: string) => p.startsWith('/dashboard') || p.startsWith('/profile') || p.startsWith('/settings'),
+      match: (p: string) =>
+        p === '/profile' ||
+        p.startsWith('/settings') ||
+        p === '/dashboard/creator/edit' ||
+        p === '/dashboard/brand/edit' ||
+        p === '/dashboard/agency/edit' ||
+        isOwnProfilePage,
       isProfile: true,
     },
   ];
@@ -111,7 +133,10 @@ export function MobileTabBar() {
                 disabled={profileLoading}
                 className={cn('flex flex-col items-center gap-1 px-3 py-2 text-[11px] font-medium', active ? 'text-orange-400' : 'text-white/50')}
               >
-                <tab.icon size={20} strokeWidth={active ? 2.4 : 2} />
+                <span className="relative inline-flex">
+                  <tab.icon size={20} strokeWidth={active ? 2.4 : 2} />
+                  <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#0A0A0A] bg-emerald-400" />
+                </span>
                 {tab.label}
               </button>
             );
@@ -122,7 +147,10 @@ export function MobileTabBar() {
               to={tab.href}
               className={cn('flex flex-col items-center gap-1 px-3 py-2 text-[11px] font-medium', active ? 'text-orange-400' : 'text-white/50')}
             >
-              <tab.icon size={20} strokeWidth={active ? 2.4 : 2} />
+              <span className="relative inline-flex">
+                <tab.icon size={20} strokeWidth={active ? 2.4 : 2} />
+                {tab.isProfile && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#0A0A0A] bg-emerald-400" />}
+              </span>
               {tab.label}
             </Link>
           );

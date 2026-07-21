@@ -40,7 +40,7 @@ function MobileSplash() {
       <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-[#0A0A0A]/50 to-[#0A0A0A]" />
 
       <div className="relative flex flex-col items-center text-center">
-        <Logo className="h-14 w-auto" />
+        <Logo className="h-9 w-auto" />
         <p className="mt-2 text-sm font-medium text-white/70">Live This Life</p>
       </div>
 
