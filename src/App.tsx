@@ -11,6 +11,7 @@ import CategoryPage from '@/pages/CategoryPage';
 import CreatorProfilePage from '@/pages/CreatorProfilePage';
 import BrandProfilePage from '@/pages/BrandProfilePage';
 import ExploreCreators from '@/pages/ExploreCreators';
+import ExploreBrands from '@/pages/ExploreBrands';
 import Login from '@/pages/Login';
 import Welcome from '@/pages/Welcome';
 import Signup from '@/pages/Signup';
@@ -28,6 +29,7 @@ import EditBrandProfile from '@/pages/EditBrandProfile';
 import AgencyDashboard from '@/pages/dashboard/AgencyDashboard';
 import EditAgencyProfile from '@/pages/EditAgencyProfile';
 import AdminAgencyApprovals from '@/pages/admin/AdminAgencyApprovals';
+import AdminReferralConfig from '@/pages/admin/AdminReferralConfig';
 import NotificationsPage from '@/pages/NotificationsPage';
 import SettingsPage from '@/pages/SettingsPage';
 import FanProfilePage from '@/pages/FanProfilePage';
@@ -85,6 +87,7 @@ const LAYOUT_ROUTES: { path: string; element: ReactNode }[] = [
   { path: '/creator/:slug', element: <CreatorProfilePage /> },
   { path: '/brand/:slug', element: <BrandProfilePage /> },
   { path: '/explore', element: <ExploreCreators /> },
+  { path: '/brands', element: <ExploreBrands /> },
   { path: '/get-started', element: <Welcome /> },
   { path: '/login', element: <Login /> },
   { path: '/signup', element: <Signup /> },
@@ -217,6 +220,14 @@ const LAYOUT_ROUTES: { path: string; element: ReactNode }[] = [
     element: (
       <ProtectedRoute allowedRoles={['admin']}>
         <AdminAgencyApprovals />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/referral-config',
+    element: (
+      <ProtectedRoute allowedRoles={['admin']}>
+        <AdminReferralConfig />
       </ProtectedRoute>
     ),
   },

@@ -18,12 +18,14 @@ export default function Welcome() {
   const { loginWithGoogle } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showReferral, setShowReferral] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
 
   const handleGoogle = async () => {
     setError('');
     setGoogleLoading(true);
     try {
-      const user = await loginWithGoogle();
+      const user = await loginWithGoogle(undefined, referralCode || undefined);
       if (user.isNewUser) {
         // Fresh account, defaulted to Fan — send them into the wizard to
         // pick their real role and fill in the rest.
@@ -156,6 +158,23 @@ export default function Welcome() {
           )}
 
           <div className="mx-auto mt-7 max-w-sm space-y-3 lg:max-w-md">
+            {showReferral ? (
+              <input
+                autoFocus
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value)}
+                placeholder="Enter referral code"
+                className="w-full rounded-full border border-white/15 bg-white/[0.05] px-5 py-2.5 text-center text-sm text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowReferral(true)}
+                className="mx-auto block text-xs font-semibold text-white/40 underline-offset-2 hover:text-white/60 hover:underline"
+              >
+                Have a referral code?
+              </button>
+            )}
             <motion.button
               type="button"
               onClick={handleGoogle}

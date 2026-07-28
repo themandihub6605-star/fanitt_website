@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, X, Search, Loader2 } from 'lucide-react';
+import { Menu, X, Search, Loader2, LayoutDashboard, UserCircle, CalendarCheck, FileText, LogOut } from 'lucide-react';
 import { Logo } from './Logo';
 import { Button } from './ui/Button';
-import { NotificationsDropdown } from './NotificationsDropdown';
+import { NotificationBellLink } from './NotificationBellLink';
 import { UserMenu } from './UserMenu';
 import { NAV_LINKS } from '@/constants/content';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleMobileNav, closeMobileNav } from '@/store/slices/uiSlice';
 import { creatorApi } from '@/services/creatorApi';
 import { brandApi } from '@/services/brandApi';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/utils/cn';
 
 function NavItem({ href, label, className, onClick }: { href: string; label: string; className?: string; onClick?: () => void }) {
@@ -80,6 +81,8 @@ export function Navbar() {
   const dispatch = useAppDispatch();
   const open = useAppSelector((s) => s.ui.mobileNavOpen);
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
+  const user = useAppSelector((s) => s.auth.user);
+  const { logout } = useAuth();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -117,7 +120,7 @@ export function Navbar() {
         <div className="hidden items-center gap-3 lg:flex">
           {isAuthenticated ? (
             <>
-              <NotificationsDropdown />
+              <NotificationBellLink />
               <UserMenu />
             </>
           ) : (
@@ -141,7 +144,7 @@ export function Navbar() {
               <Button size="sm" className="!px-3 !py-1.5 !text-xs">Get Started</Button>
             </Link>
           )}
-          {isAuthenticated && <NotificationsDropdown />}
+          {isAuthenticated && <NotificationBellLink />}
           {isAuthenticated && <MobileProfileAvatar />}
           <button
             className="rounded-lg p-2 text-white"
@@ -172,9 +175,72 @@ export function Navbar() {
                   className="rounded-lg px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
                 />
               ))}
-              {isAuthenticated ? (
-                <div className="mt-2 border-t border-white/10 pt-2">
-                  <UserMenu />
+              {isAuthenticated && user ? (
+                <div className="mt-2 border-t border-white/10 pt-3">
+                  <div className="flex items-center gap-2.5 px-3 pb-2">
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
+                    ) : (
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/20 text-sm font-bold text-orange-300">
+                        {user.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-white">{user.name}</p>
+                      <p className="truncate text-xs text-white/50">{user.email}</p>
+                    </div>
+                  </div>
+
+                  {(user.role === 'creator' || user.role === 'brand' || user.role === 'agency') && (
+                    <Link
+                      to={user.role === 'creator' ? '/dashboard/creator' : user.role === 'brand' ? '/dashboard/brand' : '/dashboard/agency'}
+                      onClick={() => dispatch(closeMobileNav())}
+                      className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
+                    >
+                      <LayoutDashboard size={16} /> Dashboard
+                    </Link>
+                  )}
+                  <Link
+                    to={
+                      user.role === 'creator'
+                        ? '/dashboard/creator/edit'
+                        : user.role === 'brand'
+                        ? '/dashboard/brand/edit'
+                        : user.role === 'agency'
+                        ? '/dashboard/agency/edit'
+                        : '/profile'
+                    }
+                    onClick={() => dispatch(closeMobileNav())}
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
+                  >
+                    <UserCircle size={16} /> My Profile
+                  </Link>
+                  <Link
+                    to="/bookings"
+                    onClick={() => dispatch(closeMobileNav())}
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
+                  >
+                    <CalendarCheck size={16} /> My Bookings
+                  </Link>
+                  {user.role === 'creator' && (
+                    <Link
+                      to="/proposals"
+                      onClick={() => dispatch(closeMobileNav())}
+                      className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
+                    >
+                      <FileText size={16} /> My Proposals
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dispatch(closeMobileNav());
+                      logout();
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-red-300 hover:bg-red-500/10"
+                  >
+                    <LogOut size={16} /> Log out
+                  </button>
                 </div>
               ) : (
                 <>

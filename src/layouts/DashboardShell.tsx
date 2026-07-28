@@ -19,12 +19,11 @@ import {
   Settings,
 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
-import { NotificationsDropdown } from '@/components/NotificationsDropdown';
+import { NotificationBellLink } from '@/components/NotificationBellLink';
 import { UserMenu } from '@/components/UserMenu';
 import { MobileTabBar } from '@/components/MobileTabBar';
 import { walletApi } from '@/services/walletApi';
 import { chatApi } from '@/services/chatApi';
-import { notificationApi } from '@/services/notificationApi';
 import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/utils/cn';
 
@@ -44,7 +43,6 @@ export function DashboardShell({ children }: PropsWithChildren) {
   const [search, setSearch] = useState('');
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
     walletApi.getMy().then((w) => setWalletBalance(w.balance)).catch(() => setWalletBalance(null));
@@ -52,7 +50,6 @@ export function DashboardShell({ children }: PropsWithChildren) {
       .listConversations()
       .then((convos) => setUnreadMessages(convos.reduce((sum, c) => sum + (c.unreadCount || 0), 0)))
       .catch(() => setUnreadMessages(0));
-    notificationApi.getMy(true).then((d) => setUnreadNotifications(d.unreadCount)).catch(() => setUnreadNotifications(0));
   }, [location.pathname]);
 
   const homeHref = isCreator ? '/dashboard/creator' : isBrand ? '/dashboard/brand' : isAgency ? '/dashboard/agency' : '/dashboard/brand';
@@ -62,7 +59,7 @@ export function DashboardShell({ children }: PropsWithChildren) {
     ? [
         { href: homeHref, label: 'Dashboard', icon: LayoutDashboard },
         { href: '/messages', label: 'Messages', icon: MessageSquare, badge: unreadMessages },
-        { href: '/notifications', label: 'Notifications', icon: Bell, badge: unreadNotifications },
+        { href: '/notifications', label: 'Notifications', icon: Bell },
         { href: '/wallet', label: 'Wallet', icon: Wallet },
         { href: editProfileHref, label: 'My Profile', icon: UserCog },
         { href: '/settings', label: 'Settings', icon: Settings },
@@ -72,7 +69,7 @@ export function DashboardShell({ children }: PropsWithChildren) {
         { href: '/explore', label: 'Discover', icon: Compass },
         { href: '/sessions', label: 'Live', icon: Radio },
         { href: '/messages', label: 'Messages', icon: MessageSquare, badge: unreadMessages },
-        { href: '/notifications', label: 'Notifications', icon: Bell, badge: unreadNotifications },
+        { href: '/notifications', label: 'Notifications', icon: Bell },
         { href: '/bookings', label: 'Bookings', icon: CalendarCheck },
         isCreator
           ? { href: '/proposals', label: 'My Proposals', icon: FileText }
@@ -190,7 +187,7 @@ export function DashboardShell({ children }: PropsWithChildren) {
               </Link>
             )}
 
-            <NotificationsDropdown />
+            <NotificationBellLink />
             <UserMenu />
           </div>
         </header>

@@ -22,7 +22,7 @@ export function useAuth() {
   );
 
   const register = useCallback(
-    async (payload: { name: string; email: string; password: string; role: Role; phone?: string }) => {
+    async (payload: { name: string; email: string; password: string; role: Role; phone?: string; referralCode?: string }) => {
       const data = await authApi.register(payload);
       dispatch(setCredentials({ user: data.user, accessToken: data.accessToken }));
       return data.user;
@@ -36,13 +36,13 @@ export function useAuth() {
    * The returned user also carries `isNewUser` so callers can decide whether
    * to continue a signup wizard (new) or just navigate home (returning). */
   const loginWithGoogle = useCallback(
-    async (role?: Role) => {
+    async (role?: Role, referralCode?: string) => {
       if (!firebaseEnabled || !auth) {
         throw new Error('Google sign-in isn\'t configured yet — add your Firebase keys to fanitt-web/.env');
       }
       const result = await signInWithPopup(auth, googleProvider);
       const idToken = await result.user.getIdToken();
-      const data = await authApi.googleLogin(idToken, role);
+      const data = await authApi.googleLogin(idToken, role, referralCode);
       dispatch(setCredentials({ user: data.user, accessToken: data.accessToken }));
       return { ...data.user, isNewUser: Boolean(data.isNewUser) };
     },

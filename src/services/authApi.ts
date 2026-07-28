@@ -8,14 +8,14 @@ interface AuthResponse {
 }
 
 export const authApi = {
-  register: (payload: { name: string; email: string; password: string; role: Role; phone?: string }) =>
+  register: (payload: { name: string; email: string; password: string; role: Role; phone?: string; referralCode?: string }) =>
     apiClient.post<ApiEnvelope<AuthResponse>>('/auth/register', payload).then((r) => r.data.data),
 
   login: (payload: { email: string; password: string }) =>
     apiClient.post<ApiEnvelope<AuthResponse>>('/auth/login', payload).then((r) => r.data.data),
 
-  googleLogin: (idToken: string, role?: Role) =>
-    apiClient.post<ApiEnvelope<AuthResponse>>('/auth/google', { idToken, role }).then((r) => r.data.data),
+  googleLogin: (idToken: string, role?: Role, referralCode?: string) =>
+    apiClient.post<ApiEnvelope<AuthResponse>>('/auth/google', { idToken, role, referralCode }).then((r) => r.data.data),
 
   logout: () => apiClient.post('/auth/logout'),
 

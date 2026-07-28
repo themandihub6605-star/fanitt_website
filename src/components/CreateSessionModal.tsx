@@ -189,7 +189,7 @@ export function CreateSessionModal({ open, onClose, onCreated }: CreateSessionMo
               />
             </label>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1.5 block text-sm font-semibold text-white/80">Category</span>
                 <select
@@ -206,14 +206,14 @@ export function CreateSessionModal({ open, onClose, onCreated }: CreateSessionMo
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-sm font-semibold text-white/80">Type</span>
-                <div className="flex gap-1.5">
+                <div className="flex gap-2">
                   {TYPES.map((t) => (
                     <button
                       key={t.value}
                       type="button"
                       onClick={() => setForm((f) => ({ ...f, type: t.value }))}
                       className={cn(
-                        'flex-1 rounded-lg border px-2 py-2.5 text-xs font-semibold transition-colors',
+                        'flex-1 rounded-lg border px-2 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap',
                         form.type === t.value ? 'border-orange-400/60 bg-orange-500/15 text-orange-300' : 'border-white/10 bg-navy-800/45 text-white/60'
                       )}
                     >
@@ -239,7 +239,7 @@ export function CreateSessionModal({ open, onClose, onCreated }: CreateSessionMo
               </label>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1.5 block text-sm font-semibold text-white/80">Date</span>
                 <input
@@ -262,7 +262,7 @@ export function CreateSessionModal({ open, onClose, onCreated }: CreateSessionMo
               </label>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1.5 block text-sm font-semibold text-white/80">Duration (min)</span>
                 <input

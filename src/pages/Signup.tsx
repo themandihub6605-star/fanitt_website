@@ -30,6 +30,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { GoogleIcon } from '@/components/GoogleIcon';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/hooks/useAuth';
@@ -92,6 +93,24 @@ const ROLE_IMAGES: Record<SignupRole, string> = {
   agency: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?q=80&w=1200&auto=format&fit=crop', // team discussion
 };
 
+const INDUSTRIES = [
+  'Beauty & Personal Care',
+  'Fashion & Apparel',
+  'Food & Beverage',
+  'Health & Fitness',
+  'Technology & Software',
+  'Finance & FinTech',
+  'Travel & Hospitality',
+  'Education & E-learning',
+  'Gaming & Entertainment',
+  'Home & Lifestyle',
+  'Automotive',
+  'Retail & E-commerce',
+  'Other',
+];
+
+const COMPANY_SIZES = ['1-10 employees', '11-50 employees', '51-200 employees', '201-500 employees', '500+ employees'];
+
 // 5-step sequence: role -> personal -> work (skipped for Fan) -> social -> review.
 function getSlides(role: SignupRole): string[] {
   const slides = ['role', 'personal'];
@@ -123,6 +142,7 @@ export default function Signup() {
   // Personal info (not provided by Google)
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
+  const [referralCode, setReferralCode] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -227,7 +247,7 @@ export default function Signup() {
     setError('');
     setGoogleLoading(true);
     try {
-      const user = await loginWithGoogle(role);
+      const user = await loginWithGoogle(role, referralCode || undefined);
       if (user.isNewUser) {
         setName(user.name);
         setEmail(user.email);
@@ -533,7 +553,7 @@ export default function Signup() {
       </div>
 
       {/* Right wizard panel */}
-      <div className="relative flex h-full items-center justify-center px-gutter py-8 sm:py-12 lg:py-16">
+      <div className="relative flex min-h-screen items-center justify-center px-gutter py-8 sm:py-12 lg:py-16">
         {/* Decorative layer only — overflow-hidden lives here, not on the
          * scrollable content wrapper above, so a tall card (e.g. the
          * Personal Info step) can never get silently clipped top/bottom by
@@ -613,8 +633,9 @@ export default function Signup() {
               </div>
             )}
 
-            <AnimatePresence mode="wait">
-              {/* SLIDE 1: ROLE (+ GOOGLE, unless we're already signed in via Get Started) */}
+            <ErrorBoundary key={currentSlide} label={`Signup — ${currentSlide} step`}>
+              <AnimatePresence mode="wait">
+                {/* SLIDE 1: ROLE (+ GOOGLE, unless we're already signed in via Get Started) */}
               {currentSlide === 'role' && (
                 <motion.div key="role" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }}>
                   <p className="mt-1 text-center text-sm text-white/60">
@@ -665,6 +686,17 @@ export default function Signup() {
                       );
                     })}
                   </div>
+
+                  {!viaGoogle && (
+                    <label className="mt-4 block">
+                      <input
+                        value={referralCode}
+                        onChange={(e) => setReferralCode(e.target.value)}
+                        placeholder="Referral code (optional)"
+                        className="w-full rounded-xl border border-white/10 bg-navy-800/50 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+                      />
+                    </label>
+                  )}
 
                   {viaGoogle ? (
                     <button
@@ -781,11 +813,45 @@ export default function Signup() {
                         <textarea value={about} onChange={(e) => setAbout(e.target.value)} placeholder="About your brand" rows={3} maxLength={500} className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/40 focus:border-orange-400" />
                       </label>
                       <div className="grid grid-cols-2 gap-3">
-                        <TextField value={industry} onChange={setIndustry} placeholder="Industry" />
+                        <label className="block">
+                          <span className="mb-1.5 block text-sm font-semibold text-white/80">Industry</span>
+                          <div className="relative">
+                            <select
+                              value={industry}
+                              onChange={(e) => setIndustry(e.target.value)}
+                              className="w-full appearance-none rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 pr-10 text-sm text-white outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+                            >
+                              <option value="" className="bg-[#141414]">Select industry</option>
+                              {INDUSTRIES.map((opt) => (
+                                <option key={opt} value={opt} className="bg-[#141414] text-white">
+                                  {opt}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/40" />
+                          </div>
+                        </label>
                         <TextField icon={Calendar} value={foundedYear} onChange={setFoundedYear} placeholder="Founded year" type="number" />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
-                        <TextField icon={Users2} value={companySize} onChange={setCompanySize} placeholder="Company size" />
+                        <label className="block">
+                          <span className="mb-1.5 block text-sm font-semibold text-white/80">Company size</span>
+                          <div className="relative">
+                            <select
+                              value={companySize}
+                              onChange={(e) => setCompanySize(e.target.value)}
+                              className="w-full appearance-none rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 pr-10 text-sm text-white outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+                            >
+                              <option value="" className="bg-[#141414]">Select size</option>
+                              {COMPANY_SIZES.map((opt) => (
+                                <option key={opt} value={opt} className="bg-[#141414] text-white">
+                                  {opt}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/40" />
+                          </div>
+                        </label>
                         <TextField value={contactDesignation} onChange={setContactDesignation} placeholder="Your designation" />
                       </div>
                       <TextField icon={Tag} value={whatWeOffer} onChange={setWhatWeOffer} placeholder="What you offer, comma separated" />
@@ -896,6 +962,7 @@ export default function Signup() {
                 </motion.div>
               )}
             </AnimatePresence>
+            </ErrorBoundary>
           </motion.div>
         </Container>
       </div>

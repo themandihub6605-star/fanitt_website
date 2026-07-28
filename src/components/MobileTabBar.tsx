@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Compass, PlusCircle, MessageSquare, User } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Home, Compass, PlusCircle, MessageSquare, User, Users2, Building2, Radio } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/utils/cn';
 import { CreatePostModal } from '@/components/CreatePostModal';
@@ -19,6 +20,7 @@ export function MobileTabBar() {
   const user = useAppSelector((s) => s.auth.user);
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [exploreMenuOpen, setExploreMenuOpen] = useState(false);
 
   const isCreator = isAuthenticated && user?.role === 'creator';
 
@@ -74,7 +76,8 @@ export function MobileTabBar() {
       href: '/explore',
       label: 'Explore',
       icon: Compass,
-      match: (p: string) => !isOwnProfilePage && (p.startsWith('/explore') || p.startsWith('/creator') || p.startsWith('/brand/')),
+      match: (p: string) => !isOwnProfilePage && (p.startsWith('/explore') || p.startsWith('/creator') || p.startsWith('/brand/') || p.startsWith('/feed')),
+      isExplore: true,
     },
     { href: createHref, label: 'Create', icon: PlusCircle, match: () => false, isCreate: true },
     { href: '/messages', label: 'Inbox', icon: MessageSquare, match: (p: string) => p.startsWith('/messages') },
@@ -124,6 +127,19 @@ export function MobileTabBar() {
               </Link>
             );
           }
+          if (tab.isExplore) {
+            return (
+              <button
+                key={tab.label}
+                type="button"
+                onClick={() => setExploreMenuOpen(true)}
+                className={cn('flex flex-col items-center gap-1 px-3 py-2 text-[11px] font-medium', active ? 'text-orange-400' : 'text-white/50')}
+              >
+                <tab.icon size={20} strokeWidth={active ? 2.4 : 2} />
+                {tab.label}
+              </button>
+            );
+          }
           if (tab.isProfile && (user?.role === 'creator' || user?.role === 'brand')) {
             return (
               <button
@@ -156,6 +172,52 @@ export function MobileTabBar() {
           );
         })}
       </nav>
+
+      <AnimatePresence>
+        {exploreMenuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setExploreMenuOpen(false)}
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 24 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-40 overflow-hidden rounded-2xl border border-white/10 bg-[#161616] shadow-lifted lg:hidden"
+            >
+              <Link
+                to="/feed"
+                onClick={() => setExploreMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3.5 text-sm font-semibold text-white/90 hover:bg-white/5"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/15 text-orange-300"><Radio size={16} /></span>
+                Feed
+              </Link>
+              <Link
+                to="/explore"
+                onClick={() => setExploreMenuOpen(false)}
+                className="flex items-center gap-3 border-t border-white/10 px-4 py-3.5 text-sm font-semibold text-white/90 hover:bg-white/5"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-pink-500/15 text-pink-300"><Users2 size={16} /></span>
+                Discover Creators
+              </Link>
+              <Link
+                to="/brands"
+                onClick={() => setExploreMenuOpen(false)}
+                className="flex items-center gap-3 border-t border-white/10 px-4 py-3.5 text-sm font-semibold text-white/90 hover:bg-white/5"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-500/15 text-sky-300"><Building2 size={16} /></span>
+                Discover Brands
+              </Link>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {isCreator && (
         <CreatePostModal

@@ -38,6 +38,11 @@ export interface BrandDashboardData {
 }
 
 export const brandApi = {
+  list: (params: { industry?: string; location?: string; search?: string; page?: number; limit?: number } = {}) =>
+    apiClient
+      .get<ApiEnvelope<{ brands: ApiBrand[]; total: number; page: number; limit: number }>>('/brands', { params })
+      .then((r) => r.data.data),
+
   getById: (id: string) => apiClient.get(`/brands/${id}`).then((r) => r.data.data),
 
   getBySlug: (slug: string) =>
