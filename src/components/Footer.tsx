@@ -1,4 +1,4 @@
-import { Instagram, Facebook, Linkedin, Youtube, MessageCircle, Smartphone } from 'lucide-react';
+import { Instagram, Facebook, Linkedin, Youtube, AtSign, Smartphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Logo } from './Logo';
 import { Container } from './ui/Container';
@@ -6,12 +6,14 @@ import { useParallax } from '@/hooks/useParallax';
 import { CATEGORIES, NAV_LINKS, SITE } from '@/constants/content';
 
 const SOCIAL_LINKS = [
-  { icon: Instagram, label: 'Instagram', href: '#' },
-  { icon: Facebook, label: 'Facebook', href: '#' },
-  { icon: Linkedin, label: 'LinkedIn', href: '#' },
-  { icon: MessageCircle, label: 'WhatsApp', href: '#' },
-  { icon: Youtube, label: 'YouTube', href: '#' },
+  { icon: Instagram, label: 'Instagram', href: 'https://www.instagram.com/fanitt.live/' },
+  { icon: Facebook, label: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61591263694235' },
+  { icon: Linkedin, label: 'LinkedIn', href: 'https://www.linkedin.com/company/142918157' },
+  { icon: AtSign, label: 'Threads', href: 'https://www.threads.com/@fanitt.live' },
+  { icon: Youtube, label: 'YouTube', href: 'https://www.youtube.com/@FanittLive' },
 ];
+
+const CONTACT_EMAIL = 'fanittlive@gmail.com';
 
 export function Footer() {
   const { ref: parallaxRef, y } = useParallax(14);
@@ -35,6 +37,8 @@ export function Footer() {
                 <a
                   key={social.label}
                   href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   aria-label={`Fanitt on ${social.label}`}
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-orange-500"
                 >
@@ -69,7 +73,7 @@ export function Footer() {
               <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream/40">Company</p>
               <ul className="space-y-2 text-sm">
                 <li><a href="#" className="hover:text-orange-400">About Us</a></li>
-                <li><a href="#" className="hover:text-orange-400">Contact Us</a></li>
+                <li><a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-orange-400">Contact Us</a></li>
                 <li><a href="#" className="hover:text-orange-400">Terms & Conditions</a></li>
                 <li><a href="#" className="hover:text-orange-400">Privacy Policy</a></li>
               </ul>

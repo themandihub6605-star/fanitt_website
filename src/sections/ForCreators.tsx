@@ -73,7 +73,7 @@ export function ForCreators() {
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: 0.7 }}
             >
-              <Button as="a" href="/signup" className="mt-7">Become a creator</Button>
+              <Button as="a" href="/signup" className="mt-7 !bg-orange-500 hover:!bg-orange-400 !bg-none">Become a creator</Button>
             </motion.div>
           </motion.div>
 

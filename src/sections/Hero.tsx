@@ -3,13 +3,11 @@ import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
-import { Logo } from '@/components/Logo';
 import { ApiSessionCard } from '@/components/ApiSessionCard';
 import { HeroBackdrop } from '@/components/HeroBackdrop';
 import { CATEGORIES } from '@/constants/content';
 import { sessionApi, type ApiSession } from '@/services/sessionApi';
 import { resolveIcon } from '@/utils/icons';
-import { useAppSelector } from '@/store/hooks';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 22 },
@@ -26,63 +24,9 @@ const CARD_STYLES = [
   { rotate: -10, scale: 0.86, x: -130, z: 5 },
 ];
 
-/** Mobile-only app splash screen shown to logged-out visitors — matches the
- * reference app's first screen (logo, tagline, Create Account / Log In).
- * No Google button here — role picker lives on the Signup page. */
-function MobileSplash() {
-  return (
-    <div className="relative flex min-h-[calc(100vh-4rem)] flex-col overflow-hidden px-6 pb-10 pt-10 lg:hidden">
-      <img
-        src="https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?q=80&w=1200&auto=format&fit=crop"
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover"
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-[#0A0A0A]/50 to-[#0A0A0A]" />
-
-      <div className="relative flex flex-col items-center text-center">
-        <Logo className="h-9 w-auto" />
-        <p className="mt-2 text-sm font-medium text-white/70">Live This Life</p>
-      </div>
-
-      <div className="relative mt-auto text-center">
-        <h1 className="text-3xl font-bold leading-tight text-white">
-          Where Creators
-          <br />
-          <span className="brand-gradient-text">Live. Connect. Earn.</span>
-        </h1>
-        <p className="mx-auto mt-3 max-w-xs text-sm text-white/60">
-          Join a community that celebrates talent and turns passion into income.
-        </p>
-
-        <div className="mt-5 flex items-center justify-center gap-1.5">
-          <span className="h-1.5 w-5 rounded-full bg-orange-500" />
-          <span className="h-1.5 w-1.5 rounded-full bg-white/25" />
-          <span className="h-1.5 w-1.5 rounded-full bg-white/25" />
-        </div>
-
-        <div className="mt-8 space-y-3">
-          <Button as="a" href="/signup" size="lg" className="w-full justify-center">
-            Continue with Google <ArrowRight size={18} />
-          </Button>
-          <Button as="a" href="/login" variant="outline" size="lg" className="w-full justify-center !border-white/20">
-            I already have an account
-          </Button>
-        </div>
-
-        <p className="mt-6 text-xs text-white/40">
-          By continuing, you agree to our{' '}
-          <a href="#" className="text-orange-400">Terms of Service</a> and{' '}
-          <a href="#" className="text-orange-400">Privacy Policy</a>
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export function Hero() {
   const [active, setActive] = useState(0);
   const [sessions, setSessions] = useState<ApiSession[]>([]);
-  const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
 
   useEffect(() => {
     sessionApi
@@ -98,10 +42,7 @@ export function Hero() {
   }, [sessions.length]);
 
   return (
-    <>
-      {!isAuthenticated && <MobileSplash />}
-
-      <section className={`relative isolate overflow-hidden pt-28 pb-20 md:pt-36 md:pb-28 ${!isAuthenticated ? 'hidden lg:block' : ''}`}>
+    <section className="relative isolate overflow-hidden pt-28 pb-20 md:pt-36 md:pb-28">
       <HeroBackdrop />
 
       <Container className="relative">
@@ -139,17 +80,22 @@ export function Hero() {
               initial="hidden"
               animate="show"
               variants={fadeUp}
-              className="mt-8 flex flex-wrap justify-center gap-4 xl:justify-start"
+              className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center xl:justify-start"
             >
-              <Button size="lg" as="a" href="/signup">
+              <Button
+                size="lg"
+                as="a"
+                href="/get-started"
+                className="!bg-orange-500 hover:!bg-orange-400 !bg-none !px-5 !py-2.5 !text-sm sm:!px-8 sm:!py-3.5 sm:!text-base w-full sm:w-auto sm:min-w-[220px] justify-center"
+              >
                 Start My Page <ArrowRight size={18} />
               </Button>
               <Button
                 size="lg"
                 variant="outline"
                 as="a"
-                href="/campaigns/new"
-                className="!border-white/20 !text-cream hover:!border-orange-400 hover:!text-orange-300"
+                href="/get-started"
+                className="!border-white/20 !text-cream hover:!border-orange-400 hover:!text-orange-300 !px-5 !py-2.5 !text-sm sm:!px-8 sm:!py-3.5 sm:!text-base w-full sm:w-auto sm:min-w-[220px] justify-center"
               >
                 Launch a brand campaign
               </Button>
@@ -205,6 +151,5 @@ export function Hero() {
         </motion.div>
       </Container>
     </section>
-    </>
   );
 }

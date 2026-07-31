@@ -106,16 +106,18 @@ export function Navbar() {
     <Logo className="h-8 w-auto sm:h-9" />
   </Link>
 
-        <nav className="hidden items-center gap-7 lg:flex">
-          {NAV_LINKS.map((link) => (
-            <NavItem
-              key={link.href}
-              href={link.href}
-              label={link.label}
-              className="group relative text-sm font-semibold text-white/80 transition-colors hover:text-orange-400"
-            />
-          ))}
-        </nav>
+        {isAuthenticated && (
+          <nav className="hidden items-center gap-7 lg:flex">
+            {NAV_LINKS.map((link) => (
+              <NavItem
+                key={link.href}
+                href={link.href}
+                label={link.label}
+                className="group relative text-sm font-semibold text-white/80 transition-colors hover:text-orange-400"
+              />
+            ))}
+          </nav>
+        )}
 
         <div className="hidden items-center gap-3 lg:flex">
           {isAuthenticated ? (
@@ -129,7 +131,7 @@ export function Navbar() {
                 Log In
               </Link>
               <Link to="/get-started">
-                <Button size="sm">Get Started</Button>
+                <Button size="sm" className="!bg-orange-500 hover:!bg-orange-400 !bg-none">Get Started</Button>
               </Link>
             </>
           )}
@@ -141,7 +143,7 @@ export function Navbar() {
           </Link>
           {!isAuthenticated && (
             <Link to="/get-started">
-              <Button size="sm" className="!px-3 !py-1.5 !text-xs">Get Started</Button>
+              <Button size="sm" className="!px-3 !py-1.5 !text-xs !bg-orange-500 hover:!bg-orange-400 !bg-none">Get Started</Button>
             </Link>
           )}
           {isAuthenticated && <NotificationBellLink />}
@@ -166,15 +168,16 @@ export function Navbar() {
             className="overflow-hidden border-t border-white/10 bg-[#141414] lg:hidden"
           >
             <div className="flex flex-col gap-1 px-gutter py-4">
-              {NAV_LINKS.map((link) => (
-                <NavItem
-                  key={link.href}
-                  href={link.href}
-                  label={link.label}
-                  onClick={() => dispatch(closeMobileNav())}
-                  className="rounded-lg px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
-                />
-              ))}
+              {isAuthenticated &&
+                NAV_LINKS.map((link) => (
+                  <NavItem
+                    key={link.href}
+                    href={link.href}
+                    label={link.label}
+                    onClick={() => dispatch(closeMobileNav())}
+                    className="rounded-lg px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
+                  />
+                ))}
               {isAuthenticated && user ? (
                 <div className="mt-2 border-t border-white/10 pt-3">
                   <div className="flex items-center gap-2.5 px-3 pb-2">

@@ -103,7 +103,7 @@ export function MobileTabBar() {
           const active = tab.match(location.pathname);
           if (tab.isCreate) {
             const createButton = (
-              <span className="flex h-12 w-12 items-center justify-center rounded-full text-white shadow-glow bg-[linear-gradient(135deg,#FF6A1F_0%,#F9436E_60%,#EC2A78_100%)]">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full text-white shadow-glow bg-orange-500">
                 <PlusCircle size={24} strokeWidth={2} />
               </span>
             );

@@ -181,7 +181,7 @@ export default function Welcome() {
               disabled={googleLoading}
               whileHover={{ scale: 1.02, y: -1 }}
               whileTap={{ scale: 0.98 }}
-              className="flex w-full items-center justify-center gap-2.5 rounded-full py-3.5 text-base font-semibold text-white shadow-[0_10px_30px_-8px_rgba(249,67,110,0.6)] transition-shadow hover:shadow-[0_14px_36px_-6px_rgba(249,67,110,0.75)] disabled:opacity-50 bg-[linear-gradient(135deg,#FF6A1F_0%,#F9436E_60%,#EC2A78_100%)]"
+              className="flex w-full items-center justify-center gap-2.5 rounded-full bg-orange-500 py-3.5 text-base font-semibold text-white shadow-[0_10px_30px_-8px_rgba(249,67,110,0.6)] transition-colors hover:bg-orange-400 disabled:opacity-50"
             >
               {googleLoading ? <Loader2 size={20} className="animate-spin" /> : <GoogleIcon className="h-5 w-5" />}
               Continue with Google

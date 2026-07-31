@@ -7,9 +7,22 @@ interface CTAProps {
   description?: string;
   primaryLabel?: string;
   secondaryLabel?: string;
+  onPrimaryClick?: () => void;
+  onSecondaryClick?: () => void;
+  primaryVariant?: 'primary' | 'secondary' | 'ghost' | 'outline';
+  primaryClassName?: string;
 }
 
-export function CTA({ title, description, primaryLabel = 'Get Started', secondaryLabel = 'Talk to us' }: CTAProps) {
+export function CTA({
+  title,
+  description,
+  primaryLabel = 'Get Started',
+  secondaryLabel = 'Talk to us',
+  onPrimaryClick,
+  onSecondaryClick,
+  primaryVariant = 'primary',
+  primaryClassName,
+}: CTAProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
@@ -60,12 +73,12 @@ export function CTA({ title, description, primaryLabel = 'Get Started', secondar
           className="mt-8 flex flex-wrap items-center justify-center gap-4"
         >
           <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-            <Button variant="primary" size="lg">
+            <Button variant={primaryVariant} size="lg" onClick={onPrimaryClick} className={primaryClassName}>
               {primaryLabel} <ArrowRight size={18} />
             </Button>
           </motion.div>
           <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-            <Button variant="ghost" size="lg" className="text-cream hover:bg-white/10">
+            <Button variant="ghost" size="lg" className="text-cream hover:bg-white/10" onClick={onSecondaryClick}>
               {secondaryLabel}
             </Button>
           </motion.div>
