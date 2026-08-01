@@ -57,7 +57,7 @@ export function MobileTabBar() {
 
   // Creators upload a post directly from here (modal, no navigation).
   // Brands post a campaign instead; everyone else/unauthenticated goes to sign up.
-  const createHref = !isAuthenticated ? '/signup' : user?.role === 'brand' ? '/campaigns/new' : '/dashboard/creator';
+const createHref = !isAuthenticated ? '/get-started' : user?.role === 'brand' ? '/campaigns/new' : '/dashboard/creator';
 
   // Tapping "Profile" (below) sends creators/brands to their own public
   // profile URL, which normally looks identical to any other creator/brand
