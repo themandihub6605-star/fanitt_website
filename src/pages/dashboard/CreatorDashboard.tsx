@@ -334,12 +334,12 @@ export default function CreatorDashboard() {
                   <Link to="/wallet" className="text-xs font-semibold text-orange-400 hover:underline">View wallet</Link>
                 </div>
                 <p className="mt-2 text-2xl font-bold text-white">{formatRupees(walletBalance)}</p>
-                <Link
-                  to="/wallet"
-                  className="mt-4 flex w-full items-center justify-center rounded-full py-2.5 text-sm font-semibold text-white bg-[linear-gradient(135deg,#FF6A1F_0%,#F9436E_60%,#EC2A78_100%)]"
-                >
-                  Withdraw
-                </Link>
+               <Link
+  to="/wallet"
+  className="mt-4 flex w-full items-center justify-center rounded-full py-2.5 text-sm font-semibold text-white bg-orange-500 hover:bg-orange-400"
+>
+  Withdraw
+</Link>
               </div>
             )}
 

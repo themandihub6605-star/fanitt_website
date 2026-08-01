@@ -37,8 +37,8 @@
     @apply inline-block h-2.5 w-2.5 rounded-full bg-orange-500;
   }
   .brand-gradient-text {
-    @apply bg-brand-gradient bg-clip-text text-transparent;
-  }
+  @apply text-orange-500;
+}
   .brand-gradient-bg {
     background: linear-gradient(135deg, #FF6A1F 0%, #F9436E 60%, #EC2A78 100%);
   }

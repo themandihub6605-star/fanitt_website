@@ -642,7 +642,7 @@ export default function Signup() {
                     {viaGoogle ? `Signed in as ${name || email} — pick the option that fits you.` : 'Pick the option that fits you, then continue with Google.'}
                   </p>
 
-                  <div className="mt-6 grid grid-cols-2 gap-3">
+               <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {ROLES.map((r, idx) => {
                       const selected = role === r.key;
                       return (

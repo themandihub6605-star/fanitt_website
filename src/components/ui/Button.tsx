@@ -8,8 +8,7 @@ const base =
   'inline-flex items-center justify-center gap-2 font-body font-semibold rounded-full transition-all duration-200 ease-out select-none disabled:opacity-50 disabled:pointer-events-none active:scale-[0.97]';
 
 const variants: Record<Variant, string> = {
-  primary:
-    'text-white shadow-card bg-[linear-gradient(135deg,#FF6A1F_0%,#F9436E_60%,#EC2A78_100%)] hover:shadow-glow hover:brightness-[1.06]',
+  primary: 'text-white shadow-card bg-orange-500 hover:bg-orange-400 hover:shadow-glow',
   secondary: 'bg-navy-800 text-white border border-white/10 hover:bg-navy-700 shadow-card',
   ghost: 'bg-transparent text-white hover:bg-white/10',
   outline: 'border-2 border-white/15 text-white hover:border-orange-500 hover:text-orange-400',

@@ -127,11 +127,11 @@ export default function Welcome() {
             ))}
           </motion.div>
 
-          <h1 className="text-[2rem] font-bold leading-[1.15] tracking-tight text-white sm:text-5xl lg:text-6xl lg:leading-[1.1]">
-            Where Creators
-            <br />
-            <span className="brand-gradient-text whitespace-nowrap">Live. Connect. Earn.</span>
-          </h1>
+         <h1 className="text-[1.75rem] font-bold leading-[1.15] tracking-tight text-white sm:text-5xl lg:text-6xl lg:leading-[1.1]">
+  Where Creators
+  <br />
+  <span className="brand-gradient-text">Live. Connect. Earn.</span>
+</h1>
           <p className="mx-auto mt-3.5 max-w-xs text-sm leading-relaxed text-white/60 sm:max-w-sm sm:text-base lg:max-w-md lg:text-lg">
             Join a community that celebrates talent and turns passion into income.
           </p>

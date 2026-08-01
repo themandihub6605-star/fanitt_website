@@ -9,24 +9,14 @@ import { useAppSelector } from '@/store/hooks';
 
 export function MainLayout({ children }: PropsWithChildren) {
   const location = useLocation();
-  const { isAuthenticated, hasHydrated } = useAppSelector((s) => s.auth);
+  const { hasHydrated } = useAppSelector((s) => s.auth);
   const isDashboard = location.pathname.startsWith('/dashboard');
   const isChromeFree = location.pathname === '/get-started' || location.pathname === '/signup';
 
-  // Navbar shows only once we're SURE the person is logged in. Before
-  // hydration finishes, or if they're simply not logged in, it's hidden —
-  // full stop, on every screen size.
-  const showNavbar = hasHydrated && isAuthenticated;
-
-  // eslint-disable-next-line no-console
-  console.log('[MainLayout]', {
-    path: location.pathname,
-    hasHydrated,
-    isAuthenticated,
-    showNavbar,
-    isDashboard,
-    isChromeFree,
-  });
+  // Navbar shows for everyone — logged in or not — once we're past the
+  // initial auth-check flash. The Navbar component itself already switches
+  // its own contents (Log In/Get Started vs avatar/menu) based on auth state.
+  const showNavbar = hasHydrated;
 
   if (isDashboard) {
     return <DashboardShell>{children}</DashboardShell>;

@@ -26,7 +26,7 @@ export default function ExploreBrands() {
   }, [search]);
 
   return (
-    <div className="pt-8 pb-16">
+    <div className="pt-28 pb-16">
       <Container>
         <p className="text-xs font-semibold uppercase tracking-wide text-white/40">Home &gt; Brands</p>
         <h1 className="mt-2 text-3xl font-bold text-white sm:text-4xl">
