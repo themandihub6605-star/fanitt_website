@@ -214,6 +214,18 @@ export default function Signup() {
   const goNext = () => setSlideIndex((i) => Math.min(i + 1, slides.length - 1));
   const goBack = () => setSlideIndex((i) => Math.max(i - 1, 0));
 
+  // Validates the current step before letting the person move on. Only the
+  // steps that actually have required fields need a check — everything
+  // else just advances.
+  const handleStepNext = () => {
+    setError('');
+    if (currentSlide === 'work' && (role === 'brand' || role === 'agency') && !companyName.trim()) {
+      setError(role === 'agency' ? 'Agency name is required' : 'Company name is required');
+      return;
+    }
+    goNext();
+  };
+
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -319,8 +331,11 @@ export default function Signup() {
       }
     };
 
-    if (phone) {
-      await safeCall('Phone', () => userApi.updateMe({ phone }));
+    // Name and/or phone — whatever the person actually filled in/edited here,
+    // not whatever Google originally supplied.
+    if (name.trim() || phone) {
+      await safeCall('Profile', () => userApi.updateMe({ name: name.trim() || undefined, phone: phone || undefined }));
+      dispatch(updateUser({ name: name.trim() || currentUser?.name || name }));
     }
 
     if (photoFile) {
@@ -546,7 +561,7 @@ export default function Signup() {
         </motion.div>
       </div>
 
-      <div className="relative flex min-h-screen items-center justify-center px-gutter py-8 sm:py-12 lg:py-16">
+      <div className="relative flex min-h-screen items-center justify-center px-3 py-8 sm:px-gutter sm:py-12 lg:py-16">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <motion.div
             className="absolute -top-20 right-[10%] h-80 w-80 rounded-full bg-pink-500/10 blur-[110px]"
@@ -586,13 +601,13 @@ export default function Signup() {
         />
         </div>
 
-        <Container className="!max-w-lg !px-0">
+        <Container className="!max-w-[calc(100%-0.5rem)] !px-0 sm:!max-w-lg">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             whileHover={{ boxShadow: '0 30px 60px -20px rgba(249,67,110,0.15)' }}
-            className="relative rounded-[2rem] border border-white/10 bg-navy-800/60 p-8 shadow-lifted backdrop-blur-sm"
+            className="relative rounded-3xl border border-white/10 bg-navy-800/60 p-5 shadow-lifted backdrop-blur-sm sm:rounded-[2rem] sm:p-8"
           >
             <Link to="/" className="mb-6 flex justify-center lg:hidden">
               <Logo />
@@ -621,7 +636,7 @@ export default function Signup() {
 
             <ErrorBoundary key={currentSlide} label={`Signup — ${currentSlide} step`}>
               <AnimatePresence mode="wait">
-              {currentSlide === 'role' && (
+                {currentSlide === 'role' && (
                 <motion.div key="role" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }}>
                   <p className="mt-1 text-center text-sm text-white/60">
                     {viaGoogle ? `Signed in as ${name || email} — pick the option that fits you.` : 'Pick the option that fits you, then continue with Google.'}
@@ -718,15 +733,23 @@ export default function Signup() {
                   <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3">
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400"><CheckCircle2 size={16} /></span>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-white">{name}</p>
-                      <p className="truncate text-xs text-white/50">{email}</p>
+                      <p className="truncate text-sm font-semibold text-white">{email}</p>
+                      <p className="truncate text-xs text-white/50">Google account</p>
                     </div>
                   </div>
 
-                  <TextField icon={Phone} value={phone} onChange={setPhone} placeholder="Phone number" />
+                  <TextField icon={User} value={name} onChange={setName} placeholder="Your full name" required />
+                  <TextField
+                    icon={Phone}
+                    value={phone}
+                    onChange={(v) => setPhone(v.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="Phone number"
+                    type="tel"
+                    maxLength={10}
+                  />
                   <TextField icon={MapPin} value={location} onChange={setLocation} placeholder="Location (city, country)" />
 
-                  <StepNav onBack={goBack} onNext={goNext} loading={loading} />
+                  <StepNav onBack={goBack} onNext={handleStepNext} loading={loading} />
                 </motion.div>
               )}
 
@@ -845,7 +868,7 @@ export default function Signup() {
                   {role === 'agency' && (
                     <>
                       <TextField icon={Building2} value={companyName} onChange={setCompanyName} placeholder="Agency name" required />
-                      <TextField icon={User} value={ownerName} onChange={setOwnerName} placeholder={name || 'Owner name'} />
+                      <TextField icon={User} value={ownerName} onChange={setOwnerName} placeholder="Owner name" />
                       <div className="grid grid-cols-2 gap-3">
                         <TextField icon={MapPin} value={city} onChange={setCity} placeholder="City" />
                         <TextField value={agencyState} onChange={setAgencyState} placeholder="State" />
@@ -862,7 +885,7 @@ export default function Signup() {
                     </>
                   )}
 
-                  <StepNav onBack={goBack} onNext={goNext} loading={loading} />
+                  <StepNav onBack={goBack} onNext={handleStepNext} loading={loading} />
                 </motion.div>
               )}
 
@@ -989,6 +1012,7 @@ function TextField({
   placeholder,
   type = 'text',
   required = false,
+  maxLength,
 }: {
   icon?: LucideIcon;
   value: string;
@@ -996,6 +1020,7 @@ function TextField({
   placeholder: string;
   type?: string;
   required?: boolean;
+  maxLength?: number;
 }) {
   return (
     <label className="block">
@@ -1007,6 +1032,7 @@ function TextField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
+          maxLength={maxLength}
           className={cn(
             'w-full rounded-xl border border-white/10 bg-navy-800/70 py-3.5 pr-4 text-white placeholder:text-white/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20',
             Icon ? 'pl-11' : 'pl-4'
