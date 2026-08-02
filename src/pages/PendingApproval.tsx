@@ -1,12 +1,20 @@
+import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Clock, LogOut, MessageCircle } from 'lucide-react';
+import { Clock, LogOut } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppSelector } from '@/store/hooks';
 
 export default function PendingApproval() {
   const user = useAppSelector((s) => s.auth.user);
+  const location = useLocation();
   const { logout } = useAuth();
+
+  // Agency signups pass their agency name through navigation state so this
+  // screen greets by agency name, not the individual's personal name —
+  // matches Signup's own review step. Falls back to the person's name for
+  // Creator/Brand, or if the state wasn't passed (e.g. direct navigation).
+  const displayName = (location.state as { displayName?: string } | null)?.displayName || user?.name;
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#0A0A0A] px-6 text-center">
@@ -22,7 +30,7 @@ export default function PendingApproval() {
         </span>
         <h1 className="mt-5 text-2xl font-bold text-white">Your details are under review</h1>
         <p className="mt-3 text-sm leading-relaxed text-white/60">
-          {user?.name ? `Thanks, ${user.name}! ` : ''}
+          {displayName ? `Thanks, ${displayName}! ` : ''}
           Your details have been sent to the Fanitt team. We'll review and connect with you within 24 hours to activate your{' '}
           {user?.role === 'agency' ? 'agency' : user?.role === 'brand' ? 'brand' : 'creator'} dashboard.
         </p>

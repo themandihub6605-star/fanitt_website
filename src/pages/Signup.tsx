@@ -307,10 +307,10 @@ export default function Signup() {
     }
   };
 
-  const goToPendingWithSuccess = () => {
+  const goToPendingWithSuccess = (displayName?: string) => {
     setLoading(false);
     setShowSuccess(true);
-    setTimeout(() => navigate('/pending-approval'), 1600);
+    setTimeout(() => navigate('/pending-approval', { state: { displayName } }), 1600);
   };
 
   const finishFanOnboarding = () => {
@@ -412,11 +412,11 @@ export default function Signup() {
           gstNumber: gstNumber || undefined,
           teamSize: teamSize || undefined,
           yearsInBusiness: yearsInBusiness ? Number(yearsInBusiness) : undefined,
-          specialization: specialization || undefined,
+       specialization: specialization || undefined,
           submitForApproval: true,
         })
       );
-      goToPendingWithSuccess();
+      goToPendingWithSuccess(companyName.trim() || name);
     } else {
       finishFanOnboarding();
     }
@@ -935,16 +935,21 @@ export default function Signup() {
                 </motion.div>
               )}
 
-              {currentSlide === 'review' && (
+           {currentSlide === 'review' && (
                 <motion.div key="review" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-6">
                   <div className="flex flex-col items-center text-center">
                     <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
                       <CheckCircle2 size={26} />
                     </span>
-                    <p className="mt-4 text-sm text-white/60">
-                      You're all set as a <b className="text-white capitalize">{role}</b>
-                      {name && <> — welcome, <b className="text-white">{name}</b>!</>}
-                    </p>
+                    {(() => {
+                      const reviewDisplayName = role === 'agency' ? companyName.trim() || name : name;
+                      return (
+                        <p className="mt-4 text-sm text-white/60">
+                          You're all set as a <b className="text-white capitalize">{role}</b>
+                          {reviewDisplayName && <> — welcome, <b className="text-white">{reviewDisplayName}</b>!</>}
+                        </p>
+                      );
+                    })()}
                     {role !== 'fan' && (
                       <p className="mt-2 text-xs text-white/40">Your details will be sent to the Fanitt team for approval before the full dashboard unlocks.</p>
                     )}
