@@ -868,7 +868,7 @@ export default function Signup() {
                   {role === 'agency' && (
                     <>
                       <TextField icon={Building2} value={companyName} onChange={setCompanyName} placeholder="Agency name" required />
-                      <TextField icon={User} value={ownerName} onChange={setOwnerName} placeholder="Owner name" />
+                     <TextField icon={User} value={ownerName} onChange={setOwnerName} placeholder="Contact Person" />
                       <div className="grid grid-cols-2 gap-3">
                         <TextField icon={MapPin} value={city} onChange={setCity} placeholder="City" />
                         <TextField value={agencyState} onChange={setAgencyState} placeholder="State" />
