@@ -7,18 +7,14 @@ import { GoogleIcon } from '@/components/GoogleIcon';
 import { useAuth } from '@/hooks/useAuth';
 import { getApiErrorMessage } from '@/services/apiClient';
 
-// Same real feature list the product already uses to describe itself —
-// not decorative filler, this is what Fanitt actually does.
 const FEATURES = [
   { icon: Sparkles, title: 'Opportunities that match you', description: 'Discover campaigns, gigs and collaborations that fit your talent and goals.' },
   { icon: ShieldCheck, title: 'Build trust & reputation', description: 'Work, earn reviews and become a trusted name in your niche.' },
   { icon: TrendingUp, title: 'Monetize your way', description: 'Live sessions, fan support, brand deals and more. All in one place.' },
 ];
 
-/** Login is Google-only — there's no email/password path anywhere in the
- * product. Returning users (email already registered) go straight to their
- * home/dashboard; a brand-new Google sign-in from here defaults to Fan
- * (role selection lives on /signup for people who want Creator/Brand/Agency). */
+const APPROVAL_GATED_ROLES = ['creator', 'brand', 'agency'];
+
 export default function Login() {
   const [error, setError] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -27,8 +23,26 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const goToRoleHome = (user: { role: string }) => {
+  const goToRoleHome = (user: { role: string; profileStatus?: string | null; onboardingCompleted?: boolean }) => {
+    // Still Fan and never finished the wizard — send back into it instead
+    // of the Fan home screen.
+    if (user.role === 'fan' && !user.onboardingCompleted) {
+      navigate('/signup', { state: { viaGoogle: true } });
+      return;
+    }
+
     const redirectTo = (location.state as { from?: string } | null)?.from;
+
+    const needsApprovalGate =
+      APPROVAL_GATED_ROLES.includes(user.role) &&
+      user.profileStatus &&
+      user.profileStatus !== 'verified';
+
+    if (needsApprovalGate) {
+      navigate('/pending-approval');
+      return;
+    }
+
     if (redirectTo) navigate(redirectTo);
     else if (user.role === 'creator') navigate('/dashboard/creator');
     else if (user.role === 'brand') navigate('/dashboard/brand');
@@ -42,7 +56,7 @@ export default function Login() {
     try {
       const user = await loginWithGoogle();
       if (user.isNewUser) {
-        navigate('/signup');
+        navigate('/signup', { state: { viaGoogle: true } });
         return;
       }
       goToRoleHome(user);
@@ -55,10 +69,7 @@ export default function Login() {
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
-      {/* Left brand panel — same visual language as the Signup wizard's left
-       * panel, for a consistent premium feel across the whole auth flow. */}
       <div className="relative hidden overflow-hidden bg-navy-900 px-14 py-16 lg:flex lg:flex-col lg:justify-center">
-        {/* Slowly drifting colour glows */}
         <motion.div
           className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-orange-500/20 blur-[110px]"
           animate={{ x: [0, 30, -10, 0], y: [0, -20, 15, 0] }}
@@ -70,7 +81,6 @@ export default function Login() {
           transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
         />
 
-        {/* Large floating brand mark watermark, echoing the Signup panel's icon treatment */}
         <motion.div
           initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 0.05, scale: 1, y: [0, -14, 0] }}
@@ -80,7 +90,6 @@ export default function Login() {
           <Sparkles size={340} strokeWidth={1} className="text-white" />
         </motion.div>
 
-        {/* Subtle dot texture for depth, matching Signup */}
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.08]"
           style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)', backgroundSize: '24px 24px' }}
@@ -138,7 +147,6 @@ export default function Login() {
         </motion.div>
       </div>
 
-      {/* Right panel — Google login */}
       <div className="flex items-center justify-center px-gutter py-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

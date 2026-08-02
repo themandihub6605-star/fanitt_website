@@ -46,9 +46,6 @@ import { categoryApi, type ApiCategory } from '@/services/categoryApi';
 import { cn } from '@/utils/cn';
 import type { Role } from '@/types/api';
 
-// This wizard only ever deals with these 4 — 'admin' is a separate,
-// invite-only role that never goes through Signup, so Record<Role, ...>
-// (which requires all 5) doesn't fit; this narrower alias does.
 type SignupRole = 'fan' | 'creator' | 'brand' | 'agency';
 
 const ROLES = [
@@ -85,12 +82,11 @@ const ROLE_CONTENT: Record<SignupRole, { headline: string; highlight: string; su
   },
 };
 
-// One real, role-relatable photo per tab — swaps as the person switches roles.
 const ROLE_IMAGES: Record<SignupRole, string> = {
-  fan: 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?q=80&w=1200&auto=format&fit=crop', // concert crowd
-  creator: 'https://images.unsplash.com/photo-1630797160666-38e8c5ba44c1?q=80&w=1200&auto=format&fit=crop', // filmmaker with camera
-  brand: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=1200&auto=format&fit=crop', // business/marketing meeting
-  agency: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?q=80&w=1200&auto=format&fit=crop', // team discussion
+  fan: 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?q=80&w=1200&auto=format&fit=crop',
+  creator: 'https://images.unsplash.com/photo-1630797160666-38e8c5ba44c1?q=80&w=1200&auto=format&fit=crop',
+  brand: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=1200&auto=format&fit=crop',
+  agency: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?q=80&w=1200&auto=format&fit=crop',
 };
 
 const INDUSTRIES = [
@@ -111,7 +107,6 @@ const INDUSTRIES = [
 
 const COMPANY_SIZES = ['1-10 employees', '11-50 employees', '51-200 employees', '201-500 employees', '500+ employees'];
 
-// 5-step sequence: role -> personal -> work (skipped for Fan) -> social -> review.
 function getSlides(role: SignupRole): string[] {
   const slides = ['role', 'personal'];
   if (role !== 'fan') slides.push('work');
@@ -127,6 +122,8 @@ const SLIDE_LABELS: Record<string, string> = {
   review: 'Review',
 };
 
+const APPROVAL_GATED_ROLES: SignupRole[] = ['creator', 'brand', 'agency'];
+
 export default function Signup() {
   const [role, setRole] = useState<SignupRole>('creator');
   const [slideIndex, setSlideIndex] = useState(0);
@@ -134,12 +131,11 @@ export default function Signup() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  // From Google
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
 
-  // Personal info (not provided by Google)
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
   const [referralCode, setReferralCode] = useState('');
@@ -147,10 +143,9 @@ export default function Signup() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState('');
-  const [googleAvatarUrl, setGoogleAvatarUrl] = useState(''); // real photo Google already gave us, if any
+  const [googleAvatarUrl, setGoogleAvatarUrl] = useState('');
   const [documentFile, setDocumentFile] = useState<File | null>(null);
 
-  // Creator work details
   const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [category, setCategory] = useState('');
   const [title, setTitle] = useState('');
@@ -162,7 +157,6 @@ export default function Signup() {
   const [portfolioLink, setPortfolioLink] = useState('');
   const [isAvailableForWork, setIsAvailableForWork] = useState(true);
 
-  // Brand work details
   const [companyName, setCompanyName] = useState('');
   const [tagline, setTagline] = useState('');
   const [about, setAbout] = useState('');
@@ -173,7 +167,6 @@ export default function Signup() {
   const [targetAudience, setTargetAudience] = useState('');
   const [contactDesignation, setContactDesignation] = useState('');
 
-  // Agency work details
   const [ownerName, setOwnerName] = useState('');
   const [city, setCity] = useState('');
   const [agencyState, setAgencyState] = useState('');
@@ -182,7 +175,6 @@ export default function Signup() {
   const [yearsInBusiness, setYearsInBusiness] = useState('');
   const [specialization, setSpecialization] = useState('');
 
-  // Social
   const [instagram, setInstagram] = useState('');
   const [youtube, setYoutube] = useState('');
   const [behance, setBehance] = useState('');
@@ -195,9 +187,6 @@ export default function Signup() {
   const routerLocation = useLocation();
   const currentUser = useAppSelector((s) => s.auth.user);
 
-  // True when we arrived here already signed in via Google from the
-  // Get Started page — the role slide then upgrades the (Fan-by-default)
-  // account instead of triggering a second Google sign-in.
   const viaGoogle = Boolean((routerLocation.state as { viaGoogle?: boolean } | null)?.viaGoogle);
 
   useEffect(() => {
@@ -242,7 +231,23 @@ export default function Signup() {
     if (file) setDocumentFile(file);
   };
 
-  // ---- Slide: role — this is where the ONLY sign-in action lives ----
+  const homeForReturningUser = (u: { role: string; profileStatus?: string | null; onboardingCompleted?: boolean }) => {
+    if (u.role === 'fan' && !u.onboardingCompleted) {
+      return '/signup';
+    }
+    if (
+      APPROVAL_GATED_ROLES.includes(u.role as SignupRole) &&
+      u.profileStatus &&
+      u.profileStatus !== 'verified'
+    ) {
+      return '/pending-approval';
+    }
+    if (u.role === 'creator') return '/dashboard/creator';
+    if (u.role === 'brand') return '/dashboard/brand';
+    if (u.role === 'agency') return '/dashboard/agency';
+    return '/';
+  };
+
   const handleGoogle = async () => {
     setError('');
     setGoogleLoading(true);
@@ -252,20 +257,18 @@ export default function Signup() {
         setName(user.name);
         setEmail(user.email);
         setGoogleAvatarUrl(user.avatarUrl || '');
-        if (user.role === 'fan') {
-          // Fan has nothing else to fill beyond optional personal info —
-          // still walk them through the (short) wizard so they can add a
-          // photo/phone if they want, rather than dropping them mid-flow.
+        goNext();
+      } else {
+        const dest = homeForReturningUser(user);
+        if (dest === '/signup') {
+          // Already mid-wizard as Fan — just keep going here, don't bounce.
+          setName(user.name);
+          setEmail(user.email);
+          setGoogleAvatarUrl(user.avatarUrl || '');
           goNext();
         } else {
-          goNext();
+          navigate(dest);
         }
-      } else {
-        // Returning account — straight to wherever they already belong.
-        if (user.role === 'creator') navigate('/dashboard/creator');
-        else if (user.role === 'brand') navigate('/dashboard/brand');
-        else if (user.role === 'agency') navigate('/dashboard/agency');
-        else navigate('/');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : getApiErrorMessage(err));
@@ -274,13 +277,9 @@ export default function Signup() {
     }
   };
 
-  /** viaGoogle path: already signed in (as Fan by default) from Get Started.
-   * Picking a role here upgrades the existing account instead of running
-   * Google sign-in a second time. */
   const handleRoleContinue = async () => {
     setError('');
     if (role === 'fan') {
-      // Already a Fan by default — nothing to upgrade, just continue.
       goNext();
       return;
     }
@@ -296,12 +295,17 @@ export default function Signup() {
     }
   };
 
-  // ---- Final submit ----
-  // Every optional detail call below is wrapped so a single failure (bad
-  // network, one bad field) can't strand the person on this screen forever —
-  // the account itself was already created back on the Google step, so we
-  // always end by navigating to the right home/dashboard. Any failure is
-  // still shown as a soft warning so the person knows to revisit Edit Profile.
+  const goToPendingWithSuccess = () => {
+    setLoading(false);
+    setShowSuccess(true);
+    setTimeout(() => navigate('/pending-approval'), 1600);
+  };
+
+  const finishFanOnboarding = () => {
+    setLoading(false);
+    navigate('/');
+  };
+
   const handleFinish = async () => {
     setError('');
     setLoading(true);
@@ -319,9 +323,6 @@ export default function Signup() {
       await safeCall('Phone', () => userApi.updateMe({ phone }));
     }
 
-    // Only upload a new photo if the person actually picked one — if Google
-    // already gave us a photo and they didn't change it, there's nothing to
-    // re-upload (it's already saved on the account from the Google step).
     if (photoFile) {
       if (role === 'brand') {
         await safeCall('Logo', () => brandApi.uploadLogo(photoFile));
@@ -332,6 +333,11 @@ export default function Signup() {
         });
       }
     }
+
+    // Every role — including Fan — marks the wizard as finished so a
+    // returning login never mistakes an unfinished account for a done one.
+    await safeCall('Onboarding status', () => authApi.completeOnboarding());
+    dispatch(updateUser({ onboardingCompleted: true }));
 
     if (role === 'creator') {
       await safeCall('Creator profile', () =>
@@ -352,10 +358,10 @@ export default function Signup() {
             ...(behance && { behance: behance.startsWith('http') ? behance : `https://behance.net/${behance}` }),
             ...(website && { website: website.startsWith('http') ? website : `https://${website}` }),
           },
-        })
+          submitForApproval: true,
+        } as any)
       );
-      setLoading(false);
-      navigate('/dashboard/creator');
+      goToPendingWithSuccess();
     } else if (role === 'brand') {
       await safeCall('Brand profile', () =>
         brandApi.updateMyProfile({
@@ -375,10 +381,10 @@ export default function Signup() {
             ...(youtube && { youtube: youtube.startsWith('http') ? youtube : `https://youtube.com/@${youtube}` }),
             ...(linkedin && { linkedin: linkedin.startsWith('http') ? linkedin : `https://linkedin.com/company/${linkedin}` }),
           },
-        })
+          submitForApproval: true,
+        } as any)
       );
-      setLoading(false);
-      navigate('/dashboard/brand');
+      goToPendingWithSuccess();
     } else if (role === 'agency') {
       if (documentFile) await safeCall('Document', () => agencyApi.uploadDocument(documentFile));
       await safeCall('Agency profile', () =>
@@ -395,11 +401,9 @@ export default function Signup() {
           submitForApproval: true,
         })
       );
-      setLoading(false);
-      navigate('/dashboard/agency');
+      goToPendingWithSuccess();
     } else {
-      setLoading(false);
-      navigate('/');
+      finishFanOnboarding();
     }
 
     if (softErrors.length > 0) {
@@ -419,7 +423,6 @@ export default function Signup() {
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
-      {/* Left brand panel — organic curved blob shape */}
       <div className="relative hidden lg:block">
         <motion.div
           initial={{ opacity: 0, x: -30 }}
@@ -428,9 +431,6 @@ export default function Signup() {
           className="absolute inset-y-0 left-0 flex w-[92%] flex-col justify-center overflow-hidden bg-navy-900 px-14 py-16"
           style={{ borderRadius: '0 42% 42% 0 / 0 50% 50% 0' }}
         >
-        {/* Real photo background — one per role, crossfades on switch. Visible
-         * enough to actually read as a photo, with just enough of a dark
-         * wash for the text on top to stay readable. */}
         <AnimatePresence mode="wait">
           <motion.img
             key={role}
@@ -450,7 +450,6 @@ export default function Signup() {
         </AnimatePresence>
         <div className="absolute inset-0 bg-gradient-to-b from-navy-900/35 via-navy-900/45 to-navy-900/85" />
         <div className="absolute inset-0 bg-gradient-to-r from-navy-900/55 via-navy-900/10 to-navy-900/55" />
-        {/* Drifting colour glows — slow, ambient motion so the panel never feels static */}
         <AnimatePresence mode="wait">
           <motion.div key={role} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6, ease: 'easeOut' }} className="absolute inset-0">
             <motion.div
@@ -468,7 +467,6 @@ export default function Signup() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Extra floating light particles over the photo — more movement, more premium feel */}
         {[
           { top: '18%', left: '15%', size: 4, delay: 0 },
           { top: '30%', left: '75%', size: 3, delay: 0.8 },
@@ -485,7 +483,6 @@ export default function Signup() {
           />
         ))}
 
-        {/* Large floating role icon watermark — swaps and gently bobs per role */}
         <AnimatePresence mode="wait">
           <motion.div
             key={`icon-${role}`}
@@ -502,22 +499,19 @@ export default function Signup() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Subtle dot texture for depth */}
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.08]"
           style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)', backgroundSize: '24px 24px' }}
         />
 
-
-        {/* Step pill — redesigned with animated fill bar instead of plain dots */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05 }} className="relative mb-8 inline-flex w-fit items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-1.5 pr-4">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[linear-gradient(135deg,#FF6A1F_0%,#F9436E_60%,#EC2A78_100%)] text-xs font-bold text-white">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-500 text-xs font-bold text-white">
             {slideIndex + 1}
           </span>
           <div className="flex items-center gap-1">
             <span className="h-1 w-20 overflow-hidden rounded-full bg-white/10">
               <motion.span
-                className="block h-full rounded-full bg-[linear-gradient(90deg,#FF6A1F,#EC2A78)]"
+                className="block h-full rounded-full bg-orange-500"
                 initial={false}
                 animate={{ width: `${((slideIndex + 1) / totalSteps) * 100}%` }}
                 transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -552,14 +546,8 @@ export default function Signup() {
         </motion.div>
       </div>
 
-      {/* Right wizard panel */}
       <div className="relative flex min-h-screen items-center justify-center px-gutter py-8 sm:py-12 lg:py-16">
-        {/* Decorative layer only — overflow-hidden lives here, not on the
-         * scrollable content wrapper above, so a tall card (e.g. the
-         * Personal Info step) can never get silently clipped top/bottom by
-         * flex centering + overflow-hidden fighting each other. */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          {/* Ambient drifting glows — visible on all sizes, always animating */}
           <motion.div
             className="absolute -top-20 right-[10%] h-80 w-80 rounded-full bg-pink-500/10 blur-[110px]"
             animate={{ x: [0, -20, 15, 0], y: [0, 20, -10, 0] }}
@@ -571,7 +559,6 @@ export default function Signup() {
             transition={{ duration: 13, repeat: Infinity, ease: 'easeInOut' }}
           />
 
-        {/* Floating accent particles for extra premium texture */}
         {[
           { top: '12%', left: '8%', size: 5, delay: 0 },
           { top: '22%', right: '10%', size: 3, delay: 0.5 },
@@ -587,7 +574,6 @@ export default function Signup() {
           />
         ))}
 
-        {/* Slowly rotating gradient ring behind the card — pure motion accent */}
         <motion.div
           className="pointer-events-none absolute left-1/2 top-1/2 h-[30rem] w-[30rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-orange-400/[0.06]"
           animate={{ rotate: 360 }}
@@ -616,7 +602,7 @@ export default function Signup() {
               {slides.map((s, i) => (
                 <span key={s} className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
                   <motion.span
-                    className="block h-full rounded-full bg-[linear-gradient(90deg,#FF6A1F,#EC2A78)]"
+                    className="block h-full rounded-full bg-orange-500"
                     initial={false}
                     animate={{ width: i <= slideIndex ? '100%' : '0%' }}
                     transition={{ duration: 0.35, ease: 'easeOut' }}
@@ -635,14 +621,13 @@ export default function Signup() {
 
             <ErrorBoundary key={currentSlide} label={`Signup — ${currentSlide} step`}>
               <AnimatePresence mode="wait">
-                {/* SLIDE 1: ROLE (+ GOOGLE, unless we're already signed in via Get Started) */}
               {currentSlide === 'role' && (
                 <motion.div key="role" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }}>
                   <p className="mt-1 text-center text-sm text-white/60">
                     {viaGoogle ? `Signed in as ${name || email} — pick the option that fits you.` : 'Pick the option that fits you, then continue with Google.'}
                   </p>
 
-               <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="mt-6 grid grid-cols-2 gap-3">
                     {ROLES.map((r, idx) => {
                       const selected = role === r.key;
                       return (
@@ -703,7 +688,7 @@ export default function Signup() {
                       type="button"
                       onClick={handleRoleContinue}
                       disabled={loading}
-                      className="mt-6 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-base font-semibold text-white shadow-card transition-all hover:shadow-glow disabled:opacity-50 bg-[linear-gradient(135deg,#FF6A1F_0%,#F9436E_60%,#EC2A78_100%)]"
+                      className="mt-6 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-base font-semibold text-white shadow-card transition-all hover:shadow-glow disabled:opacity-50 bg-orange-500 hover:bg-orange-600"
                     >
                       {loading ? <Loader2 size={18} className="animate-spin" /> : <>Continue as {ROLES.find((r) => r.key === role)?.label} <ArrowRight size={18} /></>}
                     </button>
@@ -713,7 +698,7 @@ export default function Signup() {
                         type="button"
                         onClick={handleGoogle}
                         disabled={googleLoading}
-                        className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-full py-3.5 text-base font-semibold text-white shadow-card transition-all hover:shadow-glow disabled:opacity-50 bg-[linear-gradient(135deg,#FF6A1F_0%,#F9436E_60%,#EC2A78_100%)]"
+                        className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-full py-3.5 text-base font-semibold text-white shadow-card transition-all hover:shadow-glow disabled:opacity-50 bg-orange-500 hover:bg-orange-600"
                       >
                         {googleLoading ? <Loader2 size={18} className="animate-spin" /> : <GoogleIcon className="h-5 w-5" />}
                         Continue with Google as {ROLES.find((r) => r.key === role)?.label}
@@ -728,7 +713,6 @@ export default function Signup() {
                 </motion.div>
               )}
 
-              {/* SLIDE 2: PERSONAL INFO */}
               {currentSlide === 'personal' && (
                 <motion.div key="personal" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-6 space-y-4">
                   <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3">
@@ -746,7 +730,6 @@ export default function Signup() {
                 </motion.div>
               )}
 
-              {/* SLIDE 3: WORK DETAILS (role-specific, skipped for Fan) */}
               {currentSlide === 'work' && (
                 <motion.div key="work" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-6 space-y-4">
                   {role === 'creator' && (
@@ -883,7 +866,6 @@ export default function Signup() {
                 </motion.div>
               )}
 
-              {/* SLIDE 4: SOCIAL + PHOTO */}
               {currentSlide === 'social' && (
                 <motion.div key="social" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-6 space-y-4">
                   <div className="flex flex-col items-center gap-2">
@@ -930,7 +912,6 @@ export default function Signup() {
                 </motion.div>
               )}
 
-              {/* SLIDE 5: REVIEW */}
               {currentSlide === 'review' && (
                 <motion.div key="review" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-6">
                   <div className="flex flex-col items-center text-center">
@@ -941,8 +922,8 @@ export default function Signup() {
                       You're all set as a <b className="text-white capitalize">{role}</b>
                       {name && <> — welcome, <b className="text-white">{name}</b>!</>}
                     </p>
-                    {role === 'agency' && (
-                      <p className="mt-2 text-xs text-white/40">Your agency will need admin approval before the full dashboard unlocks.</p>
+                    {role !== 'fan' && (
+                      <p className="mt-2 text-xs text-white/40">Your details will be sent to the Fanitt team for approval before the full dashboard unlocks.</p>
                     )}
                   </div>
 
@@ -954,9 +935,9 @@ export default function Signup() {
                       type="button"
                       onClick={handleFinish}
                       disabled={loading}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-full py-3 text-base font-semibold text-white shadow-card transition-all hover:shadow-glow disabled:opacity-50 bg-[linear-gradient(135deg,#FF6A1F_0%,#F9436E_60%,#EC2A78_100%)]"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-full py-3 text-base font-semibold text-white shadow-card transition-all hover:shadow-glow disabled:opacity-50 bg-orange-500 hover:bg-orange-600"
                     >
-                      {loading ? <Loader2 size={18} className="animate-spin" /> : <>Finish &amp; Go to Dashboard <ArrowRight size={18} /></>}
+                      {loading ? <Loader2 size={18} className="animate-spin" /> : <>Finish <ArrowRight size={18} /></>}
                     </button>
                   </div>
                 </motion.div>
@@ -966,11 +947,40 @@ export default function Signup() {
           </motion.div>
         </Container>
       </div>
+
+     <AnimatePresence>
+        {showSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+              className="flex w-full max-w-sm items-center gap-4 rounded-2xl border border-white/10 bg-navy-800 p-5 shadow-lifted sm:max-w-md sm:p-6"
+            >
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.1, type: 'spring', stiffness: 400, damping: 15 }}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400"
+              >
+                <CheckCircle2 size={24} />
+              </motion.span>
+              <div className="min-w-0 text-left">
+                <p className="text-base font-bold text-white">Profile submitted successfully!</p>
+                <p className="mt-0.5 text-sm text-white/50">Redirecting you now...</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-
-// ---- Shared small field components ----
 
 function TextField({
   icon: Icon,
@@ -1017,7 +1027,7 @@ function StepNav({ onBack, onNext, loading }: { onBack: () => void; onNext: () =
         type="button"
         onClick={onNext}
         disabled={loading}
-        className="flex flex-1 items-center justify-center gap-2 rounded-full py-3 text-base font-semibold text-white shadow-card transition-all hover:shadow-glow disabled:opacity-50 bg-[linear-gradient(135deg,#FF6A1F_0%,#F9436E_60%,#EC2A78_100%)]"
+        className="flex flex-1 items-center justify-center gap-2 rounded-full py-3 text-base font-semibold text-white shadow-card transition-all hover:shadow-glow disabled:opacity-50 bg-orange-500 hover:bg-orange-600"
       >
         Continue <ArrowRight size={18} />
       </button>

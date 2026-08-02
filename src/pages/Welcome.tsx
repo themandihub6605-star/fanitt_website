@@ -6,13 +6,8 @@ import { GoogleIcon } from '@/components/GoogleIcon';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/hooks/useAuth';
 
-/**
- * The screen shown when someone clicks "Get Started" — the REAL Google
- * sign-in happens right here (not on a later page). No role is known yet,
- * so a brand-new account is created as a Fan by default; the next screen
- * (Signup, in "already signed in" mode) asks which role they actually want
- * and upgrades the account via /auth/upgrade-role.
- */
+const APPROVAL_GATED_ROLES = ['creator', 'brand', 'agency'];
+
 export default function Welcome() {
   const navigate = useNavigate();
   const { loginWithGoogle } = useAuth();
@@ -26,10 +21,31 @@ export default function Welcome() {
     setGoogleLoading(true);
     try {
       const user = await loginWithGoogle(undefined, referralCode || undefined);
+
       if (user.isNewUser) {
         // Fresh account, defaulted to Fan — send them into the wizard to
         // pick their real role and fill in the rest.
         navigate('/signup', { state: { viaGoogle: true } });
+        return;
+      }
+
+      // Returning account, still Fan and never finished the wizard (e.g.
+      // closed the browser mid-signup last time) — send them back into it
+      // instead of dropping them on the Fan home screen.
+      if (user.role === 'fan' && !user.onboardingCompleted) {
+        navigate('/signup', { state: { viaGoogle: true } });
+        return;
+      }
+
+      // Creator/Brand/Agency still pending/unverified/rejected go to the
+      // waiting screen, never straight to their dashboard.
+      const needsApprovalGate =
+        APPROVAL_GATED_ROLES.includes(user.role) &&
+        user.profileStatus &&
+        user.profileStatus !== 'verified';
+
+      if (needsApprovalGate) {
+        navigate('/pending-approval');
       } else if (user.role === 'creator') navigate('/dashboard/creator');
       else if (user.role === 'brand') navigate('/dashboard/brand');
       else if (user.role === 'agency') navigate('/dashboard/agency');
@@ -55,7 +71,6 @@ export default function Welcome() {
       <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A]/60 via-[#0A0A0A]/55 to-[#0A0A0A]" />
       <div className="absolute inset-0 hidden bg-gradient-to-r from-[#0A0A0A]/50 via-transparent to-[#0A0A0A]/50 lg:block" />
 
-      {/* Ambient drifting glows for extra depth */}
       <motion.div
         className="pointer-events-none absolute -top-20 left-[-10%] h-72 w-72 rounded-full bg-orange-500/20 blur-[100px]"
         animate={{ x: [0, 30, -10, 0], y: [0, -15, 10, 0] }}
@@ -68,7 +83,6 @@ export default function Welcome() {
       />
 
       <div className="relative flex flex-1 flex-col items-center justify-between px-6 py-10 sm:px-10 sm:py-14">
-        {/* Logo + tagline */}
         <motion.div
           initial={{ opacity: 0, y: -14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -82,18 +96,12 @@ export default function Welcome() {
           <p className="mt-2.5 text-sm font-medium tracking-wide text-white/70 sm:text-base">Live This Life</p>
         </motion.div>
 
-        {/* Glass card holding headline + actions — gives the content real
-         * visual weight instead of floating loosely on the photo. Widens
-         * and scales up at larger breakpoints instead of staying a small
-         * mobile-width card floating in empty space. */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15, ease: 'easeOut' }}
           className="relative w-full max-w-md rounded-[2rem] border border-white/10 bg-white/[0.05] p-6 text-center shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:max-w-lg sm:p-9 lg:max-w-2xl lg:p-12"
         >
-          {/* Flanking feature badges — only at wide desktop widths, so the
-           * screen doesn't read as a tiny card lost in empty space. */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}

@@ -15,6 +15,7 @@ import ExploreBrands from '@/pages/ExploreBrands';
 import Login from '@/pages/Login';
 import Welcome from '@/pages/Welcome';
 import Signup from '@/pages/Signup';
+import PendingApproval from '@/pages/PendingApproval';
 import Campaigns from '@/pages/Campaigns';
 import CampaignDetail from '@/pages/CampaignDetail';
 import CampaignApplications from '@/pages/CampaignApplications';
@@ -39,6 +40,7 @@ import MyWallet from '@/pages/MyWallet';
 import Messages from '@/pages/Messages';
 import Communities from '@/pages/Communities';
 import Feed from '@/pages/Feed';
+
 function PageTransition({ children }: { children: ReactNode }) {
   return (
     <motion.div
@@ -237,6 +239,9 @@ export default function App() {
   const location = useLocation();
   useAuthHydration();
 
+  // Standalone routes — deliberately rendered OUTSIDE MainLayout so no
+  // navbar/bottom-tab-bar leaks in. Live session room and the pending-
+  // approval waiting screen both need to be full-screen, isolated pages.
   if (location.pathname.startsWith('/sessions/') && location.pathname.endsWith('/live')) {
     return (
       <Routes location={location}>
@@ -245,6 +250,21 @@ export default function App() {
           element={
             <ProtectedRoute>
               <LiveSessionRoom />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    );
+  }
+
+  if (location.pathname === '/pending-approval') {
+    return (
+      <Routes location={location}>
+        <Route
+          path="/pending-approval"
+          element={
+            <ProtectedRoute>
+              <PendingApproval />
             </ProtectedRoute>
           }
         />

@@ -1,5 +1,7 @@
 export type Role = 'fan' | 'creator' | 'brand' | 'agency' | 'admin';
 
+export type ProfileStatus = 'unverified' | 'pending' | 'verified' | 'rejected' | null;
+
 export interface AuthUser {
   _id: string;
   name: string;
@@ -10,6 +12,8 @@ export interface AuthUser {
   roles: Role[];
   walletBalance: number;
   isEmailVerified: boolean;
+  profileStatus?: ProfileStatus;
+  onboardingCompleted?: boolean;
 }
 
 export interface ApiEnvelope<T> {

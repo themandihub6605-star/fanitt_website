@@ -17,6 +17,7 @@ import {
   Megaphone,
   Bell,
   Settings,
+  Globe,
 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { NotificationBellLink } from '@/components/NotificationBellLink';
@@ -93,6 +94,16 @@ export function DashboardShell({ children }: PropsWithChildren) {
           <Logo className="h-8 w-auto" />
         </Link>
 
+        {/* Explicit way back to the public website — the logo alone isn't
+         * obvious enough as a nav action, so this spells it out. */}
+        <Link
+          to="/"
+          className="mb-4 flex items-center gap-3 rounded-xl border border-white/10 px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:border-orange-400/40 hover:bg-white/5 hover:text-white"
+        >
+          <Globe size={18} />
+          Visit Website
+        </Link>
+
         <nav className="flex-1 space-y-1">
           {NAV.map((item) => {
             const active = location.pathname === item.href;
@@ -163,6 +174,17 @@ export function DashboardShell({ children }: PropsWithChildren) {
               />
             </div>
           </form>
+
+          {/* Mobile equivalent of the sidebar's "Visit Website" link — desktop
+           * users see the full sidebar button; on mobile there's no sidebar
+           * at all, so this small icon-button lives in the topbar instead. */}
+          <Link
+            to="/"
+            aria-label="Visit website"
+            className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-bold text-white/70 hover:border-orange-400/40 hover:text-white lg:hidden"
+          >
+            <Globe size={14} /> Website
+          </Link>
 
           <div className="ml-auto flex items-center gap-2.5 sm:gap-3">
             {isCreator ? (

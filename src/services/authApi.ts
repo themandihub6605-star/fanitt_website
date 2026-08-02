@@ -1,10 +1,11 @@
 import { apiClient } from './apiClient';
-import type { AuthUser, ApiEnvelope, Role } from '@/types/api';
+import type { AuthUser, ApiEnvelope, Role, ProfileStatus } from '@/types/api';
 
 interface AuthResponse {
   user: AuthUser;
   accessToken: string;
   isNewUser?: boolean;
+  profileStatus?: ProfileStatus;
 }
 
 export const authApi = {
@@ -30,4 +31,7 @@ export const authApi = {
 
   upgradeRole: (payload: { role: Role; name?: string }) =>
     apiClient.post<ApiEnvelope<AuthUser>>('/auth/upgrade-role', payload).then((r) => r.data.data),
+
+  completeOnboarding: () =>
+    apiClient.post<ApiEnvelope<AuthUser>>('/auth/complete-onboarding').then((r) => r.data.data),
 };
