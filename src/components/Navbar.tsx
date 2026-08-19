@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, X, Search, Loader2, LayoutDashboard, UserCircle, CalendarCheck, FileText, LogOut } from 'lucide-react';
+import { Menu, X, Search, Loader2, LayoutDashboard, UserCircle, CalendarCheck, FileText, Phone, HelpCircle, LogOut } from 'lucide-react';
 import { Logo } from './Logo';
 import { Button } from './ui/Button';
 import { NotificationBellLink } from './NotificationBellLink';
@@ -167,7 +167,7 @@ export function Navbar() {
             transition={{ duration: 0.25 }}
             className="overflow-hidden border-t border-white/10 bg-[#141414] lg:hidden"
           >
-            <div className="flex flex-col gap-1 px-gutter py-4">
+            <div className="flex flex-col gap-1 px-gutter py-4 max-h-[70vh] overflow-y-auto">
               {isAuthenticated &&
                 NAV_LINKS.map((link) => (
                   <NavItem
@@ -234,13 +234,40 @@ export function Navbar() {
                       <FileText size={16} /> My Proposals
                     </Link>
                   )}
+
+                  {/* Help & Legal — desktop has these in the Footer, which
+                   * doesn't show on mobile, so they live here too. */}
+                  <div className="mt-2 border-t border-white/10 pt-2">
+                    <Link
+                      to="/contact"
+                      onClick={() => dispatch(closeMobileNav())}
+                      className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
+                    >
+                      <Phone size={16} /> Contact Us
+                    </Link>
+                    <Link
+                      to="/privacy-policy"
+                      onClick={() => dispatch(closeMobileNav())}
+                      className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
+                    >
+                      <FileText size={16} /> Privacy Policy
+                    </Link>
+                    <Link
+                      to="/faq"
+                      onClick={() => dispatch(closeMobileNav())}
+                      className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
+                    >
+                      <HelpCircle size={16} /> FAQ
+                    </Link>
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => {
                       dispatch(closeMobileNav());
                       logout();
                     }}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-red-300 hover:bg-red-500/10"
+                    className="mt-2 flex w-full items-center gap-2.5 rounded-lg border-t border-white/10 px-3 pt-3 pb-2.5 text-left text-sm font-semibold text-red-300 hover:bg-red-500/10"
                   >
                     <LogOut size={16} /> Log out
                   </button>
@@ -255,6 +282,29 @@ export function Navbar() {
                       Get Started
                     </Button>
                   </Link>
+                  <div className="mt-2 border-t border-white/10 pt-2">
+                    <Link
+                      to="/contact"
+                      onClick={() => dispatch(closeMobileNav())}
+                      className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
+                    >
+                      <Phone size={16} /> Contact Us
+                    </Link>
+                    <Link
+                      to="/privacy-policy"
+                      onClick={() => dispatch(closeMobileNav())}
+                      className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
+                    >
+                      <FileText size={16} /> Privacy Policy
+                    </Link>
+                    <Link
+                      to="/faq"
+                      onClick={() => dispatch(closeMobileNav())}
+                      className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
+                    >
+                      <HelpCircle size={16} /> FAQ
+                    </Link>
+                  </div>
                 </>
               )}
             </div>

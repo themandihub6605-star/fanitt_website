@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Instagram, Facebook, Linkedin, Youtube, AtSign, Smartphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Logo } from './Logo';
@@ -12,8 +13,6 @@ const SOCIAL_LINKS = [
   { icon: AtSign, label: 'Threads', href: 'https://www.threads.com/@fanitt.live' },
   { icon: Youtube, label: 'YouTube', href: 'https://www.youtube.com/@FanittLive' },
 ];
-
-const CONTACT_EMAIL = 'fanittlive@gmail.com';
 
 export function Footer() {
   const { ref: parallaxRef, y } = useParallax(14);
@@ -54,7 +53,7 @@ export function Footer() {
               <ul className="space-y-2 text-sm">
                 {NAV_LINKS.map((l) => (
                   <li key={l.href}>
-                    <a href={l.href} className="hover:text-orange-400">{l.label}</a>
+                    <Link to={l.href} className="hover:text-orange-400">{l.label}</Link>
                   </li>
                 ))}
               </ul>
@@ -72,10 +71,9 @@ export function Footer() {
             <div>
               <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream/40">Company</p>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-orange-400">About Us</a></li>
-                <li><a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-orange-400">Contact Us</a></li>
-                <li><a href="#" className="hover:text-orange-400">Terms & Conditions</a></li>
-                <li><a href="#" className="hover:text-orange-400">Privacy Policy</a></li>
+                <li><Link to="/contact" className="hover:text-orange-400">Contact Us</Link></li>
+                <li><Link to="/faq" className="hover:text-orange-400">FAQ</Link></li>
+                <li><Link to="/privacy-policy" className="hover:text-orange-400">Privacy Policy</Link></li>
               </ul>
             </div>
           </div>

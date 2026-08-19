@@ -40,7 +40,9 @@ import MyWallet from '@/pages/MyWallet';
 import Messages from '@/pages/Messages';
 import Communities from '@/pages/Communities';
 import Feed from '@/pages/Feed';
-
+import ContactUs from '@/pages/ContactUs';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import FAQ from '@/pages/FAQ';
 function PageTransition({ children }: { children: ReactNode }) {
   return (
     <motion.div
@@ -93,6 +95,9 @@ const LAYOUT_ROUTES: { path: string; element: ReactNode }[] = [
   { path: '/get-started', element: <Welcome /> },
   { path: '/login', element: <Login /> },
   { path: '/signup', element: <Signup /> },
+  { path: '/contact', element: <ContactUs /> },
+{ path: '/privacy-policy', element: <PrivacyPolicy /> },
+{ path: '/faq', element: <FAQ /> },
   { path: '/campaigns', element: <Campaigns /> },
   {
     path: '/campaigns/new',

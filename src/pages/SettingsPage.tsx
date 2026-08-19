@@ -1,11 +1,18 @@
 import { useState } from 'react';
-import { Lock, Loader2, AlertCircle, CheckCircle2, LogOut, Eye, EyeOff } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Lock, Loader2, AlertCircle, CheckCircle2, LogOut, Eye, EyeOff, Phone, FileText, HelpCircle, ChevronRight } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { authApi } from '@/services/authApi';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
 import { useAuth } from '@/hooks/useAuth';
+
+const HELP_LINKS = [
+  { to: '/contact', label: 'Contact Us', icon: Phone },
+  { to: '/privacy-policy', label: 'Privacy Policy', icon: FileText },
+  { to: '/faq', label: 'FAQ', icon: HelpCircle },
+];
 
 export default function SettingsPage() {
   const user = useAppSelector((s) => s.auth.user);
@@ -113,6 +120,25 @@ export default function SettingsPage() {
             {saving ? <Loader2 size={18} className="animate-spin" /> : 'Update Password'}
           </Button>
         </form>
+
+        {/* Mobile only — desktop already has these in the Footer, which
+         * doesn't show on mobile, so they live here instead. */}
+        <div className="mt-6 border-t border-white/10 pt-6 lg:hidden">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wide text-white/40">Help & Legal</p>
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-navy-800/50">
+            {HELP_LINKS.map((link, i) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className={`flex items-center gap-3 px-4 py-3.5 text-sm font-semibold text-white/80 hover:bg-white/5 ${i > 0 ? 'border-t border-white/5' : ''}`}
+              >
+                <link.icon size={16} className="text-orange-400" />
+                <span className="flex-1">{link.label}</span>
+                <ChevronRight size={16} className="text-white/30" />
+              </Link>
+            ))}
+          </div>
+        </div>
 
         <button
           onClick={logout}
