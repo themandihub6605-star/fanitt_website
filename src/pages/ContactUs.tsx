@@ -30,7 +30,8 @@ export default function ContactUs() {
           </p>
         </motion.div>
 
-        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <h2 className="mt-10 text-center text-2xl font-black text-orange-400">Rago VRadicals LLP</h2>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
           {CONTACT_DETAILS.map((item, i) => (
             <motion.div
               key={item.label}
