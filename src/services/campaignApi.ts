@@ -2,16 +2,46 @@ import { apiClient } from './apiClient';
 import type { ApiEnvelope } from '@/types/api';
 import type { RazorpayOrder } from './bookingApi';
 
+export type CampaignType = 'paid' | 'barter';
+export type LocationType = 'pan_india' | 'state' | 'city';
+export type GenderTarget = 'male' | 'female' | 'other';
+
+export interface ApiCampaignProduct {
+  _id: string;
+  name: string;
+  description: string;
+  quantity: number;
+  price: number;
+  imageUrl?: string;
+}
+
 export interface ApiCampaign {
   _id: string;
   title: string;
   description: string;
-  category: { _id: string; label: string; icon: string };
+  category?: { _id: string; label: string; icon: string } | null;
+  campaignType: CampaignType;
   budget: number;
+  products: ApiCampaignProduct[];
   durationLabel: string;
   location: string;
+  locationType: LocationType;
+  locationValue: string;
   creatorRequirement: string;
-  status: string;
+  influencerCategories: string[];
+  genderTarget: GenderTarget[];
+  ageRange: { min: number; max: number };
+  minFollowers?: number | null;
+  maxInfluencers: number;
+  dos: string[];
+  donts: string[];
+  campaignImageUrl: string;
+  sampleMedia: string[];
+  deliverables: { reel: number; story: number; post: number };
+  status: 'draft' | 'open' | 'in_progress' | 'submitted' | 'approved' | 'completed' | 'disputed' | 'cancelled';
+  isFeePaid: boolean;
+  feeAmount: number;
+  publishedAt?: string | null;
   brand: { _id: string; companyName: string; logoUrl?: string; user: { _id: string; name: string; avatarUrl?: string } };
   assignedCreator?: { _id: string; user: { _id: string; name: string; avatarUrl?: string } } | null;
   applicantCount: number;
@@ -48,6 +78,41 @@ export interface ProposalCounts {
   rejected: number;
 }
 
+export interface FeePreview {
+  baseFee: number;
+  tax: number;
+  totalFee: number;
+  waived: boolean;
+  walletBalance: number;
+}
+
+export interface DraftCampaignPayload {
+  title: string;
+  campaignType: CampaignType;
+  locationType: LocationType;
+  locationValue?: string;
+}
+
+export interface UpdateDraftPayload {
+  title?: string;
+  campaignType?: CampaignType;
+  locationType?: LocationType;
+  locationValue?: string;
+  budget?: number;
+  description?: string;
+  category?: string;
+  creatorRequirement?: string;
+  durationLabel?: string;
+  influencerCategories?: string[];
+  genderTarget?: GenderTarget[];
+  ageRange?: { min: number; max: number };
+  minFollowers?: number;
+  maxInfluencers?: number;
+  dos?: string[];
+  donts?: string[];
+  deliverables?: { reel?: number; story?: number; post?: number };
+}
+
 export const campaignApi = {
   list: (params?: { category?: string; status?: string; page?: number }) =>
     apiClient
@@ -56,16 +121,50 @@ export const campaignApi = {
 
   getById: (id: string) => apiClient.get<ApiEnvelope<ApiCampaign>>(`/campaigns/${id}`).then((r) => r.data.data),
 
-  create: (payload: {
-    title: string;
-    description: string;
-    category: string;
-    budget: number;
-    durationLabel?: string;
-    location?: string;
-    creatorRequirement?: string;
-  }) => apiClient.post<ApiEnvelope<ApiCampaign>>('/campaigns', payload).then((r) => r.data.data),
+  // --- draft wizard ---
+  createDraft: (payload: DraftCampaignPayload) =>
+    apiClient.post<ApiEnvelope<ApiCampaign>>('/campaigns/draft', payload).then((r) => r.data.data),
 
+  getDraft: (id: string) => apiClient.get<ApiEnvelope<ApiCampaign>>(`/campaigns/${id}/draft`).then((r) => r.data.data),
+
+  updateDraft: (id: string, payload: UpdateDraftPayload) =>
+    apiClient.patch<ApiEnvelope<ApiCampaign>>(`/campaigns/${id}`, payload).then((r) => r.data.data),
+
+  addProduct: (
+    id: string,
+    payload: { name: string; description?: string; quantity: number; price: number },
+    imageFile?: File | null
+  ) => {
+    const formData = new FormData();
+    formData.append('name', payload.name);
+    if (payload.description) formData.append('description', payload.description);
+    formData.append('quantity', String(payload.quantity));
+    formData.append('price', String(payload.price));
+    if (imageFile) formData.append('image', imageFile);
+    return apiClient
+      .post<ApiEnvelope<ApiCampaignProduct>>(`/campaigns/${id}/products`, formData)
+      .then((r) => r.data.data);
+  },
+
+  removeProduct: (id: string, productId: string) => apiClient.delete(`/campaigns/${id}/products/${productId}`),
+
+  uploadMedia: (id: string, files: { campaignImage?: File | null; media?: File[] }) => {
+    const formData = new FormData();
+    if (files.campaignImage) formData.append('campaignImage', files.campaignImage);
+    (files.media || []).forEach((f) => formData.append('media', f));
+    return apiClient
+      .post<ApiEnvelope<{ campaignImageUrl: string; sampleMedia: string[] }>>(`/campaigns/${id}/media`, formData)
+      .then((r) => r.data.data);
+  },
+
+  getFeePreview: () => apiClient.get<ApiEnvelope<FeePreview>>('/campaigns/fee-preview').then((r) => r.data.data),
+
+  publish: (id: string, payload: { useWalletMoney: boolean; agreeToTerms: true }) =>
+    apiClient
+      .post<ApiEnvelope<{ campaign: ApiCampaign; fee: FeePreview }>>(`/campaigns/${id}/publish`, payload)
+      .then((r) => r.data.data),
+
+  // --- existing, unchanged ---
   apply: (campaignId: string, payload: { pitch?: string; quotedAmount?: number; deliverables?: string[] }) =>
     apiClient.post<ApiEnvelope<ApiApplication>>(`/campaigns/${campaignId}/apply`, payload).then((r) => r.data.data),
 
