@@ -63,11 +63,11 @@ function Stepper({ label, value, onChange, min = 0, max = 999 }: { label: string
     <div className="flex items-center justify-between rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3">
       <span className="text-sm font-semibold text-white/80">{label}</span>
       <div className="flex items-center gap-3">
-        <button type="button" onClick={() => onChange(Math.max(min, value - 1))} className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-white/60 hover:border-orange-400/50 hover:text-orange-300">
+        <button type="button" onClick={() => onChange(Math.max(min, value - 1))} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/15 text-white/60 hover:border-orange-400/50 hover:text-orange-300">
           <Minus size={13} />
         </button>
         <span className="w-6 text-center font-bold text-white">{value}</span>
-        <button type="button" onClick={() => onChange(Math.min(max, value + 1))} className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-white/60 hover:border-orange-400/50 hover:text-orange-300">
+        <button type="button" onClick={() => onChange(Math.min(max, value + 1))} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/15 text-white/60 hover:border-orange-400/50 hover:text-orange-300">
           <Plus size={13} />
         </button>
       </div>
@@ -96,9 +96,9 @@ function TagInput({ label, tags, onAdd, onRemove, placeholder }: { label: string
             }
           }}
           placeholder={placeholder}
-          className="flex-1 rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
+          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
         />
-        <button type="button" onClick={submit} className="rounded-xl bg-orange-500/15 px-4 text-sm font-bold text-orange-300 hover:bg-orange-500/25">
+        <button type="button" onClick={submit} className="shrink-0 rounded-xl bg-orange-500/15 px-4 text-sm font-bold text-orange-300 hover:bg-orange-500/25">
           Add
         </button>
       </div>
@@ -155,7 +155,7 @@ function CheckList({ label, options, selected, onToggle, customItems, onAddCusto
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder={`Add custom ${label.toLowerCase()}`}
-          className="flex-1 rounded-lg border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-orange-400"
+          className="min-w-0 flex-1 rounded-lg border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-orange-400"
         />
         <button
           type="button"
@@ -166,7 +166,7 @@ function CheckList({ label, options, selected, onToggle, customItems, onAddCusto
               setDraft('');
             }
           }}
-          className="rounded-lg bg-white/10 px-3 text-xs font-bold text-white/70 hover:bg-white/15"
+          className="shrink-0 rounded-lg bg-white/10 px-3 text-xs font-bold text-white/70 hover:bg-white/15"
         >
           <Plus size={13} />
         </button>
@@ -209,7 +209,7 @@ export default function PostCampaign() {
   const [postCount, setPostCount] = useState(0);
   const [storyCount, setStoryCount] = useState(1);
   const [maxInfluencers, setMaxInfluencers] = useState(1);
-  const [minFollowersK, setMinFollowersK] = useState(1); // stored/displayed in thousands, like the reference UI
+  const [minFollowersK, setMinFollowersK] = useState(1);
   const [costPerInfluencer, setCostPerInfluencer] = useState('');
   const [products, setProducts] = useState<LocalProduct[]>([]);
   const [showAddProduct, setShowAddProduct] = useState(false);
@@ -423,9 +423,9 @@ export default function PostCampaign() {
           <ArrowLeft size={15} /> Back to campaigns
         </Link>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mt-6 rounded-[2rem] border border-white/10 bg-navy-800/70 p-8 backdrop-blur-xl">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mt-6 rounded-[2rem] border border-white/10 bg-navy-800/70 p-6 backdrop-blur-xl sm:p-8">
           <span className="rounded-full border border-orange-500/30 bg-orange-500/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-orange-300">For Brands</span>
-          <div className="mt-4 flex items-center justify-between">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
             <h1 className="text-2xl font-bold text-white sm:text-3xl">Create Campaign</h1>
             {!published && <span className="text-xs font-semibold text-white/40">Step {stepIndex + 1}/{STEPS.length}</span>}
           </div>
@@ -465,7 +465,7 @@ export default function PostCampaign() {
                       <div className="space-y-2 rounded-xl border border-white/10 bg-navy-800/50 p-3">
                         {(['pan_india', 'state', 'city'] as LocationType[]).map((lt) => (
                           <label key={lt} className="flex cursor-pointer items-center gap-2.5 text-sm text-white/70">
-                            <input type="radio" checked={locationType === lt} onChange={() => setLocationType(lt)} className="h-4 w-4 accent-orange-500" />
+                            <input type="radio" checked={locationType === lt} onChange={() => setLocationType(lt)} className="h-4 w-4 shrink-0 accent-orange-500" />
                             {lt === 'pan_india' ? 'Pan India' : lt === 'state' ? 'Choose a particular State' : 'Choose a particular City'}
                           </label>
                         ))}
@@ -482,10 +482,10 @@ export default function PostCampaign() {
 
                     <div>
                       <span className="mb-1.5 block text-sm font-semibold text-white/80">Campaign Type</span>
-                      <div className="flex gap-4 rounded-xl border border-white/10 bg-navy-800/50 p-3">
+                      <div className="flex flex-wrap gap-4 rounded-xl border border-white/10 bg-navy-800/50 p-3">
                         {(['paid', 'barter'] as CampaignType[]).map((ct) => (
                           <label key={ct} className="flex cursor-pointer items-center gap-2 text-sm text-white/70">
-                            <input type="radio" checked={campaignType === ct} onChange={() => setCampaignType(ct)} className="h-4 w-4 accent-orange-500" />
+                            <input type="radio" checked={campaignType === ct} onChange={() => setCampaignType(ct)} className="h-4 w-4 shrink-0 accent-orange-500" />
                             {ct === 'paid' ? 'Paid' : 'Barter'}
                           </label>
                         ))}
@@ -512,12 +512,12 @@ export default function PostCampaign() {
                     <div>
                       <span className="mb-1.5 block text-sm font-semibold text-white/80">Number of Influencers Required</span>
                       <div className="rounded-xl border border-white/10 bg-navy-800/50 p-4">
-                        <div className="flex items-center justify-between">
-                          <button type="button" onClick={() => setMaxInfluencers((v) => Math.max(1, v - 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-white/60 hover:border-orange-400/50 hover:text-orange-300">
+                        <div className="flex items-center justify-between gap-2">
+                          <button type="button" onClick={() => setMaxInfluencers((v) => Math.max(1, v - 1))} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 text-white/60 hover:border-orange-400/50 hover:text-orange-300">
                             <Minus size={14} />
                           </button>
-                          <span className="text-sm font-semibold text-white">{maxInfluencers} Influencer{maxInfluencers === 1 ? '' : 's'}</span>
-                          <button type="button" onClick={() => setMaxInfluencers((v) => Math.min(50, v + 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-white/60 hover:border-orange-400/50 hover:text-orange-300">
+                          <span className="text-center text-sm font-semibold text-white">{maxInfluencers} Influencer{maxInfluencers === 1 ? '' : 's'}</span>
+                          <button type="button" onClick={() => setMaxInfluencers((v) => Math.min(50, v + 1))} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 text-white/60 hover:border-orange-400/50 hover:text-orange-300">
                             <Plus size={14} />
                           </button>
                         </div>
@@ -541,9 +541,9 @@ export default function PostCampaign() {
                           max={1000}
                           value={minFollowersK}
                           onChange={(e) => setMinFollowersK(Number(e.target.value))}
-                          className="flex-1 accent-orange-500"
+                          className="min-w-0 flex-1 accent-orange-500"
                         />
-                        <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-navy-800/70 px-2.5 py-1.5">
+                        <div className="flex shrink-0 items-center gap-1 rounded-lg border border-white/10 bg-navy-800/70 px-2.5 py-1.5">
                           <input
                             type="number"
                             min={0}
@@ -570,12 +570,12 @@ export default function PostCampaign() {
                       <div className="space-y-3">
                         {products.map((p) => (
                           <div key={p._id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-navy-800/50 p-3">
-                            {p.imageUrl ? <img src={p.imageUrl} alt="" className="h-12 w-12 rounded-lg object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/10 text-white/30"><ImagePlus size={16} /></div>}
+                            {p.imageUrl ? <img src={p.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" /> : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/30"><ImagePlus size={16} /></div>}
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-bold text-white">{p.name}</p>
                               <p className="text-xs text-white/50">Qty {p.quantity} · ₹{p.price}</p>
                             </div>
-                            <button type="button" onClick={() => handleRemoveProduct(p)} className="text-white/30 hover:text-red-400">
+                            <button type="button" onClick={() => handleRemoveProduct(p)} className="shrink-0 text-white/30 hover:text-red-400">
                               <X size={16} />
                             </button>
                           </div>
@@ -633,7 +633,7 @@ export default function PostCampaign() {
                     </div>
 
                     <div className="flex gap-3 pt-1">
-                      <button type="button" onClick={goBack} className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-3 text-sm font-semibold text-white/70 hover:border-white/30">
+                      <button type="button" onClick={goBack} className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-4 py-3 text-sm font-semibold text-white/70 hover:border-white/30">
                         <ArrowLeft size={15} /> Back
                       </button>
                       <Button disabled={loading} className="flex-1 justify-center" onClick={handleStepTwoNext}>
@@ -669,7 +669,7 @@ export default function PostCampaign() {
 
                     <div>
                       <span className="mb-1.5 block text-sm font-semibold text-white/80">Gender</span>
-                      <div className="flex gap-3">
+                      <div className="flex flex-wrap gap-3">
                         {(['male', 'female', 'other'] as GenderTarget[]).map((g) => (
                           <button
                             key={g}
@@ -689,9 +689,9 @@ export default function PostCampaign() {
                     <div>
                       <span className="mb-1.5 block text-sm font-semibold text-white/80">Select Age Range</span>
                       <div className="flex items-center gap-3">
-                        <input type="number" value={ageMin} onChange={(e) => setAgeMin(Number(e.target.value))} className="w-20 rounded-lg border border-white/10 bg-navy-800/70 px-3 py-2 text-center text-sm text-white focus:border-orange-400" />
-                        <span className="text-white/40">to</span>
-                        <input type="number" value={ageMax} onChange={(e) => setAgeMax(Number(e.target.value))} className="w-20 rounded-lg border border-white/10 bg-navy-800/70 px-3 py-2 text-center text-sm text-white focus:border-orange-400" />
+                        <input type="number" value={ageMin} onChange={(e) => setAgeMin(Number(e.target.value))} className="w-20 shrink-0 rounded-lg border border-white/10 bg-navy-800/70 px-3 py-2 text-center text-sm text-white focus:border-orange-400" />
+                        <span className="shrink-0 text-white/40">to</span>
+                        <input type="number" value={ageMax} onChange={(e) => setAgeMax(Number(e.target.value))} className="w-20 shrink-0 rounded-lg border border-white/10 bg-navy-800/70 px-3 py-2 text-center text-sm text-white focus:border-orange-400" />
                       </div>
                     </div>
 
@@ -701,7 +701,7 @@ export default function PostCampaign() {
                     <CheckList label="Dont's" options={DEFAULT_DONTS} selected={dontsSelected} onToggle={(v) => setDontsSelected((p) => (p.includes(v) ? p.filter((x) => x !== v) : [...p, v]))} customItems={dontsCustom} onAddCustom={(v) => setDontsCustom((p) => [...p, v])} onRemoveCustom={(v) => setDontsCustom((p) => p.filter((x) => x !== v))} />
 
                     <div className="flex gap-3 pt-1">
-                      <button type="button" onClick={goBack} className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-3 text-sm font-semibold text-white/70 hover:border-white/30">
+                      <button type="button" onClick={goBack} className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-4 py-3 text-sm font-semibold text-white/70 hover:border-white/30">
                         <ArrowLeft size={15} /> Back
                       </button>
                       <Button disabled={loading} className="flex-1 justify-center" onClick={handleStepThreeNext}>
@@ -757,7 +757,7 @@ export default function PostCampaign() {
                     </div>
 
                     <div className="flex gap-3 pt-1">
-                      <button type="button" onClick={goBack} className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-3 text-sm font-semibold text-white/70 hover:border-white/30">
+                      <button type="button" onClick={goBack} className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-4 py-3 text-sm font-semibold text-white/70 hover:border-white/30">
                         <ArrowLeft size={15} /> Back
                       </button>
                       <Button disabled={loading} className="flex-1 justify-center" onClick={handleStepFourNext}>
@@ -808,7 +808,7 @@ export default function PostCampaign() {
 
                     <div className="rounded-2xl border border-white/10 bg-navy-800/50 p-4">
                       <p className="text-sm font-bold text-white">Influencer Requirement</p>
-                      <div className="mt-2 flex gap-6 text-center text-sm">
+                      <div className="mt-2 flex flex-wrap gap-6 text-center">
                         {previewCampaign.minFollowers ? (
                           <div><p className="font-bold text-white">{previewCampaign.minFollowers.toLocaleString('en-IN')}+</p><p className="text-[10px] text-white/40">Followers</p></div>
                         ) : null}
@@ -817,14 +817,14 @@ export default function PostCampaign() {
                       </div>
                     </div>
 
-                    <div className="flex gap-3 pt-1">
-                      <button type="button" onClick={handleSaveAsDraft} className="flex-1 rounded-full border border-white/15 py-3 text-sm font-semibold text-white/70 hover:border-white/30">
+                    <div className="flex flex-col gap-3 pt-1 sm:flex-row">
+                      <button type="button" onClick={handleSaveAsDraft} className="flex-1 rounded-2xl border border-white/15 py-3 text-sm font-semibold text-white/70 hover:border-white/30">
                         Save As Draft
                       </button>
-                      <button type="button" onClick={goBack} className="flex-1 rounded-full border border-white/15 py-3 text-sm font-semibold text-white/70 hover:border-white/30">
+                      <button type="button" onClick={goBack} className="flex-1 rounded-2xl border border-white/15 py-3 text-sm font-semibold text-white/70 hover:border-white/30">
                         Edit
                       </button>
-                      <Button className="flex-1 justify-center" disabled={publishing} onClick={handlePublish}>
+                      <Button className="flex-1 justify-center rounded-2xl" disabled={publishing} onClick={handlePublish}>
                         {publishing ? <Loader2 size={18} className="animate-spin" /> : 'Publish'}
                       </Button>
                     </div>
