@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Check, AlertCircle, Loader2, Plus, X, ImagePlus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, AlertCircle, Loader2, Plus, X, ImagePlus, Minus } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { categoryApi, type ApiCategory } from '@/services/categoryApi';
-import { campaignApi, type ApiCampaign, type CampaignType, type LocationType, type GenderTarget, type FeePreview } from '@/services/campaignApi';
+import { campaignApi, type ApiCampaign, type CampaignType, type LocationType, type GenderTarget } from '@/services/campaignApi';
 import { getApiErrorMessage } from '@/services/apiClient';
-import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/utils/cn';
 
 const STEPS = ['Basics', 'Budget', 'Targeting', 'Media', 'Preview'] as const;
@@ -56,6 +55,23 @@ function TextField({
         className="w-full rounded-xl border border-white/10 bg-navy-800/55 px-4 py-3 text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
       />
     </label>
+  );
+}
+
+function Stepper({ label, value, onChange, min = 0, max = 999 }: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number }) {
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3">
+      <span className="text-sm font-semibold text-white/80">{label}</span>
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={() => onChange(Math.max(min, value - 1))} className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-white/60 hover:border-orange-400/50 hover:text-orange-300">
+          <Minus size={13} />
+        </button>
+        <span className="w-6 text-center font-bold text-white">{value}</span>
+        <button type="button" onClick={() => onChange(Math.min(max, value + 1))} className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-white/60 hover:border-orange-400/50 hover:text-orange-300">
+          <Plus size={13} />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -164,16 +180,14 @@ interface LocalProduct {
   name: string;
   description: string;
   quantity: number;
-  price: string; // rupees, as typed
+  price: string;
   imageFile: File | null;
   imagePreview: string;
   imageUrl?: string;
-  saving?: boolean;
 }
 
 export default function PostCampaign() {
   const navigate = useNavigate();
-  const user = useAppSelector((s) => s.auth.user);
 
   const [stepIndex, setStepIndex] = useState(0);
   const step: Step = STEPS[stepIndex];
@@ -190,8 +204,13 @@ export default function PostCampaign() {
   const [locationType, setLocationType] = useState<LocationType>('pan_india');
   const [locationValue, setLocationValue] = useState('');
 
-  // step 2
-  const [budget, setBudget] = useState('');
+  // step 2 — budget
+  const [reelCount, setReelCount] = useState(1);
+  const [postCount, setPostCount] = useState(0);
+  const [storyCount, setStoryCount] = useState(1);
+  const [maxInfluencers, setMaxInfluencers] = useState(1);
+  const [minFollowersK, setMinFollowersK] = useState(1); // stored/displayed in thousands, like the reference UI
+  const [costPerInfluencer, setCostPerInfluencer] = useState('');
   const [products, setProducts] = useState<LocalProduct[]>([]);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [productDraft, setProductDraft] = useState<LocalProduct>({
@@ -203,7 +222,7 @@ export default function PostCampaign() {
     imagePreview: '',
   });
 
-  // step 3
+  // step 3 — targeting
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [durationLabel, setDurationLabel] = useState('');
@@ -211,14 +230,10 @@ export default function PostCampaign() {
   const [genderTarget, setGenderTarget] = useState<GenderTarget[]>([]);
   const [ageMin, setAgeMin] = useState(18);
   const [ageMax, setAgeMax] = useState(35);
-  const [minFollowers, setMinFollowers] = useState('');
   const [dosSelected, setDosSelected] = useState<string[]>(DEFAULT_DOS);
   const [dosCustom, setDosCustom] = useState<string[]>([]);
   const [dontsSelected, setDontsSelected] = useState<string[]>(DEFAULT_DONTS);
   const [dontsCustom, setDontsCustom] = useState<string[]>([]);
-  const [reelCount, setReelCount] = useState(1);
-  const [storyCount, setStoryCount] = useState(1);
-  const [postCount, setPostCount] = useState(0);
 
   // step 4
   const [campaignImageFile, setCampaignImageFile] = useState<File | null>(null);
@@ -227,9 +242,6 @@ export default function PostCampaign() {
 
   // step 5
   const [previewCampaign, setPreviewCampaign] = useState<ApiCampaign | null>(null);
-  const [showPublishModal, setShowPublishModal] = useState(false);
-  const [feePreview, setFeePreview] = useState<FeePreview | null>(null);
-  const [agreeTerms, setAgreeTerms] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
 
@@ -241,6 +253,8 @@ export default function PostCampaign() {
   }, []);
 
   const goBack = () => setStepIndex((i) => Math.max(0, i - 1));
+
+  const totalBudgetPreview = Math.round((parseFloat(costPerInfluencer) || 0) * 100) * maxInfluencers;
 
   const handleAddProduct = async () => {
     if (!campaignId) return;
@@ -306,27 +320,31 @@ export default function PostCampaign() {
   const handleStepTwoNext = async () => {
     if (!campaignId) return;
     setError('');
+
     if (campaignType === 'paid') {
-      const paise = Math.round(parseFloat(budget) * 100);
+      const paise = Math.round((parseFloat(costPerInfluencer) || 0) * 100);
       if (!paise || paise <= 0) {
-        setError('Please enter a valid budget amount');
+        setError('Please enter a valid cost per influencer');
         return;
       }
-      setLoading(true);
-      try {
-        await campaignApi.updateDraft(campaignId, { budget: paise });
-        setStepIndex(2);
-      } catch (err) {
-        setError(getApiErrorMessage(err));
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      if (products.length === 0) {
-        setError('Add at least one barter product');
-        return;
-      }
+    } else if (products.length === 0) {
+      setError('Add at least one barter product');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await campaignApi.updateDraft(campaignId, {
+        costPerInfluencer: campaignType === 'paid' ? Math.round((parseFloat(costPerInfluencer) || 0) * 100) : 0,
+        maxInfluencers,
+        minFollowers: minFollowersK * 1000,
+        deliverables: { reel: reelCount, story: storyCount, post: postCount },
+      });
       setStepIndex(2);
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -346,10 +364,8 @@ export default function PostCampaign() {
         influencerCategories,
         genderTarget,
         ageRange: { min: ageMin, max: ageMax },
-        minFollowers: minFollowers ? Number(minFollowers) : undefined,
         dos: [...dosSelected, ...dosCustom],
         donts: [...dontsSelected, ...dontsCustom],
-        deliverables: { reel: reelCount, story: storyCount, post: postCount },
       });
       setStepIndex(3);
     } catch (err) {
@@ -377,23 +393,8 @@ export default function PostCampaign() {
     }
   };
 
-  const handleSaveAsDraft = async () => {
-    if (!campaignId) {
-      navigate('/dashboard/brand');
-      return;
-    }
+  const handleSaveAsDraft = () => {
     navigate('/dashboard/brand');
-  };
-
-  const openPublishModal = async () => {
-    setError('');
-    try {
-      const fee = await campaignApi.getFeePreview();
-      setFeePreview(fee);
-      setShowPublishModal(true);
-    } catch (err) {
-      setError(getApiErrorMessage(err));
-    }
   };
 
   const handlePublish = async () => {
@@ -401,8 +402,7 @@ export default function PostCampaign() {
     setPublishing(true);
     setError('');
     try {
-      await campaignApi.publish(campaignId, { useWalletMoney: true, agreeToTerms: true });
-      setShowPublishModal(false);
+      await campaignApi.publish(campaignId);
       setPublished(true);
       setTimeout(() => navigate('/campaigns'), 1600);
     } catch (err) {
@@ -500,76 +500,137 @@ export default function PostCampaign() {
 
                 {step === 'Budget' && (
                   <>
-                    {campaignType === 'paid' ? (
-                      <TextField label="Budget (₹)" type="number" value={budget} onChange={setBudget} placeholder="e.g. 30000" required />
-                    ) : (
-                      <div>
-                        <span className="mb-1.5 block text-sm font-semibold text-white/80">Barter Products</span>
-                        <div className="space-y-3">
-                          {products.map((p) => (
-                            <div key={p._id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-navy-800/50 p-3">
-                              {p.imageUrl ? <img src={p.imageUrl} alt="" className="h-12 w-12 rounded-lg object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/10 text-white/30"><ImagePlus size={16} /></div>}
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-bold text-white">{p.name}</p>
-                                <p className="text-xs text-white/50">Qty {p.quantity} · ₹{p.price}</p>
-                              </div>
-                              <button type="button" onClick={() => handleRemoveProduct(p)} className="text-white/30 hover:text-red-400">
-                                <X size={16} />
-                              </button>
-                            </div>
-                          ))}
+                    <div>
+                      <span className="mb-1.5 block text-sm font-semibold text-white/80">Deliverables Per Influencer</span>
+                      <div className="space-y-2">
+                        <Stepper label="Reel" value={reelCount} onChange={setReelCount} />
+                        <Stepper label="Post" value={postCount} onChange={setPostCount} />
+                        <Stepper label="Story" value={storyCount} onChange={setStoryCount} />
+                      </div>
+                    </div>
 
-                          {showAddProduct ? (
-                            <div className="space-y-3 rounded-xl border border-orange-400/30 bg-navy-800/60 p-4">
-                              <TextField label="Product Name" value={productDraft.name} onChange={(v) => setProductDraft((d) => ({ ...d, name: v }))} placeholder="Printed T-shirt" />
-                              <label className="block">
-                                <span className="mb-1.5 block text-sm font-semibold text-white/80">Product Description</span>
-                                <textarea
-                                  rows={2}
-                                  value={productDraft.description}
-                                  onChange={(e) => setProductDraft((d) => ({ ...d, description: e.target.value }))}
-                                  placeholder="Premium 240gsm T-shirt"
-                                  className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
-                                />
-                              </label>
-                              <div className="grid grid-cols-2 gap-3">
-                                <TextField label="Quantity" type="number" value={String(productDraft.quantity)} onChange={(v) => setProductDraft((d) => ({ ...d, quantity: Math.max(1, Number(v) || 1) }))} />
-                                <TextField label="Price (₹)" type="number" value={productDraft.price} onChange={(v) => setProductDraft((d) => ({ ...d, price: v }))} placeholder="700" />
-                              </div>
-                              <label className="block">
-                                <span className="mb-1.5 block text-sm font-semibold text-white/80">Add Image</span>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) setProductDraft((d) => ({ ...d, imageFile: file, imagePreview: URL.createObjectURL(file) }));
-                                  }}
-                                  className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500/20 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-orange-300"
-                                />
-                                {productDraft.imagePreview && <img src={productDraft.imagePreview} alt="" className="mt-2 h-20 w-20 rounded-lg object-cover" />}
-                              </label>
-                              <div className="flex gap-2">
-                                <button type="button" onClick={() => setShowAddProduct(false)} className="flex-1 rounded-full border border-white/15 py-2.5 text-sm font-semibold text-white/70 hover:border-white/30">
-                                  Cancel
-                                </button>
-                                <button type="button" onClick={handleAddProduct} className="flex-1 rounded-full bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-600">
-                                  Save
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setShowAddProduct(true)}
-                              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 py-3 text-sm font-semibold text-white/50 hover:border-orange-400/50 hover:text-orange-300"
-                            >
-                              <Plus size={15} /> Add Product
-                            </button>
-                          )}
+                    <div>
+                      <span className="mb-1.5 block text-sm font-semibold text-white/80">Number of Influencers Required</span>
+                      <div className="rounded-xl border border-white/10 bg-navy-800/50 p-4">
+                        <div className="flex items-center justify-between">
+                          <button type="button" onClick={() => setMaxInfluencers((v) => Math.max(1, v - 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-white/60 hover:border-orange-400/50 hover:text-orange-300">
+                            <Minus size={14} />
+                          </button>
+                          <span className="text-sm font-semibold text-white">{maxInfluencers} Influencer{maxInfluencers === 1 ? '' : 's'}</span>
+                          <button type="button" onClick={() => setMaxInfluencers((v) => Math.min(50, v + 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-white/60 hover:border-orange-400/50 hover:text-orange-300">
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                        <input
+                          type="range"
+                          min={1}
+                          max={50}
+                          value={maxInfluencers}
+                          onChange={(e) => setMaxInfluencers(Number(e.target.value))}
+                          className="mt-3 w-full accent-orange-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="mb-1.5 block text-sm font-semibold text-white/80">Minimum Followers Required</span>
+                      <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-navy-800/50 p-4">
+                        <input
+                          type="range"
+                          min={0}
+                          max={1000}
+                          value={minFollowersK}
+                          onChange={(e) => setMinFollowersK(Number(e.target.value))}
+                          className="flex-1 accent-orange-500"
+                        />
+                        <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-navy-800/70 px-2.5 py-1.5">
+                          <input
+                            type="number"
+                            min={0}
+                            value={minFollowersK}
+                            onChange={(e) => setMinFollowersK(Math.max(0, Number(e.target.value)))}
+                            className="w-12 bg-transparent text-center text-sm text-white outline-none"
+                          />
+                          <span className="text-xs font-semibold text-white/50">K</span>
                         </div>
                       </div>
+                    </div>
+
+                    {campaignType === 'paid' && (
+                      <div>
+                        <TextField label="Cost Per Influencer (₹)" type="number" value={costPerInfluencer} onChange={setCostPerInfluencer} placeholder="e.g. 5000" required />
+                        <p className="mt-1.5 text-xs text-white/40">Total Budget: {formatRupees(totalBudgetPreview)}</p>
+                      </div>
                     )}
+
+                    <div>
+                      <span className="mb-1.5 block text-sm font-semibold text-white/80">
+                        {campaignType === 'barter' ? 'Barter Products' : 'Add Free Products (optional)'}
+                      </span>
+                      <div className="space-y-3">
+                        {products.map((p) => (
+                          <div key={p._id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-navy-800/50 p-3">
+                            {p.imageUrl ? <img src={p.imageUrl} alt="" className="h-12 w-12 rounded-lg object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/10 text-white/30"><ImagePlus size={16} /></div>}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-bold text-white">{p.name}</p>
+                              <p className="text-xs text-white/50">Qty {p.quantity} · ₹{p.price}</p>
+                            </div>
+                            <button type="button" onClick={() => handleRemoveProduct(p)} className="text-white/30 hover:text-red-400">
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ))}
+
+                        {showAddProduct ? (
+                          <div className="space-y-3 rounded-xl border border-orange-400/30 bg-navy-800/60 p-4">
+                            <TextField label="Product Name" value={productDraft.name} onChange={(v) => setProductDraft((d) => ({ ...d, name: v }))} placeholder="Printed T-shirt" />
+                            <label className="block">
+                              <span className="mb-1.5 block text-sm font-semibold text-white/80">Product Description</span>
+                              <textarea
+                                rows={2}
+                                value={productDraft.description}
+                                onChange={(e) => setProductDraft((d) => ({ ...d, description: e.target.value }))}
+                                placeholder="Premium 240gsm T-shirt"
+                                className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
+                              />
+                            </label>
+                            <div className="grid grid-cols-2 gap-3">
+                              <TextField label="Quantity" type="number" value={String(productDraft.quantity)} onChange={(v) => setProductDraft((d) => ({ ...d, quantity: Math.max(1, Number(v) || 1) }))} />
+                              <TextField label="Price (₹)" type="number" value={productDraft.price} onChange={(v) => setProductDraft((d) => ({ ...d, price: v }))} placeholder="700" />
+                            </div>
+                            <label className="block">
+                              <span className="mb-1.5 block text-sm font-semibold text-white/80">Add Image</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) setProductDraft((d) => ({ ...d, imageFile: file, imagePreview: URL.createObjectURL(file) }));
+                                }}
+                                className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500/20 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-orange-300"
+                              />
+                              {productDraft.imagePreview && <img src={productDraft.imagePreview} alt="" className="mt-2 h-20 w-20 rounded-lg object-cover" />}
+                            </label>
+                            <div className="flex gap-2">
+                              <button type="button" onClick={() => setShowAddProduct(false)} className="flex-1 rounded-full border border-white/15 py-2.5 text-sm font-semibold text-white/70 hover:border-white/30">
+                                Cancel
+                              </button>
+                              <button type="button" onClick={handleAddProduct} className="flex-1 rounded-full bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-600">
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setShowAddProduct(true)}
+                            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 py-3 text-sm font-semibold text-white/50 hover:border-orange-400/50 hover:text-orange-300"
+                          >
+                            <Plus size={15} /> Add Product
+                          </button>
+                        )}
+                      </div>
+                    </div>
 
                     <div className="flex gap-3 pt-1">
                       <button type="button" onClick={goBack} className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-3 text-sm font-semibold text-white/70 hover:border-white/30">
@@ -634,21 +695,7 @@ export default function PostCampaign() {
                       </div>
                     </div>
 
-                    <TextField label="Minimum Followers (optional)" type="number" value={minFollowers} onChange={setMinFollowers} placeholder="e.g. 10000" />
                     <TextField label="Duration (optional)" value={durationLabel} onChange={setDurationLabel} placeholder="e.g. 2-week campaign" />
-
-                    <div className="grid grid-cols-3 gap-3">
-                      {([
-                        ['Reels', reelCount, setReelCount],
-                        ['Stories', storyCount, setStoryCount],
-                        ['Posts', postCount, setPostCount],
-                      ] as [string, number, (n: number) => void][]).map(([label, val, setVal]) => (
-                        <label key={label} className="block">
-                          <span className="mb-1.5 block text-xs font-semibold text-white/70">{label}</span>
-                          <input type="number" min="0" value={val} onChange={(e) => setVal(Math.max(0, Number(e.target.value)))} className="w-full rounded-xl border border-white/10 bg-navy-800/55 px-3 py-2.5 text-center text-white focus:border-orange-400" />
-                        </label>
-                      ))}
-                    </div>
 
                     <CheckList label="Do's" options={DEFAULT_DOS} selected={dosSelected} onToggle={(v) => setDosSelected((p) => (p.includes(v) ? p.filter((x) => x !== v) : [...p, v]))} customItems={dosCustom} onAddCustom={(v) => setDosCustom((p) => [...p, v])} onRemoveCustom={(v) => setDosCustom((p) => p.filter((x) => x !== v))} />
                     <CheckList label="Dont's" options={DEFAULT_DONTS} selected={dontsSelected} onToggle={(v) => setDontsSelected((p) => (p.includes(v) ? p.filter((x) => x !== v) : [...p, v]))} customItems={dontsCustom} onAddCustom={(v) => setDontsCustom((p) => [...p, v])} onRemoveCustom={(v) => setDontsCustom((p) => p.filter((x) => x !== v))} />
@@ -727,7 +774,9 @@ export default function PostCampaign() {
                       <div className="p-4">
                         <p className="font-bold text-white">{previewCampaign.title}</p>
                         <p className="mt-1 text-sm text-white/60">
-                          {previewCampaign.campaignType === 'paid' ? formatRupees(previewCampaign.budget) : `${previewCampaign.products.length} barter product(s)`}
+                          {previewCampaign.campaignType === 'paid'
+                            ? `${formatRupees(previewCampaign.budget)} for ${previewCampaign.maxInfluencers} influencer${previewCampaign.maxInfluencers === 1 ? '' : 's'}`
+                            : `${previewCampaign.products.length} barter product(s)`}
                         </p>
                         <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-navy-800/70 p-3 text-center">
                           <div><p className="font-bold text-white">{previewCampaign.deliverables.reel}</p><p className="text-[10px] text-white/40">Reel</p></div>
@@ -745,7 +794,7 @@ export default function PostCampaign() {
 
                     {previewCampaign.products.length > 0 && (
                       <div className="rounded-2xl border border-white/10 bg-navy-800/50 p-4">
-                        <p className="text-sm font-bold text-white">Barter Products</p>
+                        <p className="text-sm font-bold text-white">{previewCampaign.campaignType === 'barter' ? 'Barter Products' : 'Free Products'}</p>
                         <div className="mt-3 flex flex-wrap gap-3">
                           {previewCampaign.products.map((p) => (
                             <div key={p._id} className="w-20 text-center">
@@ -775,8 +824,8 @@ export default function PostCampaign() {
                       <button type="button" onClick={goBack} className="flex-1 rounded-full border border-white/15 py-3 text-sm font-semibold text-white/70 hover:border-white/30">
                         Edit
                       </button>
-                      <Button className="flex-1 justify-center" onClick={openPublishModal}>
-                        Publish
+                      <Button className="flex-1 justify-center" disabled={publishing} onClick={handlePublish}>
+                        {publishing ? <Loader2 size={18} className="animate-spin" /> : 'Publish'}
                       </Button>
                     </div>
                   </>
@@ -786,67 +835,6 @@ export default function PostCampaign() {
           </AnimatePresence>
         </motion.div>
       </Container>
-
-      <AnimatePresence>
-        {showPublishModal && feePreview && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm" onClick={() => setShowPublishModal(false)}>
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 12 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 24 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm rounded-2xl border border-white/10 bg-navy-800 p-6 shadow-lifted"
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white">Publish Campaign</h3>
-                <button onClick={() => setShowPublishModal(false)} className="text-white/40 hover:text-white">
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="mt-5 space-y-2 border-t border-white/10 pt-4 text-sm">
-                <div className="flex justify-between text-white/70">
-                  <span>Campaign Fee</span>
-                  <span>{formatRupees(feePreview.baseFee)}</span>
-                </div>
-                <div className="flex justify-between text-white/70">
-                  <span>Taxes & Fees</span>
-                  <span>+ {formatRupees(feePreview.tax)}</span>
-                </div>
-                <div className="flex justify-between border-t border-white/10 pt-2 font-bold text-white">
-                  <span>Total</span>
-                  <span>{formatRupees(feePreview.totalFee)}</span>
-                </div>
-              </div>
-
-              {feePreview.waived && (
-                <p className="mt-3 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
-                  This publish is free — test/admin mode is active.
-                </p>
-              )}
-
-              {!feePreview.waived && feePreview.walletBalance < feePreview.totalFee && (
-                <p className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-300">
-                  Insufficient wallet balance ({formatRupees(feePreview.walletBalance)} available). Please add money to your wallet.
-                </p>
-              )}
-
-              <label className="mt-4 flex items-start gap-2.5 text-xs text-white/60">
-                <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} className="mt-0.5 h-4 w-4 accent-orange-500" />
-                I agree to the Terms & Conditions and Privacy Policy
-              </label>
-
-              <Button
-                className="mt-5 w-full justify-center"
-                disabled={publishing || !agreeTerms || (!feePreview.waived && feePreview.walletBalance < feePreview.totalFee)}
-                onClick={handlePublish}
-              >
-                {publishing ? <Loader2 size={18} className="animate-spin" /> : feePreview.totalFee > 0 ? `Pay ${formatRupees(feePreview.totalFee)} with Wallet` : 'Publish for free'}
-              </Button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

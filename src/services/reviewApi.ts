@@ -13,4 +13,7 @@ export interface ApiReview {
 export const reviewApi = {
   getFeatured: (limit = 8) =>
     apiClient.get<ApiEnvelope<ApiReview[]>>('/reviews/featured', { params: { limit } }).then((r) => r.data.data),
+
+  getUserReviews: (userId: string) =>
+    apiClient.get<ApiEnvelope<ApiReview[]>>(`/reviews/user/${userId}`).then((r) => r.data.data),
 };

@@ -5,37 +5,41 @@ import {
   ArrowLeft,
   Star,
   MapPin,
-  Users,
   Loader2,
   AlertCircle,
-  Gift,
   MessageCircle,
   BadgeCheck,
-  ShieldCheck,
   Globe2,
   Calendar,
   Building2,
-  ChevronDown,
   Briefcase,
-  Sparkles,
+  Users,
+  Instagram,
+  Youtube,
+  Linkedin,
+  Facebook,
+  ExternalLink,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
-import { SendGiftModal } from '@/components/SendGiftModal';
-import { SocialLinks } from '@/components/SocialLinks';
 import { getCoverPhoto } from '@/utils/coverPhoto';
 import { getUploadUrl } from '@/services/apiClient';
 import { brandApi, type ApiBrand } from '@/services/brandApi';
 import type { ApiCampaign } from '@/services/campaignApi';
+import { reviewApi, type ApiReview } from '@/services/reviewApi';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/utils/cn';
 
-const TABS = ['Overview', 'Campaigns', 'Services', 'Reviews'] as const;
+const TABS = ['Reviews', 'Instagram', 'Campaigns'] as const;
 type Tab = (typeof TABS)[number];
 
 function formatRupees(paise: number) {
   return `₹${(paise / 100).toLocaleString('en-IN')}`;
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 export default function BrandProfilePage() {
@@ -43,13 +47,12 @@ export default function BrandProfilePage() {
   const navigate = useNavigate();
   const [brand, setBrand] = useState<ApiBrand | null>(null);
   const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
-  const [campaignsPosted, setCampaignsPosted] = useState(0);
+  const [reviews, setReviews] = useState<ApiReview[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [following, setFollowing] = useState(false);
-  const [giftOpen, setGiftOpen] = useState(false);
-  const [tab, setTab] = useState<Tab>('Overview');
-  const [aboutExpanded, setAboutExpanded] = useState(false);
+  const [tab, setTab] = useState<Tab>('Reviews');
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
 
   useEffect(() => {
@@ -62,7 +65,6 @@ export default function BrandProfilePage() {
         if (cancelled) return;
         setBrand(data.brand);
         setCampaigns(data.campaigns);
-        setCampaignsPosted(data.stats?.campaignsPosted ?? 0);
       })
       .catch((err) => !cancelled && setError(getApiErrorMessage(err)))
       .finally(() => !cancelled && setLoading(false));
@@ -71,6 +73,20 @@ export default function BrandProfilePage() {
       cancelled = true;
     };
   }, [slug]);
+
+  useEffect(() => {
+    if (!brand?.user._id || tab !== 'Reviews') return;
+    let cancelled = false;
+    setReviewsLoading(true);
+    reviewApi
+      .getUserReviews(brand.user._id)
+      .then((data) => !cancelled && setReviews(data))
+      .catch(() => {})
+      .finally(() => !cancelled && setReviewsLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [brand?.user._id, tab]);
 
   const handleFollow = async () => {
     if (!isAuthenticated || !brand) return;
@@ -103,95 +119,89 @@ export default function BrandProfilePage() {
 
   const isVerified = brand.verificationStatus === 'verified';
   const websiteHost = brand.website ? brand.website.replace(/^https?:\/\//, '').replace(/\/$/, '') : '';
+  const socialEntries = [
+    { key: 'instagram', label: 'Instagram', icon: Instagram, url: brand.socials?.instagram },
+    { key: 'youtube', label: 'YouTube', icon: Youtube, url: brand.socials?.youtube },
+    { key: 'linkedin', label: 'LinkedIn', icon: Linkedin, url: brand.socials?.linkedin },
+    { key: 'facebook', label: 'Facebook', icon: Facebook, url: brand.socials?.facebook },
+  ].filter((s) => s.url);
 
   return (
     <div className="pb-24">
-      {/* Cover */}
-      <div className="relative h-56 w-full overflow-hidden sm:h-72">
+      {/* Gradient header */}
+      <div className="relative h-40 w-full overflow-hidden sm:h-48">
         <img
-          src={brand.coverImageUrl ? getUploadUrl(brand.coverImageUrl) : getCoverPhoto(brand.industry || 'Business Coaching', 1200, 400)}
+          src={brand.coverImageUrl ? getUploadUrl(brand.coverImageUrl) : getCoverPhoto(brand.industry || 'Business', 1200, 400)}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover opacity-70"
+          className="absolute inset-0 h-full w-full object-cover opacity-40"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/40 to-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-b from-orange-500/40 via-navy-900/70 to-navy-900" />
 
-        <div className="absolute inset-x-4 top-4 flex items-start justify-between sm:inset-x-6">
-          <Link to="/explore" className="flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-white/80 backdrop-blur-sm hover:text-white">
-            <ArrowLeft size={14} /> Back
-          </Link>
-          <div className="flex items-center gap-2">
-            {isVerified && (
-              <span className="flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 text-xs font-semibold text-emerald-300 backdrop-blur-sm">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" /> Verified Brand
-              </span>
-            )}
-            {brand.isTopBrand && (
-              <span className="flex flex-col items-center rounded-xl bg-black/50 px-3 py-1.5 text-center backdrop-blur-sm">
-                <span className="flex items-center gap-1 text-xs font-bold text-yellow-300">
-                  <Star size={11} fill="currentColor" /> Top Brand
-                </span>
-                {brand.industry && <span className="text-[10px] text-white/50">{brand.industry}</span>}
-              </span>
-            )}
-          </div>
-        </div>
+        <Link to="/brands" className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-white/80 backdrop-blur-sm hover:text-white sm:left-6 sm:top-6">
+          <ArrowLeft size={14} /> Back
+        </Link>
       </div>
 
-      <Container className="relative -mt-16 sm:-mt-20">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="flex flex-col items-start gap-5 sm:flex-row sm:items-end"
-        >
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-4 border-orange-500/70 bg-navy-800 object-cover shadow-lifted sm:h-28 sm:w-28">
+      <Container className="relative -mt-14 text-center sm:-mt-16">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+          <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-navy-900 bg-navy-800 shadow-lifted sm:h-28 sm:w-28">
             {brand.logoUrl ? (
-              <img src={getUploadUrl(brand.logoUrl)} alt={brand.companyName} className="h-full w-full rounded-full object-cover" />
+              <img src={getUploadUrl(brand.logoUrl)} alt={brand.companyName} className="h-full w-full object-cover" />
             ) : (
               <Building2 size={32} className="text-white/40" />
             )}
           </div>
 
-          <div className="flex-1 pb-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold text-white sm:text-3xl">{brand.companyName}</h1>
-              {isVerified && <BadgeCheck size={20} className="fill-sky-500 text-white" strokeWidth={2.5} />}
-            </div>
-            <p className="text-sm text-white/50">@{brand.slug}</p>
-            {brand.tagline && <p className="mt-1 text-white/80">{brand.tagline}</p>}
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/50">
-              {brand.location && (
-                <span className="flex items-center gap-1.5">
-                  <MapPin size={13} /> {brand.location}
-                </span>
-              )}
-              {brand.website && (
-                <a href={brand.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-orange-400 hover:underline">
-                  <Globe2 size={13} /> {websiteHost}
-                </a>
-              )}
-            </div>
+          <div className="mt-3 flex items-center justify-center gap-1.5">
+            <h1 className="text-xl font-bold text-white sm:text-2xl">{brand.companyName}</h1>
+            {isVerified && <BadgeCheck size={18} className="fill-sky-500 text-white" strokeWidth={2.5} />}
           </div>
+          {brand.industry && <p className="mt-1 text-sm text-orange-300">{brand.industry}</p>}
 
-          <div className="flex w-full flex-col gap-2 pb-1 sm:w-auto">
-            <Button className="w-full sm:w-auto" onClick={handleFollow}>
-              {following ? 'Following' : 'Follow'}
-            </Button>
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate(`/messages?with=${brand.user._id}`)}>
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <Button onClick={handleFollow}>{following ? 'Following' : 'Follow'}</Button>
+            <Button variant="outline" onClick={() => navigate(`/messages?with=${brand.user._id}`)}>
               <MessageCircle size={15} /> Message
             </Button>
           </div>
         </motion.div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-4">
-          <SocialLinks socials={brand.socials} className="flex gap-2" />
-          <span className="text-sm text-white/50">
-            <b className="text-white">{brand.followerCount.toLocaleString('en-IN')}</b> Followers
-          </span>
+        {/* Business Details card */}
+        <div className="mt-6 rounded-2xl border border-white/10 bg-navy-800/50 p-5 text-left">
+          <p className="mb-3 text-sm font-bold text-white">Business Details</p>
+          <div className="divide-y divide-white/5">
+            {brand.location && (
+              <div className="flex items-center justify-between py-2.5 text-sm">
+                <span className="flex items-center gap-2 text-white/50"><MapPin size={14} /> Headquarters</span>
+                <span className="font-semibold text-white">{brand.location}</span>
+              </div>
+            )}
+            {brand.foundedYear && (
+              <div className="flex items-center justify-between py-2.5 text-sm">
+                <span className="flex items-center gap-2 text-white/50"><Calendar size={14} /> Founded</span>
+                <span className="font-semibold text-white">{brand.foundedYear}</span>
+              </div>
+            )}
+            {brand.companySize && (
+              <div className="flex items-center justify-between py-2.5 text-sm">
+                <span className="flex items-center gap-2 text-white/50"><Users size={14} /> Company Size</span>
+                <span className="font-semibold text-white">{brand.companySize}</span>
+              </div>
+            )}
+            {brand.website && (
+              <div className="flex items-center justify-between py-2.5 text-sm">
+                <span className="flex items-center gap-2 text-white/50"><Globe2 size={14} /> Website</span>
+                <a href={brand.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-semibold text-orange-400 hover:underline">
+                  {websiteHost} <ExternalLink size={11} />
+                </a>
+              </div>
+            )}
+          </div>
+          {brand.about && <p className="mt-3 border-t border-white/5 pt-3 text-sm leading-relaxed text-white/60">{brand.about}</p>}
         </div>
 
         {/* Trust stats strip */}
-        <div className="mt-6 grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-navy-800/50 p-4 sm:grid-cols-4">
+        <div className="mt-4 grid grid-cols-3 gap-3 rounded-2xl border border-white/10 bg-navy-800/50 p-4">
           <div className="text-center">
             <p className="flex items-center justify-center gap-1 text-lg font-bold text-yellow-300">
               <Star size={15} fill="currentColor" /> {brand.averageRating || '—'}
@@ -199,29 +209,23 @@ export default function BrandProfilePage() {
             <p className="text-xs text-white/40">({brand.reviewCount}) Reviews</p>
           </div>
           <div className="text-center">
-            <p className="text-lg font-bold text-white">{campaignsPosted}</p>
-            <p className="text-xs text-white/40">Campaigns Posted</p>
+            <p className="text-lg font-bold text-white">{brand.totalCampaigns}</p>
+            <p className="text-xs text-white/40">Campaigns</p>
           </div>
           <div className="text-center">
-            <p className="text-lg font-bold text-white">{brand.onTimePaymentsPercent ?? 100}%</p>
-            <p className="text-xs text-white/40">On-Time Payments</p>
-          </div>
-          <div className="text-center">
-            <p className="flex items-center justify-center gap-1 text-lg font-bold text-emerald-400">
-              <ShieldCheck size={15} /> Verified
-            </p>
-            <p className="text-xs text-white/40">Identity &amp; KYC</p>
+            <p className="text-lg font-bold text-white">{brand.followerCount.toLocaleString('en-IN')}</p>
+            <p className="text-xs text-white/40">Followers</p>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="mt-8 flex gap-1 overflow-x-auto border-b border-white/10 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mt-8 flex justify-center gap-1 border-b border-white/10">
           {TABS.map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={cn(
-                'shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold transition-colors',
+                'shrink-0 whitespace-nowrap border-b-2 px-5 py-3 text-sm font-semibold transition-colors',
                 tab === t ? 'border-orange-500 text-orange-400' : 'border-transparent text-white/50 hover:text-white/80'
               )}
             >
@@ -230,109 +234,96 @@ export default function BrandProfilePage() {
           ))}
         </div>
 
-        <div className="mt-8">
-          {tab === 'Overview' && (
-            <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-              <div>
-                {brand.about && (
-                  <>
-                    <h2 className="text-lg font-bold text-white">About {brand.companyName}</h2>
-                    <p className={cn('mt-2 max-w-2xl leading-relaxed text-white/70', !aboutExpanded && 'line-clamp-3')}>{brand.about}</p>
-                    <button
-                      onClick={() => setAboutExpanded((v) => !v)}
-                      className="mt-1 flex items-center gap-1 text-sm font-semibold text-orange-400 hover:underline"
-                    >
-                      {aboutExpanded ? 'Read Less' : 'Read More'} <ChevronDown size={14} className={cn('transition-transform', aboutExpanded && 'rotate-180')} />
-                    </button>
-                  </>
-                )}
-
-                {brand.whatWeOffer && brand.whatWeOffer.length > 0 && (
-                  <div className="mt-6">
-                    <h2 className="text-lg font-bold text-white">What We Offer</h2>
-                    <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                      {brand.whatWeOffer.map((item) => (
-                        <div key={item} className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-navy-800/50 p-4 text-center">
-                          <Sparkles size={18} className="text-orange-400" />
-                          <span className="text-xs font-semibold text-white/70">{item}</span>
+        <div className="mt-6 text-left">
+          {tab === 'Reviews' && (
+            <div className="space-y-3">
+              {reviewsLoading && (
+                <div className="flex justify-center py-8">
+                  <Loader2 size={24} className="animate-spin text-white/40" />
+                </div>
+              )}
+              {!reviewsLoading && reviews.length === 0 && <p className="text-center text-white/50">No reviews yet.</p>}
+              {!reviewsLoading &&
+                reviews.map((r) => (
+                  <div key={r._id} className="rounded-2xl border border-white/10 bg-navy-800/50 p-4">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={r.fromUser.avatarUrl || `https://i.pravatar.cc/80?u=${r.fromUser.name}`}
+                        alt=""
+                        className="h-10 w-10 rounded-full object-cover"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold text-white">{r.fromUser.name}</p>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star key={i} size={12} className={i < r.rating ? 'fill-yellow-400 text-yellow-400' : 'text-white/20'} />
+                          ))}
                         </div>
-                      ))}
+                      </div>
+                      <span className="shrink-0 text-xs text-white/40">{formatDate(r.createdAt)}</span>
                     </div>
+                    {r.comment && <p className="mt-2 text-sm text-white/70">{r.comment}</p>}
                   </div>
-                )}
-              </div>
+                ))}
+            </div>
+          )}
 
-              <div className="h-fit rounded-2xl border border-white/10 bg-navy-800/50 p-5">
-                {brand.foundedYear && (
-                  <div className="flex items-center justify-between border-b border-white/5 py-2.5 text-sm">
-                    <span className="flex items-center gap-2 text-white/50"><Calendar size={14} /> Founded</span>
-                    <span className="font-semibold text-white">{brand.foundedYear}</span>
-                  </div>
-                )}
-                {brand.companySize && (
-                  <div className="flex items-center justify-between border-b border-white/5 py-2.5 text-sm">
-                    <span className="flex items-center gap-2 text-white/50"><Users size={14} /> Company Size</span>
-                    <span className="font-semibold text-white">{brand.companySize}</span>
-                  </div>
-                )}
-                {brand.industry && (
-                  <div className="flex items-center justify-between border-b border-white/5 py-2.5 text-sm">
-                    <span className="flex items-center gap-2 text-white/50"><Briefcase size={14} /> Industry</span>
-                    <span className="font-semibold text-white">{brand.industry}</span>
-                  </div>
-                )}
-                {brand.location && (
-                  <div className="flex items-center justify-between py-2.5 text-sm">
-                    <span className="flex items-center gap-2 text-white/50"><MapPin size={14} /> Headquarters</span>
-                    <span className="font-semibold text-white">{brand.location}</span>
-                  </div>
-                )}
-              </div>
+          {tab === 'Instagram' && (
+            <div>
+              {socialEntries.length > 0 ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {socialEntries.map((s) => (
+                    <a
+                      key={s.key}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 rounded-2xl border border-white/10 bg-navy-800/50 p-4 transition-colors hover:border-orange-400/40"
+                    >
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/15 text-orange-300">
+                        <s.icon size={18} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-white">{s.label}</p>
+                        <p className="truncate text-xs text-white/50">{s.url}</p>
+                      </div>
+                      <ExternalLink size={14} className="shrink-0 text-white/30" />
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-white/50">This brand hasn't linked any social accounts yet.</p>
+              )}
             </div>
           )}
 
           {tab === 'Campaigns' && (
             <div>
               {campaigns.length > 0 ? (
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   {campaigns.map((c) => (
                     <Link
                       key={c._id}
                       to={`/campaigns/${c._id}`}
                       className="rounded-2xl border border-white/10 bg-navy-800/50 p-5 transition-colors hover:border-orange-500/30"
                     >
-                      <span className="rounded-full bg-orange-500/15 px-2.5 py-1 text-[11px] font-bold uppercase text-orange-300">
-                        {c.category?.label}
-                      </span>
+                      {c.category && (
+                        <span className="rounded-full bg-orange-500/15 px-2.5 py-1 text-[11px] font-bold uppercase text-orange-300">
+                          {c.category.label}
+                        </span>
+                      )}
                       <p className="mt-3 font-bold text-white">{c.title}</p>
-                      <p className="mt-1 text-sm text-white/50">{formatRupees(c.budget)} &middot; {c.location}</p>
+                      <p className="mt-1 text-sm text-white/50">
+                        {c.campaignType === 'paid' ? formatRupees(c.budget) : `${c.products.length} product(s)`} &middot; {c.location}
+                      </p>
                     </Link>
                   ))}
                 </div>
               ) : (
-                <p className="text-white/50">No open campaigns right now.</p>
+                <p className="text-center text-white/50">No open campaigns right now.</p>
               )}
             </div>
           )}
-
-          {tab === 'Services' && (
-            <div>
-              {brand.whatWeOffer && brand.whatWeOffer.length > 0 ? (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {brand.whatWeOffer.map((item) => (
-                    <div key={item} className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-navy-800/50 p-4 text-center">
-                      <Sparkles size={18} className="text-orange-400" />
-                      <span className="text-xs font-semibold text-white/70">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-white/50">This brand hasn't listed any services yet.</p>
-              )}
-            </div>
-          )}
-
-          {tab === 'Reviews' && <p className="text-white/50">No reviews yet.</p>}
         </div>
       </Container>
     </div>

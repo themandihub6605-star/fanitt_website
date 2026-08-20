@@ -21,6 +21,7 @@ export interface ApiCampaign {
   description: string;
   category?: { _id: string; label: string; icon: string } | null;
   campaignType: CampaignType;
+  costPerInfluencer: number;
   budget: number;
   products: ApiCampaignProduct[];
   durationLabel: string;
@@ -39,10 +40,14 @@ export interface ApiCampaign {
   sampleMedia: string[];
   deliverables: { reel: number; story: number; post: number };
   status: 'draft' | 'open' | 'in_progress' | 'submitted' | 'approved' | 'completed' | 'disputed' | 'cancelled';
-  isFeePaid: boolean;
-  feeAmount: number;
   publishedAt?: string | null;
-  brand: { _id: string; companyName: string; logoUrl?: string; user: { _id: string; name: string; avatarUrl?: string } };
+  brand: {
+    _id: string;
+    companyName: string;
+    logoUrl?: string;
+    slug?: string;
+    user: { _id: string; name: string; avatarUrl?: string };
+  };
   assignedCreator?: { _id: string; user: { _id: string; name: string; avatarUrl?: string } } | null;
   applicantCount: number;
   isEscrowFunded: boolean;
@@ -78,14 +83,6 @@ export interface ProposalCounts {
   rejected: number;
 }
 
-export interface FeePreview {
-  baseFee: number;
-  tax: number;
-  totalFee: number;
-  waived: boolean;
-  walletBalance: number;
-}
-
 export interface DraftCampaignPayload {
   title: string;
   campaignType: CampaignType;
@@ -98,7 +95,7 @@ export interface UpdateDraftPayload {
   campaignType?: CampaignType;
   locationType?: LocationType;
   locationValue?: string;
-  budget?: number;
+  costPerInfluencer?: number;
   description?: string;
   category?: string;
   creatorRequirement?: string;
@@ -113,15 +110,29 @@ export interface UpdateDraftPayload {
   deliverables?: { reel?: number; story?: number; post?: number };
 }
 
+export interface CampaignListParams {
+  category?: string; // comma-separated ids
+  status?: string;
+  page?: number;
+  campaignType?: string; // comma-separated 'paid,barter'
+  deliverables?: string; // comma-separated 'reel,story,post'
+  minBudget?: number; // rupees
+  maxBudget?: number; // rupees
+  locationType?: string; // comma-separated
+  location?: string; // free-text
+  minFollowers?: number;
+  maxFollowers?: number;
+  gender?: string; // comma-separated 'male,female,other'
+}
+
 export const campaignApi = {
-  list: (params?: { category?: string; status?: string; page?: number }) =>
+  list: (params?: CampaignListParams) =>
     apiClient
       .get<ApiEnvelope<{ campaigns: ApiCampaign[]; total: number }>>('/campaigns', { params })
       .then((r) => r.data.data),
 
   getById: (id: string) => apiClient.get<ApiEnvelope<ApiCampaign>>(`/campaigns/${id}`).then((r) => r.data.data),
 
-  // --- draft wizard ---
   createDraft: (payload: DraftCampaignPayload) =>
     apiClient.post<ApiEnvelope<ApiCampaign>>('/campaigns/draft', payload).then((r) => r.data.data),
 
@@ -157,14 +168,8 @@ export const campaignApi = {
       .then((r) => r.data.data);
   },
 
-  getFeePreview: () => apiClient.get<ApiEnvelope<FeePreview>>('/campaigns/fee-preview').then((r) => r.data.data),
+  publish: (id: string) => apiClient.post<ApiEnvelope<ApiCampaign>>(`/campaigns/${id}/publish`).then((r) => r.data.data),
 
-  publish: (id: string, payload: { useWalletMoney: boolean; agreeToTerms: true }) =>
-    apiClient
-      .post<ApiEnvelope<{ campaign: ApiCampaign; fee: FeePreview }>>(`/campaigns/${id}/publish`, payload)
-      .then((r) => r.data.data),
-
-  // --- existing, unchanged ---
   apply: (campaignId: string, payload: { pitch?: string; quotedAmount?: number; deliverables?: string[] }) =>
     apiClient.post<ApiEnvelope<ApiApplication>>(`/campaigns/${campaignId}/apply`, payload).then((r) => r.data.data),
 
