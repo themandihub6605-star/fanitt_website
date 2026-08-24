@@ -37,8 +37,6 @@ function canJoinNow(scheduledAt: string) {
   return diffMinutes <= 10;
 }
 
-// Real completeness check based on the creator's own saved profile fields —
-// no fake/random percentage.
 function computeProfileCompletion(profile: ApiCreator | null, hasAvatar: boolean) {
   if (!profile) return 0;
   const checks = [
@@ -179,7 +177,6 @@ export default function CreatorDashboard() {
           ))}
         </div>
 
-        {/* Recommended for you */}
         {recommended.length > 0 && (
           <div className="mt-8">
             <div className="flex items-center justify-between">
@@ -194,7 +191,6 @@ export default function CreatorDashboard() {
           </div>
         )}
 
-        {/* Trending categories */}
         {categories.length > 0 && (
           <div className="mt-8">
             <div className="flex items-center justify-between">
@@ -219,7 +215,6 @@ export default function CreatorDashboard() {
           </div>
         )}
 
-        {/* Complete profile banner */}
         {completion < 100 && (
           <Link
             to="/dashboard/creator/edit"
@@ -316,7 +311,7 @@ export default function CreatorDashboard() {
                   </span>
                   <ChevronRight size={16} className="text-white/30" />
                 </button>
-                <Link to="/wallet" className="flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left hover:bg-white/[0.03]">
+                <Link to="/dashboard/creator/analytics" className="flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left hover:bg-white/[0.03]">
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/15 text-sky-300"><TrendingUp size={17} /></span>
                   <span className="flex-1">
                     <span className="block text-sm font-semibold text-white">View Analytics</span>

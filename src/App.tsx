@@ -25,6 +25,7 @@ import PostCampaign from '@/pages/PostCampaign';
 import MyBookings from '@/pages/MyBookings';
 import LiveSessionRoom from '@/pages/LiveSessionRoom';
 import CreatorDashboard from '@/pages/dashboard/CreatorDashboard';
+import CreatorAnalytics from '@/pages/CreatorAnalytics';
 import EditCreatorProfile from '@/pages/EditCreatorProfile';
 import EditBrandProfile from '@/pages/EditBrandProfile';
 import AgencyDashboard from '@/pages/dashboard/AgencyDashboard';
@@ -43,6 +44,7 @@ import Feed from '@/pages/Feed';
 import ContactUs from '@/pages/ContactUs';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import FAQ from '@/pages/FAQ';
+
 function PageTransition({ children }: { children: ReactNode }) {
   return (
     <motion.div
@@ -96,8 +98,8 @@ const LAYOUT_ROUTES: { path: string; element: ReactNode }[] = [
   { path: '/login', element: <Login /> },
   { path: '/signup', element: <Signup /> },
   { path: '/contact', element: <ContactUs /> },
-{ path: '/privacy-policy', element: <PrivacyPolicy /> },
-{ path: '/faq', element: <FAQ /> },
+  { path: '/privacy-policy', element: <PrivacyPolicy /> },
+  { path: '/faq', element: <FAQ /> },
   { path: '/campaigns', element: <Campaigns /> },
   {
     path: '/campaigns/new',
@@ -183,6 +185,14 @@ const LAYOUT_ROUTES: { path: string; element: ReactNode }[] = [
     ),
   },
   {
+    path: '/dashboard/creator/analytics',
+    element: (
+      <ProtectedRoute allowedRoles={['creator']}>
+        <CreatorAnalytics />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/dashboard/creator/edit',
     element: (
       <ProtectedRoute allowedRoles={['creator']}>
@@ -244,9 +254,6 @@ export default function App() {
   const location = useLocation();
   useAuthHydration();
 
-  // Standalone routes — deliberately rendered OUTSIDE MainLayout so no
-  // navbar/bottom-tab-bar leaks in. Live session room and the pending-
-  // approval waiting screen both need to be full-screen, isolated pages.
   if (location.pathname.startsWith('/sessions/') && location.pathname.endsWith('/live')) {
     return (
       <Routes location={location}>

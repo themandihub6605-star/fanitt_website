@@ -87,27 +87,23 @@ export default function MyProposals() {
 
         {!loading && !error && proposals.length > 0 && (
           <div className="mt-8 space-y-4">
-            {proposals.map((p, i) => (
-              <motion.div
-                key={p._id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: i * 0.05 }}
-              >
-                <Link
-                  to={`/campaigns/${p.campaign._id}`}
-                  className="block rounded-2xl border border-white/10 bg-navy-800/60 p-5 transition-colors hover:border-white/20"
-                >
+            {proposals.map((p, i) => {
+              // Some proposals may point at a campaign that's since been
+              // deleted — render them with safe fallbacks instead of
+              // crashing the whole page, so every proposal is still visible.
+              const hasCampaign = Boolean(p.campaign);
+              const cardContent = (
+                <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-5 transition-colors hover:border-white/20">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <img
-                        src={p.campaign.brand.logoUrl || `https://i.pravatar.cc/80?u=${p.campaign.brand._id}`}
+                        src={hasCampaign ? p.campaign.brand?.logoUrl || `https://i.pravatar.cc/80?u=${p.campaign.brand?._id || p._id}` : `https://i.pravatar.cc/80?u=${p._id}`}
                         alt=""
                         className="h-10 w-10 rounded-full object-cover"
                       />
                       <div>
-                        <p className="font-bold text-white">{p.campaign.title}</p>
-                        <p className="text-xs text-white/50">{p.campaign.brand.companyName}</p>
+                        <p className="font-bold text-white">{hasCampaign ? p.campaign.title : 'Campaign no longer available'}</p>
+                        <p className="text-xs text-white/50">{hasCampaign ? p.campaign.brand?.companyName : '—'}</p>
                       </div>
                     </div>
                     <StatusBadge status={p.status === 'pending' ? 'pending' : p.status} />
@@ -118,7 +114,11 @@ export default function MyProposals() {
                   <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-white/10 pt-3 text-xs text-white/50">
                     <span className="flex items-center gap-1.5">
                       <Briefcase size={12} />
-                      {p.quotedAmount ? `Quoted ${formatRupees(p.quotedAmount)}` : `Budget ${formatRupees(p.campaign.budget)}`}
+                      {p.quotedAmount
+                        ? `Quoted ${formatRupees(p.quotedAmount)}`
+                        : hasCampaign
+                        ? `Budget ${formatRupees(p.campaign.budget)}`
+                        : 'Budget unavailable'}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Clock size={12} /> Sent {new Date(p.createdAt).toLocaleDateString('en-IN')}
@@ -128,9 +128,26 @@ export default function MyProposals() {
                   {p.status === 'rejected' && p.feedback && (
                     <p className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-300">{p.feedback}</p>
                   )}
-                </Link>
-              </motion.div>
-            ))}
+                </div>
+              );
+
+              return (
+                <motion.div
+                  key={p._id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, delay: i * 0.05 }}
+                >
+                  {hasCampaign ? (
+                    <Link to={`/campaigns/${p.campaign._id}`} className="block">
+                      {cardContent}
+                    </Link>
+                  ) : (
+                    cardContent
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </Container>

@@ -19,8 +19,6 @@ export const NAV_LINKS = [
   { label: 'Communities', href: '/communities' },
   { label: 'Categories', href: '#categories' },
   { label: 'Campaigns', href: '/campaigns' },
-  { label: 'For Brands', href: '#for-brands' },
-  { label: 'For Creators', href: '#for-creators' },
 ];
 export const CATEGORIES: Category[] = [
   { label: 'Fitness & Health', icon: 'Dumbbell' },

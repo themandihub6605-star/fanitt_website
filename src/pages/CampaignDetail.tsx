@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -75,6 +75,8 @@ function ExpandableImage({
     </button>
   );
 }
+
+const DESCRIPTION_TRUNCATE_LENGTH = 220;
 
 function ApplyModal({
   open,
@@ -265,20 +267,6 @@ export default function CampaignDetail() {
 
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [descExpanded, setDescExpanded] = useState(false);
-  const [descIsClamped, setDescIsClamped] = useState(false);
-  const descRef = useRef<HTMLParagraphElement>(null);
-
-  // Detects whether the description actually overflows 4 lines at the
-  // current screen width — character-count checks are wrong on mobile,
-  // where the same text wraps to more lines in a narrower column.
-  useEffect(() => {
-    const el = descRef.current;
-    if (!el) return;
-    const check = () => setDescIsClamped(el.scrollHeight > el.clientHeight + 1);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, [campaign?.description]);
 
   const load = () => {
     if (!id) return;
@@ -385,6 +373,7 @@ export default function CampaignDetail() {
   const hasDeliverables = campaign.deliverables && (campaign.deliverables.reel || campaign.deliverables.story || campaign.deliverables.post);
   const hasProducts = campaign.products && campaign.products.length > 0;
   const hasSampleMedia = campaign.sampleMedia && campaign.sampleMedia.length > 0;
+  const descriptionIsLong = campaign.description.length > DESCRIPTION_TRUNCATE_LENGTH;
 
   return (
     <div className="pt-24 pb-24 sm:pt-28">
@@ -399,8 +388,8 @@ export default function CampaignDetail() {
           transition={{ duration: 0.5 }}
           className="mt-4 space-y-4"
         >
-          {/* Hero card — image + brand/price/applied count side-by-side, orange accent card */}
-          <div className="rounded-3xl border border-orange-400/20 bg-gradient-to-br from-orange-500/10 via-navy-800/60 to-navy-800/60 p-4 sm:p-5">
+          {/* Hero card — image + brand/price/applied count side-by-side, purple accent card, matching reference layout */}
+          <div className="rounded-3xl border border-purple-400/20 bg-gradient-to-br from-purple-500/10 via-navy-800/60 to-navy-800/60 p-4 sm:p-5">
             <div className="flex gap-4">
               {campaign.campaignImageUrl ? (
                 <div className="relative w-28 shrink-0 sm:w-36">
@@ -414,7 +403,7 @@ export default function CampaignDetail() {
                     <span
                       className={cn(
                         'absolute inset-x-1.5 bottom-1.5 rounded-full py-1 text-center text-[10px] font-bold uppercase tracking-wide text-white',
-                        campaign.campaignType === 'paid' ? 'bg-emerald-500' : 'bg-orange-600'
+                        campaign.campaignType === 'paid' ? 'bg-emerald-500' : 'bg-purple-500'
                       )}
                     >
                       {campaign.campaignType === 'paid' ? 'Paid' : 'Barter'}
@@ -430,7 +419,16 @@ export default function CampaignDetail() {
               <div className="min-w-0 flex-1">
                 <h1 className="line-clamp-2 text-lg font-bold leading-tight text-white sm:text-xl">{campaign.title}</h1>
 
-                <p className="mt-1 text-sm font-semibold text-white/70">By {campaign.brand.companyName}</p>
+                {campaign.brand.slug ? (
+                  <Link
+                    to={`/brand/${campaign.brand.slug}`}
+                    className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-purple-300 hover:opacity-80"
+                  >
+                    By {campaign.brand.companyName} <ExternalLink size={11} className="shrink-0" />
+                  </Link>
+                ) : (
+                  <p className="mt-1 text-sm font-semibold text-white/70">By {campaign.brand.companyName}</p>
+                )}
 
                 <div className="mt-2.5 flex items-center gap-1.5 text-lg font-bold text-white">
                   <Briefcase size={16} className="text-emerald-400" />
@@ -445,20 +443,20 @@ export default function CampaignDetail() {
               </div>
             </div>
 
-            {/* Deliverables row — orange divided bar */}
+            {/* Deliverables row — purple divided bar, matching reference */}
             {hasDeliverables && (
-              <div className="mt-4 grid grid-cols-3 divide-x divide-orange-300/20 rounded-2xl bg-orange-500/15 py-3.5 text-center">
+              <div className="mt-4 grid grid-cols-3 divide-x divide-purple-300/20 rounded-2xl bg-purple-500/15 py-3.5 text-center">
                 <div>
                   <p className="text-lg font-bold text-white">{campaign.deliverables.reel}</p>
-                  <p className="text-[11px] text-orange-200/70">Reel</p>
+                  <p className="text-[11px] text-purple-200/70">Reel</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-white">{campaign.deliverables.story}</p>
-                  <p className="text-[11px] text-orange-200/70">Story</p>
+                  <p className="text-[11px] text-purple-200/70">Story</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-white">{campaign.deliverables.post}</p>
-                  <p className="text-[11px] text-orange-200/70">Post</p>
+                  <p className="text-[11px] text-purple-200/70">Post</p>
                 </div>
               </div>
             )}
@@ -473,18 +471,18 @@ export default function CampaignDetail() {
             </div>
           )}
 
-          {/* About Campaign — accent card, description overflow detected by rendered height */}
-          <div className="rounded-2xl border-l-4 border-orange-400 bg-navy-800/60 p-5">
+          {/* About Campaign — light accent card with left bar, matching reference */}
+          <div className="rounded-2xl border-l-4 border-purple-400 bg-navy-800/60 p-5">
             <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-white">About Campaign</p>
             {campaign.location && (
               <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-white/60">
                 <MapPin size={12} className="text-orange-400" /> {campaign.location}
               </p>
             )}
-            <p ref={descRef} className={cn('leading-relaxed text-white/70', !descExpanded && 'line-clamp-4')}>
+            <p className={cn('leading-relaxed text-white/70', !descExpanded && descriptionIsLong && 'line-clamp-4')}>
               {campaign.description}
             </p>
-            {(descIsClamped || descExpanded) && (
+            {descriptionIsLong && (
               <button
                 onClick={() => setDescExpanded((v) => !v)}
                 className="mt-1.5 flex items-center gap-1 text-sm font-semibold text-orange-400 hover:underline"
@@ -495,7 +493,7 @@ export default function CampaignDetail() {
             )}
           </div>
 
-          {/* Duration & Location */}
+          {/* Duration — kept as its own small stat row so nothing from the original page is lost */}
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-navy-800/45 px-4 py-3.5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-500/15 text-teal-400">
@@ -517,9 +515,9 @@ export default function CampaignDetail() {
             </div>
           </div>
 
-          {/* Creator Requirement — accent card */}
+          {/* Creator Requirement — light accent card, matching reference */}
           {(campaign.minFollowers || campaign.ageRange || campaign.genderTarget?.length > 0) && (
-            <div className="rounded-2xl border-l-4 border-orange-400 bg-navy-800/60 p-5">
+            <div className="rounded-2xl border-l-4 border-purple-400 bg-navy-800/60 p-5">
               <p className="mb-3 flex items-center gap-1.5 text-sm font-bold text-white">
                 <Users2 size={14} className="text-white/50" /> Creator Requirement
               </p>
@@ -770,9 +768,9 @@ export default function CampaignDetail() {
             >
               <X size={20} />
             </button>
-            {isVideoUrl(lightboxUrl) ? (
+            {isVideoUrl(lightboxUrl!) ? (
               <video
-                src={lightboxUrl}
+                src={lightboxUrl!}
                 controls
                 autoPlay
                 className="max-h-[85vh] max-w-full rounded-xl"
@@ -782,7 +780,7 @@ export default function CampaignDetail() {
               <motion.img
                 initial={{ scale: 0.95 }}
                 animate={{ scale: 1 }}
-                src={lightboxUrl}
+                src={lightboxUrl!}
                 alt=""
                 className="max-h-[85vh] max-w-full rounded-xl object-contain"
                 onClick={(e) => e.stopPropagation()}
@@ -794,4 +792,3 @@ export default function CampaignDetail() {
     </div>
   );
 }
-

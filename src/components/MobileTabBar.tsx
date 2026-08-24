@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Home, Compass, PlusCircle, MessageSquare, User, Users2, Building2, Radio } from 'lucide-react';
+import { Home, Compass, PlusCircle, MessageSquare, User, Users2, Building2, Radio, Briefcase } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/utils/cn';
 import { CreatePostModal } from '@/components/CreatePostModal';
@@ -219,13 +219,23 @@ export function MobileTabBar() {
               </Link>
               {isCreator && (
                 <Link
-  to="/campaigns"
-  onClick={() => setExploreMenuOpen(false)}
-  className="flex items-center gap-3 border-t border-white/10 px-4 py-3.5 text-sm font-semibold text-white/90 hover:bg-white/5"
->
-  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-500/15 text-sky-300"><Building2 size={16} /></span>
-  Discover Brands
-</Link>
+                  to="/brands"
+                  onClick={() => setExploreMenuOpen(false)}
+                  className="flex items-center gap-3 border-t border-white/10 px-4 py-3.5 text-sm font-semibold text-white/90 hover:bg-white/5"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-500/15 text-sky-300"><Building2 size={16} /></span>
+                  Discover Brands
+                </Link>
+              )}
+              {isCreator && (
+                <Link
+                  to="/campaigns"
+                  onClick={() => setExploreMenuOpen(false)}
+                  className="flex items-center gap-3 border-t border-white/10 px-4 py-3.5 text-sm font-semibold text-white/90 hover:bg-white/5"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/15 text-orange-300"><Briefcase size={16} /></span>
+                  Discover Campaigns
+                </Link>
               )}
             </motion.div>
           </>
