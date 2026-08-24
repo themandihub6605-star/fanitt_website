@@ -121,8 +121,16 @@ export interface ApplyPayload {
   deliveryTimeline?: string;
 }
 
+// Accepted either as a plain feedback string, or as an options object —
+// covers both "accept with a short note" and "reject with a reason" call
+// sites without needing two separate methods.
+export interface DecideApplicationOptions {
+  feedback?: string;
+  rejectionReason?: string;
+}
+
 export const campaignApi = {
-  list: (params?: { category?: string; status?: string; page?: number }) =>
+  list: (params?: { category?: string; status?: string; page?: number; campaignType?: string }) =>
     apiClient
       .get<ApiEnvelope<{ campaigns: ApiCampaign[]; total: number }>>('/campaigns', { params })
       .then((r) => r.data.data),
@@ -179,8 +187,18 @@ export const campaignApi = {
   getApplications: (campaignId: string) =>
     apiClient.get<ApiEnvelope<ApiApplication[]>>(`/campaigns/${campaignId}/applications`).then((r) => r.data.data),
 
-  decideApplication: (campaignId: string, appId: string, decision: 'accepted' | 'rejected', feedback?: string) =>
-    apiClient.patch(`/campaigns/${campaignId}/applications/${appId}`, { decision, feedback }),
+  decideApplication: (
+    campaignId: string,
+    appId: string,
+    decision: 'accepted' | 'rejected',
+    feedback?: string | DecideApplicationOptions
+  ) => {
+    const body =
+      typeof feedback === 'string'
+        ? { decision, feedback }
+        : { decision, feedback: feedback?.feedback, rejectionReason: feedback?.rejectionReason };
+    return apiClient.patch(`/campaigns/${campaignId}/applications/${appId}`, body);
+  },
 
   toggleSave: (campaignId: string) =>
     apiClient.post<ApiEnvelope<{ saved: boolean }>>(`/campaigns/${campaignId}/save`).then((r) => r.data.data),
