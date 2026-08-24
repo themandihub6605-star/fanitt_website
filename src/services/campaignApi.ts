@@ -130,7 +130,7 @@ export interface DecideApplicationOptions {
 }
 
 export const campaignApi = {
-  list: (params?: { category?: string; status?: string; page?: number; campaignType?: string }) =>
+ list: (params?: { category?: string; status?: string; page?: number; campaignType?: string; deliverables?: string }) =>
     apiClient
       .get<ApiEnvelope<{ campaigns: ApiCampaign[]; total: number }>>('/campaigns', { params })
       .then((r) => r.data.data),
