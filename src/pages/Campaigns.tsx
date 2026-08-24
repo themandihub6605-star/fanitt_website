@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, Users2, MapPin, Clock, Plus, Loader2, AlertCircle, Instagram, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Briefcase, Users2, Plus, Loader2, AlertCircle, Instagram, Search, SlidersHorizontal, X, Building2 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { campaignApi, type ApiCampaign, type CampaignType, type GenderTarget, type LocationType } from '@/services/campaignApi';
@@ -260,6 +260,7 @@ function FilterModal({
 }
 
 export default function Campaigns() {
+  const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState<ApiCampaign[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [search, setSearch] = useState('');
@@ -404,71 +405,90 @@ export default function Campaigns() {
           </div>
         )}
 
-        {!loading && !error && (
-          <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">
-            {campaigns.map((campaign, i) => {
+     {!loading && !error && (
+  <div className="mt-8 space-y-4 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0 xl:grid-cols-3">
+    {campaigns.map((campaign, i) => {
               const hasDeliverables = campaign.deliverables && (campaign.deliverables.reel || campaign.deliverables.story || campaign.deliverables.post);
               return (
                 <motion.div
                   key={campaign._id}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 16 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, amount: 0.3 }}
-                  transition={{ duration: 0.4, delay: (i % 4) * 0.07 }}
+                  transition={{ duration: 0.35, delay: (i % 6) * 0.05 }}
                 >
-                  <Link
-                    to={`/campaigns/${campaign._id}`}
-                    className="block h-full overflow-hidden rounded-2xl border border-white/10 bg-navy-800/60 backdrop-blur-xl transition-all hover:-translate-y-1 hover:border-white/20 hover:shadow-lifted"
+                  {/* Card is a clickable div (goes to campaign detail) — the
+                      brand name inside is its own Link to the brand profile,
+                      with stopPropagation so it doesn't also trigger the
+                      card's navigation. */}
+                  <div
+                    onClick={() => navigate(`/campaigns/${campaign._id}`)}
+                    role="link"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') navigate(`/campaigns/${campaign._id}`);
+                    }}
+                    className="flex cursor-pointer gap-4 rounded-2xl border border-white/10 bg-navy-800/60 p-4 backdrop-blur-xl transition-colors hover:border-orange-400/40"
                   >
-                    {campaign.campaignImageUrl && (
-                      <img src={campaign.campaignImageUrl} alt="" className="h-32 w-full object-cover" />
-                    )}
-
-                    <div className="p-6">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={campaign.brand.logoUrl || `https://i.pravatar.cc/80?u=${campaign.brand._id}`}
-                          alt=""
-                          className="h-10 w-10 rounded-full object-cover"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-bold text-white">{campaign.brand.companyName}</p>
-                          <p className="flex items-center gap-1 text-xs text-white/50">
-                            <Instagram size={11} /> {campaign.applicantCount} applied
-                          </p>
+                  <div className="relative w-28 shrink-0 self-stretch overflow-hidden rounded-lg bg-white/5 lg:w-32">
+                      {campaign.campaignImageUrl ? (
+                        <img src={campaign.campaignImageUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-white/20">
+                          <Building2 size={22} />
                         </div>
-                        {campaign.category && (
-                          <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white/70">
-                            {campaign.category.label}
-                          </span>
+                      )}
+                      <span
+                        className={cn(
+                          'absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[10px] font-bold text-white',
+                          campaign.campaignType === 'paid' ? 'bg-emerald-500' : 'bg-sky-500'
                         )}
-                      </div>
+                      >
+                        {campaign.campaignType === 'paid' ? 'Paid' : 'Barter'}
+                      </span>
+                    </div>
 
-                      <h3 className="mt-4 text-lg font-bold text-white">{campaign.title}</h3>
-                      <p className="mt-2 line-clamp-2 text-sm text-white/60">{campaign.description}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold text-white">{campaign.title}</p>
+                      {campaign.brand.slug ? (
+                        <Link
+                          to={`/brand/${campaign.brand.slug}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-0.5 block w-fit truncate text-xs text-orange-300 hover:underline"
+                        >
+                          By {campaign.brand.companyName}
+                        </Link>
+                      ) : (
+                        <p className="mt-0.5 truncate text-xs text-orange-300">By {campaign.brand.companyName}</p>
+                      )}
 
-                      <div className="mt-5 grid grid-cols-3 gap-3 border-t border-white/10 pt-4 text-xs">
-                        <div className="flex items-center gap-1.5 text-white/50">
-                          <Briefcase size={13} className="shrink-0 text-orange-400" />
-                          {campaign.campaignType === 'paid' ? formatRupees(campaign.budget) : `${campaign.products.length} product(s)`}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-white/50">
-                          <Clock size={13} className="shrink-0 text-teal-400" /> {campaign.durationLabel || '—'}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-white/50">
-                          <MapPin size={13} className="shrink-0 text-yellow-400" /> {campaign.location}
-                        </div>
+                      <p className="mt-1.5 flex items-center gap-1.5 text-sm font-semibold text-white/80">
+                        <Briefcase size={13} className="text-orange-400" />
+                        {campaign.campaignType === 'paid' ? formatRupees(campaign.budget) : `${campaign.products.length} product(s)`}
+                      </p>
+
+                      <div className="mt-2 flex w-fit items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
+                        <Instagram size={11} /> {campaign.applicantCount} Creators Applied
                       </div>
 
                       {hasDeliverables && (
-                        <div className="mt-3 flex gap-4 text-[11px] text-white/50">
-                          {campaign.deliverables.reel > 0 && <span>{campaign.deliverables.reel} Reel</span>}
-                          {campaign.deliverables.story > 0 && <span>{campaign.deliverables.story} Story</span>}
-                          {campaign.deliverables.post > 0 && <span>{campaign.deliverables.post} Post</span>}
+                        <div className="mt-2 flex divide-x divide-white/10 overflow-hidden rounded-lg border border-white/10 text-center">
+                          <div className="flex-1 py-1">
+                            <p className="text-xs font-bold text-white">{campaign.deliverables.reel}</p>
+                            <p className="text-[9px] text-white/40">Reel</p>
+                          </div>
+                          <div className="flex-1 py-1">
+                            <p className="text-xs font-bold text-white">{campaign.deliverables.story}</p>
+                            <p className="text-[9px] text-white/40">Story</p>
+                          </div>
+                          <div className="flex-1 py-1">
+                            <p className="text-xs font-bold text-white">{campaign.deliverables.post}</p>
+                            <p className="text-[9px] text-white/40">Post</p>
+                          </div>
                         </div>
                       )}
                     </div>
-                  </Link>
+                  </div>
                 </motion.div>
               );
             })}

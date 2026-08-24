@@ -23,32 +23,36 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const goToRoleHome = (user: { role: string; profileStatus?: string | null; onboardingCompleted?: boolean }) => {
-    // Still Fan and never finished the wizard — send back into it instead
-    // of the Fan home screen.
-    if (user.role === 'fan' && !user.onboardingCompleted) {
-      navigate('/signup', { state: { viaGoogle: true } });
-      return;
-    }
+ const goToRoleHome = (user: { role: string; profileStatus?: string | null; onboardingCompleted?: boolean }) => {
+  // Still Fan and never finished the wizard — send back into it instead
+  // of the Fan home screen.
+  if (user.role === 'fan' && !user.onboardingCompleted) {
+    navigate('/signup', { state: { viaGoogle: true } });
+    return;
+  }
 
+  const needsApprovalGate =
+    APPROVAL_GATED_ROLES.includes(user.role) &&
+    user.profileStatus &&
+    user.profileStatus !== 'verified';
+
+  if (needsApprovalGate) {
+    navigate('/pending-approval');
+    return;
+  }
+
+  // Role dashboards take priority over any "come back here after login"
+  // redirect — a brand/creator/agency always lands on their own dashboard
+  // first, and can navigate anywhere from there. Only Fans (with no fixed
+  // dashboard home) fall back to wherever they were headed, or the homepage.
+  if (user.role === 'creator') navigate('/dashboard/creator');
+  else if (user.role === 'brand') navigate('/dashboard/brand');
+  else if (user.role === 'agency') navigate('/dashboard/agency');
+  else {
     const redirectTo = (location.state as { from?: string } | null)?.from;
-
-    const needsApprovalGate =
-      APPROVAL_GATED_ROLES.includes(user.role) &&
-      user.profileStatus &&
-      user.profileStatus !== 'verified';
-
-    if (needsApprovalGate) {
-      navigate('/pending-approval');
-      return;
-    }
-
-    if (redirectTo) navigate(redirectTo);
-    else if (user.role === 'creator') navigate('/dashboard/creator');
-    else if (user.role === 'brand') navigate('/dashboard/brand');
-    else if (user.role === 'agency') navigate('/dashboard/agency');
-    else navigate('/');
-  };
+    navigate(redirectTo || '/');
+  }
+};
 
   const handleGoogle = async () => {
     setError('');

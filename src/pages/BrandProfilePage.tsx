@@ -137,7 +137,7 @@ export default function BrandProfilePage() {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-orange-500/40 via-navy-900/70 to-navy-900" />
 
-        <Link to="/brands" className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-white/80 backdrop-blur-sm hover:text-white sm:left-6 sm:top-6">
+        <Link to="/campaigns" className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-white/80 backdrop-blur-sm hover:text-white sm:left-6 sm:top-6">
           <ArrowLeft size={14} /> Back
         </Link>
       </div>
@@ -300,24 +300,69 @@ export default function BrandProfilePage() {
           {tab === 'Campaigns' && (
             <div>
               {campaigns.length > 0 ? (
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  {campaigns.map((c) => (
-                    <Link
-                      key={c._id}
-                      to={`/campaigns/${c._id}`}
-                      className="rounded-2xl border border-white/10 bg-navy-800/50 p-5 transition-colors hover:border-orange-500/30"
-                    >
-                      {c.category && (
-                        <span className="rounded-full bg-orange-500/15 px-2.5 py-1 text-[11px] font-bold uppercase text-orange-300">
-                          {c.category.label}
-                        </span>
-                      )}
-                      <p className="mt-3 font-bold text-white">{c.title}</p>
-                      <p className="mt-1 text-sm text-white/50">
-                        {c.campaignType === 'paid' ? formatRupees(c.budget) : `${c.products.length} product(s)`} &middot; {c.location}
-                      </p>
-                    </Link>
-                  ))}
+                <div className="space-y-4">
+                  {campaigns.map((c) => {
+                    const hasDeliverables = c.deliverables && (c.deliverables.reel || c.deliverables.story || c.deliverables.post);
+                    return (
+                      <Link
+                        key={c._id}
+                        to={`/campaigns/${c._id}`}
+                        className="flex gap-4 rounded-2xl border border-white/10 bg-navy-800/60 p-4 backdrop-blur-xl transition-colors hover:border-orange-400/40"
+                      >
+                        <div className="relative w-24 shrink-0 self-stretch overflow-hidden rounded-lg bg-white/5">
+                          {c.campaignImageUrl ? (
+                            <img src={c.campaignImageUrl} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-white/20">
+                              <Briefcase size={20} />
+                            </div>
+                          )}
+                          <span
+                            className={cn(
+                              'absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full px-2.5 py-0.5 text-[10px] font-bold text-white',
+                              c.campaignType === 'paid' ? 'bg-emerald-500' : 'bg-sky-500'
+                            )}
+                          >
+                            {c.campaignType === 'paid' ? 'Paid' : 'Barter'}
+                          </span>
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          {c.category && (
+                            <span className="rounded-full bg-orange-500/15 px-2.5 py-1 text-[11px] font-bold uppercase text-orange-300">
+                              {c.category.label}
+                            </span>
+                          )}
+                          <p className="mt-1.5 truncate font-bold text-white">{c.title}</p>
+                          <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-white/80">
+                            <Briefcase size={13} className="text-orange-400" />
+                            {c.campaignType === 'paid' ? formatRupees(c.budget) : `${c.products.length} product(s)`}
+                          </p>
+
+                          <div className="mt-2 flex w-fit items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
+                            <Instagram size={11} /> {c.applicantCount} Creators Applied
+                          </div>
+
+                          {hasDeliverables && (
+                            <div className="mt-2 flex divide-x divide-white/10 overflow-hidden rounded-lg border border-white/10 text-center">
+                              <div className="flex-1 py-1">
+                                <p className="text-xs font-bold text-white">{c.deliverables.reel}</p>
+                                <p className="text-[9px] text-white/40">Reel</p>
+                              </div>
+                              <div className="flex-1 py-1">
+                                <p className="text-xs font-bold text-white">{c.deliverables.story}</p>
+                                <p className="text-[9px] text-white/40">Story</p>
+                              </div>
+                              <div className="flex-1 py-1">
+                                <p className="text-xs font-bold text-white">{c.deliverables.post}</p>
+                                <p className="text-[9px] text-white/40">Post</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-center text-white/50">No open campaigns right now.</p>

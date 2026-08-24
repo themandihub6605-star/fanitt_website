@@ -61,9 +61,18 @@ apiClient.interceptors.response.use(
   }
 );
 
+// Some errors (e.g. Zod validation via validate.middleware.js) send a generic
+// top-level `message` ("Validation failed") PLUS a detailed `errors` array
+// with the actual per-field reasons. Surface those details when present —
+// otherwise the person only ever sees the generic wrapper message and has
+// no idea what actually went wrong.
 export function getApiErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    return error.response?.data?.message || error.message || 'Something went wrong';
+    const data = error.response?.data as { message?: string; errors?: string[] } | undefined;
+    if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+      return data.errors.join('; ');
+    }
+    return data?.message || error.message || 'Something went wrong';
   }
   return 'Something went wrong';
 }

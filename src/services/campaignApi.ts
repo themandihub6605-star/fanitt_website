@@ -59,9 +59,11 @@ export interface ApiCampaign {
 export interface ApiApplication {
   _id: string;
   campaign: string;
-  creator: { _id: string; user: { name: string; avatarUrl?: string } };
+  creator: { _id: string; user: { _id: string; name: string; avatarUrl?: string } };
   pitch: string;
   quotedAmount?: number | null;
+  portfolioLinks?: string[];
+  deliveryTimeline?: string;
   status: 'pending' | 'accepted' | 'rejected';
   createdAt: string;
 }
@@ -71,6 +73,8 @@ export interface ApiProposal {
   campaign: ApiCampaign;
   pitch: string;
   quotedAmount?: number | null;
+  portfolioLinks?: string[];
+  deliveryTimeline?: string;
   status: 'pending' | 'accepted' | 'rejected';
   feedback?: string;
   createdAt: string;
@@ -110,23 +114,15 @@ export interface UpdateDraftPayload {
   deliverables?: { reel?: number; story?: number; post?: number };
 }
 
-export interface CampaignListParams {
-  category?: string; // comma-separated ids
-  status?: string;
-  page?: number;
-  campaignType?: string; // comma-separated 'paid,barter'
-  deliverables?: string; // comma-separated 'reel,story,post'
-  minBudget?: number; // rupees
-  maxBudget?: number; // rupees
-  locationType?: string; // comma-separated
-  location?: string; // free-text
-  minFollowers?: number;
-  maxFollowers?: number;
-  gender?: string; // comma-separated 'male,female,other'
+export interface ApplyPayload {
+  pitch?: string;
+  quotedAmount?: number;
+  portfolioLinks?: string[];
+  deliveryTimeline?: string;
 }
 
 export const campaignApi = {
-  list: (params?: CampaignListParams) =>
+  list: (params?: { category?: string; status?: string; page?: number }) =>
     apiClient
       .get<ApiEnvelope<{ campaigns: ApiCampaign[]; total: number }>>('/campaigns', { params })
       .then((r) => r.data.data),
@@ -170,7 +166,7 @@ export const campaignApi = {
 
   publish: (id: string) => apiClient.post<ApiEnvelope<ApiCampaign>>(`/campaigns/${id}/publish`).then((r) => r.data.data),
 
-  apply: (campaignId: string, payload: { pitch?: string; quotedAmount?: number; deliverables?: string[] }) =>
+  apply: (campaignId: string, payload: ApplyPayload) =>
     apiClient.post<ApiEnvelope<ApiApplication>>(`/campaigns/${campaignId}/apply`, payload).then((r) => r.data.data),
 
   getMyProposals: (status?: string) =>

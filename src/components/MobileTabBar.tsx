@@ -206,14 +206,16 @@ export function MobileTabBar() {
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-pink-500/15 text-pink-300"><Users2 size={16} /></span>
                 Discover Creators
               </Link>
-              <Link
-                to="/brands"
-                onClick={() => setExploreMenuOpen(false)}
-                className="flex items-center gap-3 border-t border-white/10 px-4 py-3.5 text-sm font-semibold text-white/90 hover:bg-white/5"
-              >
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-500/15 text-sky-300"><Building2 size={16} /></span>
-                Discover Brands
-              </Link>
+              {isCreator && (
+                <Link
+  to="/campaigns"
+  onClick={() => setExploreMenuOpen(false)}
+  className="flex items-center gap-3 border-t border-white/10 px-4 py-3.5 text-sm font-semibold text-white/90 hover:bg-white/5"
+>
+  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-500/15 text-sky-300"><Building2 size={16} /></span>
+  Discover Brands
+</Link>
+              )}
             </motion.div>
           </>
         )}

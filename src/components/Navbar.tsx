@@ -90,6 +90,12 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // "Campaigns" is a creator-only nav item (they browse & apply to brand
+  // requirements) — brands post campaigns from their dashboard instead, and
+  // fans/agencies have no use for it here. Every other NAV_LINKS entry stays
+  // visible to all authenticated roles.
+  const visibleNavLinks = NAV_LINKS.filter((link) => link.href !== '/campaigns' || user?.role === 'creator');
+
   return (
     <motion.header
       initial={{ opacity: 0, y: -12 }}
@@ -108,7 +114,7 @@ export function Navbar() {
 
         {isAuthenticated && (
           <nav className="hidden items-center gap-7 lg:flex">
-            {NAV_LINKS.map((link) => (
+            {visibleNavLinks.map((link) => (
               <NavItem
                 key={link.href}
                 href={link.href}
@@ -169,7 +175,7 @@ export function Navbar() {
           >
             <div className="flex flex-col gap-1 px-gutter py-4 max-h-[70vh] overflow-y-auto">
               {isAuthenticated &&
-                NAV_LINKS.map((link) => (
+                visibleNavLinks.map((link) => (
                   <NavItem
                     key={link.href}
                     href={link.href}

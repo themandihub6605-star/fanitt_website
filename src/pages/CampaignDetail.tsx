@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft,
   Briefcase,
@@ -17,14 +17,19 @@ import {
   Calendar,
   Maximize2,
   X,
+  ChevronDown,
+  Link2,
+  Timer,
+  Building2,
+  Plus,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
-import { StatusBadge } from '@/components/StatusBadge';
 import { campaignApi, type ApiCampaign } from '@/services/campaignApi';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { openRazorpayCheckout } from '@/utils/razorpay';
 import { useAppSelector } from '@/store/hooks';
+import { cn } from '@/utils/cn';
 
 function formatRupees(paise: number) {
   return `₹${(paise / 100).toLocaleString('en-IN')}`;
@@ -38,26 +43,26 @@ function isVideoUrl(url: string) {
   return /\.(mp4|mov|webm)$/i.test(url);
 }
 
-/** Small expand-icon overlay shown on any thumbnail/banner image — tapping
- * it (or the image itself) opens the fullscreen lightbox for that URL. */
 function ExpandableImage({
   src,
   alt = '',
   className,
   onExpand,
   isVideo = false,
+  roundedClassName = 'rounded-xl',
 }: {
   src: string;
   alt?: string;
   className: string;
   onExpand: (url: string) => void;
   isVideo?: boolean;
+  roundedClassName?: string;
 }) {
   return (
     <button
       type="button"
       onClick={() => onExpand(src)}
-      className="group relative block w-full overflow-hidden rounded-[inherit]"
+      className={cn('group relative block w-full overflow-hidden', roundedClassName)}
     >
       {isVideo ? (
         <video src={src} className={className} muted />
@@ -71,6 +76,177 @@ function ExpandableImage({
   );
 }
 
+const DESCRIPTION_TRUNCATE_LENGTH = 220;
+
+function ApplyModal({
+  open,
+  onClose,
+  campaign,
+  onSubmitted,
+}: {
+  open: boolean;
+  onClose: () => void;
+  campaign: ApiCampaign;
+  onSubmitted: () => void;
+}) {
+  const [quotedAmount, setQuotedAmount] = useState('');
+  const [portfolioLinks, setPortfolioLinks] = useState<string[]>(['']);
+  const [deliveryTimeline, setDeliveryTimeline] = useState('');
+  const [pitch, setPitch] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const MAX_LINKS = 3;
+
+  const updateLink = (index: number, value: string) => {
+    setPortfolioLinks((links) => links.map((l, i) => (i === index ? value : l)));
+  };
+
+  const addLinkField = () => {
+    if (portfolioLinks.length < MAX_LINKS) setPortfolioLinks((links) => [...links, '']);
+  };
+
+  const removeLinkField = (index: number) => {
+    setPortfolioLinks((links) => links.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setError('');
+    try {
+      const parsedQuote = quotedAmount.trim() ? Math.round(parseFloat(quotedAmount) * 100) : NaN;
+      await campaignApi.apply(campaign._id, {
+        pitch: pitch || undefined,
+        quotedAmount: Number.isFinite(parsedQuote) ? parsedQuote : undefined,
+        portfolioLinks: portfolioLinks.map((l) => l.trim()).filter(Boolean),
+        deliveryTimeline: deliveryTimeline.trim() || undefined,
+      });
+      onSubmitted();
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center sm:p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 40, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl border border-white/10 bg-navy-900 p-6 sm:max-w-md sm:rounded-3xl"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-white">Apply to this opportunity</h2>
+              <button onClick={onClose} className="text-white/50 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="mt-1 truncate text-sm text-white/50">{campaign.title}</p>
+
+            {error && (
+              <div className="mt-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                <AlertCircle size={16} className="shrink-0" /> {error}
+              </div>
+            )}
+
+            <div className="mt-5 space-y-4">
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-white/70">
+                  Your quote (₹, optional — leave blank to accept posted budget)
+                </span>
+                <input
+                  type="number"
+                  min="1"
+                  value={quotedAmount}
+                  onChange={(e) => setQuotedAmount(e.target.value)}
+                  placeholder={campaign.budget ? `e.g. ${campaign.budget / 100}` : undefined}
+                  className="w-full rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
+                />
+              </label>
+
+              <div>
+                <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-white/70">
+                  <Link2 size={12} /> Portfolio link(s) (optional, up to {MAX_LINKS})
+                </span>
+                <div className="space-y-2">
+                  {portfolioLinks.map((link, i) => (
+                    <div key={i} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={link}
+                        onChange={(e) => updateLink(i, e.target.value)}
+                        placeholder="https://instagram.com/reel/..."
+                        className="min-w-0 flex-1 rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
+                      />
+                      {portfolioLinks.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeLinkField(i)}
+                          className="shrink-0 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 text-white/40 hover:border-red-400/50 hover:text-red-400"
+                        >
+                          <X size={15} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {portfolioLinks.length < MAX_LINKS && (
+                  <button
+                    type="button"
+                    onClick={addLinkField}
+                    className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-orange-400 hover:underline"
+                  >
+                    <Plus size={13} /> Add another link
+                  </button>
+                )}
+              </div>
+
+              <label className="block">
+                <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-white/70">
+                  <Timer size={12} /> Delivery timeline (optional)
+                </span>
+                <input
+                  type="text"
+                  value={deliveryTimeline}
+                  onChange={(e) => setDeliveryTimeline(e.target.value)}
+                  placeholder="e.g. 3 days"
+                  className="w-full rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-white/70">Pitch (optional)</span>
+                <textarea
+                  rows={3}
+                  value={pitch}
+                  onChange={(e) => setPitch(e.target.value)}
+                  placeholder="Why you're a great fit for this..."
+                  className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
+                />
+              </label>
+
+              <Button className="w-full justify-center" disabled={submitting} onClick={handleSubmit}>
+                {submitting ? <Loader2 size={18} className="animate-spin" /> : 'Send proposal'}
+              </Button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -79,10 +255,8 @@ export default function CampaignDetail() {
   const [error, setError] = useState('');
   const { isAuthenticated, user } = useAppSelector((s) => s.auth);
 
-  const [applying, setApplying] = useState(false);
+  const [applyModalOpen, setApplyModalOpen] = useState(false);
   const [applied, setApplied] = useState(false);
-  const [quotedAmount, setQuotedAmount] = useState('');
-  const [pitch, setPitch] = useState('');
 
   const [funding, setFunding] = useState(false);
 
@@ -92,6 +266,7 @@ export default function CampaignDetail() {
   const [approving, setApproving] = useState(false);
 
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [descExpanded, setDescExpanded] = useState(false);
 
   const load = () => {
     if (!id) return;
@@ -109,27 +284,13 @@ export default function CampaignDetail() {
   const isAssignedCreator = campaign?.assignedCreator?.user._id === user?._id;
   const canApply = user?.role === 'creator' && campaign?.status === 'open';
 
-  const handleApply = async () => {
-  if (!isAuthenticated) {
-    navigate('/login', { state: { from: `/campaigns/${id}` } });
-    return;
-  }
-  if (!id) return;
-  setApplying(true);
-  setError('');
-  try {
-    const parsedQuote = quotedAmount.trim() ? Math.round(parseFloat(quotedAmount) * 100) : NaN;
-    await campaignApi.apply(id, {
-      pitch: pitch || undefined,
-      quotedAmount: Number.isFinite(parsedQuote) ? parsedQuote : undefined,
-    });
-    setApplied(true);
-  } catch (err) {
-    setError(getApiErrorMessage(err));
-  } finally {
-    setApplying(false);
-  }
-};
+  const openApplyModal = () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/campaigns/${id}` } });
+      return;
+    }
+    setApplyModalOpen(true);
+  };
 
   const handleFundEscrow = async () => {
     if (!id || !campaign) return;
@@ -212,9 +373,10 @@ export default function CampaignDetail() {
   const hasDeliverables = campaign.deliverables && (campaign.deliverables.reel || campaign.deliverables.story || campaign.deliverables.post);
   const hasProducts = campaign.products && campaign.products.length > 0;
   const hasSampleMedia = campaign.sampleMedia && campaign.sampleMedia.length > 0;
+  const descriptionIsLong = campaign.description.length > DESCRIPTION_TRUNCATE_LENGTH;
 
   return (
-    <div className="pt-28 pb-24">
+    <div className="pt-24 pb-24 sm:pt-28">
       <Container className="max-w-3xl">
         <Link to="/campaigns" className="inline-flex items-center gap-1.5 text-sm font-semibold text-white/60 hover:text-orange-400">
           <ArrowLeft size={15} /> Back to campaigns
@@ -224,101 +386,127 @@ export default function CampaignDetail() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-navy-800/70 backdrop-blur-xl"
+          className="mt-4 overflow-hidden rounded-3xl border border-white/10 bg-navy-800/70 backdrop-blur-xl"
         >
           {campaign.campaignImageUrl && (
             <ExpandableImage
               src={campaign.campaignImageUrl}
-              className="h-44 w-full object-cover sm:h-56"
+              className="h-48 w-full object-cover sm:h-56"
               onExpand={setLightboxUrl}
+              roundedClassName="rounded-none"
             />
           )}
 
-          <div className="p-6 sm:p-8">
-            <div className="flex flex-wrap items-center gap-3">
-              {campaign.brand.slug ? (
-                <Link to={`/brand/${campaign.brand.slug}`} className="flex items-center gap-2.5 hover:opacity-80">
+          <div className="space-y-6 p-5 text-left sm:p-6">
+            {/* Brand header */}
+            <div>
+              <div className="flex items-center gap-3.5">
+                {campaign.brand.slug ? (
+                  <Link to={`/brand/${campaign.brand.slug}`} className="shrink-0">
+                    <img
+                      src={campaign.brand.logoUrl || `https://i.pravatar.cc/80?u=${campaign.brand._id}`}
+                      alt=""
+                      className="h-14 w-14 rounded-2xl object-cover ring-1 ring-white/10"
+                    />
+                  </Link>
+                ) : (
                   <img
                     src={campaign.brand.logoUrl || `https://i.pravatar.cc/80?u=${campaign.brand._id}`}
                     alt=""
-                    className="h-11 w-11 rounded-full object-cover"
+                    className="h-14 w-14 shrink-0 rounded-2xl object-cover ring-1 ring-white/10"
                   />
-                  <div>
-                    <p className="flex items-center gap-1 text-sm font-bold text-orange-300">
-                      {campaign.brand.companyName} <ExternalLink size={11} />
-                    </p>
-                    <p className="text-xs text-white/50">By {campaign.brand.companyName}</p>
-                  </div>
-                </Link>
-              ) : (
-                <div className="flex items-center gap-2.5">
-                  <img
-                    src={campaign.brand.logoUrl || `https://i.pravatar.cc/80?u=${campaign.brand._id}`}
-                    alt=""
-                    className="h-11 w-11 rounded-full object-cover"
-                  />
-                  <p className="text-sm font-bold text-white">{campaign.brand.companyName}</p>
-                </div>
-              )}
-              <div className="ml-auto flex items-center gap-2">
-                <StatusBadge status={campaign.status} />
-                {campaign.category && (
-                  <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white/70">
-                    {campaign.category.label}
-                  </span>
                 )}
+                <div className="min-w-0 flex-1">
+                  {campaign.brand.slug ? (
+                    <Link to={`/brand/${campaign.brand.slug}`} className="inline-flex items-center gap-1 text-sm font-bold text-orange-300 hover:opacity-80">
+                      {campaign.brand.companyName} <ExternalLink size={11} className="shrink-0" />
+                    </Link>
+                  ) : (
+                    <span className="text-sm font-bold text-white">{campaign.brand.companyName}</span>
+                  )}
+                  {campaign.category && (
+                    <div className="mt-1.5">
+                      <span className="inline-block rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white/70">
+                        {campaign.category.label}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <h1 className="mt-4 text-2xl font-bold leading-tight text-white sm:text-[1.75rem]">{campaign.title}</h1>
+
+              <div className="mt-3 flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 w-fit">
+                <Instagram size={13} /> {campaign.applicantCount} Creator{campaign.applicantCount === 1 ? '' : 's'} Applied
               </div>
             </div>
 
-            <h1 className="mt-5 text-2xl font-bold text-white sm:text-3xl">{campaign.title}</h1>
-
-            <div className="mt-2 flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 w-fit">
-              <Instagram size={13} /> {campaign.applicantCount} Creator{campaign.applicantCount === 1 ? '' : 's'} Applied
+            {/* Description */}
+            <div>
+              <p className={cn('leading-relaxed text-white/70', !descExpanded && descriptionIsLong && 'line-clamp-4')}>
+                {campaign.description}
+              </p>
+              {descriptionIsLong && (
+                <button
+                  onClick={() => setDescExpanded((v) => !v)}
+                  className="mt-1.5 flex items-center gap-1 text-sm font-semibold text-orange-400 hover:underline"
+                >
+                  {descExpanded ? 'See less' : 'See more'}
+                  <ChevronDown size={14} className={cn('transition-transform', descExpanded && 'rotate-180')} />
+                </button>
+              )}
             </div>
 
-            <p className="mt-4 leading-relaxed text-white/70">{campaign.description}</p>
-
-            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-white/10 bg-navy-800/45 p-4">
-                <Briefcase size={16} className="text-orange-400" />
-                <p className="mt-2 text-sm font-bold text-white">
+            {/* Key stats */}
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-navy-800/45 px-2 py-4 text-center">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/15 text-orange-400">
+                  <Briefcase size={16} />
+                </span>
+                <p className="text-sm font-bold leading-tight text-white">
                   {campaign.campaignType === 'paid'
-                    ? `${formatRupees(campaign.budget)}${campaign.maxInfluencers > 1 ? ` (${campaign.maxInfluencers}x)` : ''}`
-                    : `${campaign.products.length} barter product${campaign.products.length === 1 ? '' : 's'}`}
+                    ? formatRupees(campaign.budget)
+                    : `${campaign.products.length} item${campaign.products.length === 1 ? '' : 's'}`}
                 </p>
-                <p className="text-xs text-white/50">{campaign.campaignType === 'paid' ? 'Budget' : 'Offering'}</p>
+                <p className="text-[11px] text-white/50">{campaign.campaignType === 'paid' ? 'Budget' : 'Offering'}</p>
               </div>
-              <div className="rounded-xl border border-white/10 bg-navy-800/45 p-4">
-                <Clock size={16} className="text-teal-400" />
-                <p className="mt-2 text-sm font-bold text-white">{campaign.durationLabel || '—'}</p>
-                <p className="text-xs text-white/50">Duration</p>
+              <div className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-navy-800/45 px-2 py-4 text-center">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-500/15 text-teal-400">
+                  <Clock size={16} />
+                </span>
+                <p className="text-sm font-bold leading-tight text-white">{campaign.durationLabel || 'Flexible'}</p>
+                <p className="text-[11px] text-white/50">Duration</p>
               </div>
-              <div className="rounded-xl border border-white/10 bg-navy-800/45 p-4">
-                <MapPin size={16} className="text-yellow-400" />
-                <p className="mt-2 text-sm font-bold text-white">{campaign.location}</p>
-                <p className="text-xs text-white/50">Location</p>
+              <div className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-navy-800/45 px-2 py-4 text-center">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500/15 text-yellow-400">
+                  <MapPin size={16} />
+                </span>
+                <p className="w-full text-sm font-bold leading-tight text-white break-words">{campaign.location}</p>
+                <p className="text-[11px] text-white/50">Location</p>
               </div>
             </div>
 
+            {/* Deliverables */}
             {hasDeliverables && (
-              <div className="mt-4 grid grid-cols-3 gap-3 rounded-xl border border-white/10 bg-navy-800/45 p-4 text-center">
+              <div className="grid grid-cols-3 divide-x divide-white/10 rounded-2xl border border-white/10 bg-navy-800/45 py-3.5 text-center">
                 <div>
                   <p className="text-lg font-bold text-white">{campaign.deliverables.reel}</p>
-                  <p className="text-xs text-white/50">Reel</p>
+                  <p className="text-[11px] text-white/50">Reel</p>
                 </div>
-                <div className="border-x border-white/10">
+                <div>
                   <p className="text-lg font-bold text-white">{campaign.deliverables.story}</p>
-                  <p className="text-xs text-white/50">Story</p>
+                  <p className="text-[11px] text-white/50">Story</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-white">{campaign.deliverables.post}</p>
-                  <p className="text-xs text-white/50">Post</p>
+                  <p className="text-[11px] text-white/50">Post</p>
                 </div>
               </div>
             )}
 
+            {/* Creator requirement */}
             {(campaign.minFollowers || campaign.ageRange || campaign.genderTarget?.length > 0) && (
-              <div className="mt-4 rounded-xl border border-white/10 bg-navy-800/45 p-4">
+              <div className="rounded-2xl border border-white/10 bg-navy-800/45 p-4">
                 <p className="mb-3 flex items-center gap-1.5 text-sm font-bold text-white">
                   <Users2 size={14} className="text-white/50" /> Creator Requirement
                 </p>
@@ -343,8 +531,9 @@ export default function CampaignDetail() {
               </div>
             )}
 
+            {/* Influencer categories */}
             {campaign.influencerCategories?.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 {campaign.influencerCategories.map((c) => (
                   <span key={c} className="rounded-full bg-navy-700 px-3 py-1 text-xs font-semibold text-white/70">
                     {c}
@@ -353,10 +542,11 @@ export default function CampaignDetail() {
               </div>
             )}
 
+            {/* Dos & Don'ts */}
             {(campaign.dos?.length > 0 || campaign.donts?.length > 0) && (
-              <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {campaign.dos?.length > 0 && (
-                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
                     <p className="mb-2 text-xs font-bold uppercase tracking-wide text-emerald-300">Do's</p>
                     <ul className="space-y-1.5 text-xs text-white/60">
                       {campaign.dos.map((d, i) => (
@@ -366,7 +556,7 @@ export default function CampaignDetail() {
                   </div>
                 )}
                 {campaign.donts?.length > 0 && (
-                  <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+                  <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
                     <p className="mb-2 text-xs font-bold uppercase tracking-wide text-red-300">Dont's</p>
                     <ul className="space-y-1.5 text-xs text-white/60">
                       {campaign.donts.map((d, i) => (
@@ -378,16 +568,17 @@ export default function CampaignDetail() {
               </div>
             )}
 
+            {/* Products */}
             {hasProducts && (
-              <div className="mt-6">
+              <div>
                 <p className="mb-3 text-sm font-bold text-white">{campaign.campaignType === 'barter' ? 'Barter Products' : 'Free Products'}</p>
                 <div className="flex flex-wrap gap-3">
                   {campaign.products.map((p) => (
-                    <div key={p._id} className="w-24 rounded-xl border border-white/10 bg-navy-800/45 p-2 text-center">
+                    <div key={p._id} className="w-24 rounded-2xl border border-white/10 bg-navy-800/45 p-2 text-center">
                       {p.imageUrl ? (
-                        <ExpandableImage src={p.imageUrl} className="h-16 w-full rounded-lg object-cover" onExpand={setLightboxUrl} />
+                        <ExpandableImage src={p.imageUrl} className="h-16 w-full rounded-xl object-cover" onExpand={setLightboxUrl} roundedClassName="rounded-xl" />
                       ) : (
-                        <div className="flex h-16 w-full items-center justify-center rounded-lg bg-white/10 text-white/30">
+                        <div className="flex h-16 w-full items-center justify-center rounded-xl bg-white/10 text-white/30">
                           <ImagePlus size={16} />
                         </div>
                       )}
@@ -399,8 +590,9 @@ export default function CampaignDetail() {
               </div>
             )}
 
+            {/* Sample media */}
             {hasSampleMedia && (
-              <div className="mt-6">
+              <div>
                 <p className="mb-3 text-sm font-bold text-white">Sample Media</p>
                 <div className="flex gap-3 overflow-x-auto pb-1">
                   {campaign.sampleMedia.map((url, i) => (
@@ -410,6 +602,7 @@ export default function CampaignDetail() {
                         className="h-24 w-24 rounded-xl object-cover"
                         onExpand={setLightboxUrl}
                         isVideo={isVideoUrl(url)}
+                        roundedClassName="rounded-xl"
                       />
                     </div>
                   ))}
@@ -417,8 +610,9 @@ export default function CampaignDetail() {
               </div>
             )}
 
+            {/* Escrow note */}
             {campaign.campaignType === 'paid' && (
-              <div className="mt-6 flex items-start gap-3 rounded-xl border border-teal-500/20 bg-teal-500/10 p-4">
+              <div className="flex items-start gap-3 rounded-2xl border border-teal-500/20 bg-teal-500/10 p-4">
                 <ShieldCheck size={16} className="mt-0.5 shrink-0 text-teal-400" />
                 <p className="text-sm text-teal-200">
                   This budget is held in Fanitt escrow the moment a creator is accepted and funded, and released the moment
@@ -427,61 +621,36 @@ export default function CampaignDetail() {
               </div>
             )}
 
-            <p className="mt-6 flex items-center gap-1.5 text-xs text-white/40">
+            {/* Created date */}
+            <p className="flex items-center gap-1.5 text-xs text-white/40">
               <Calendar size={12} /> Campaign created on {formatDate(campaign.createdAt)}
             </p>
 
+            {/* Error */}
             {error && (
-              <div className="mt-5 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              <div className="flex items-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
                 <AlertCircle size={16} className="shrink-0" /> {error}
               </div>
             )}
 
-            <AnimatePresence mode="wait">
-              {!applied && canApply && (
-                <motion.div key="apply-form" initial={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-7 space-y-3 border-t border-white/10 pt-6">
-                  <h3 className="text-sm font-bold text-white">Apply to this opportunity</h3>
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-semibold text-white/70">Your quote (₹, optional — leave blank to accept posted budget)</span>
-                    <input
-                      type="number"
-                      min="1"
-                      value={quotedAmount}
-                      onChange={(e) => setQuotedAmount(e.target.value)}
-                      placeholder={campaign.budget ? `e.g. ${campaign.budget / 100}` : undefined}
-                      className="w-full rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-semibold text-white/70">Pitch (optional)</span>
-                    <textarea
-                      rows={3}
-                      value={pitch}
-                      onChange={(e) => setPitch(e.target.value)}
-                      placeholder="Why you're a great fit for this..."
-                      className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
-                    />
-                  </label>
-                  <Button className="w-full justify-center" disabled={applying} onClick={handleApply}>
-                    {applying ? <Loader2 size={18} className="animate-spin" /> : 'Send proposal'}
-                  </Button>
-                </motion.div>
-              )}
+            {/* Apply */}
+            {!applied && canApply && (
+              <div className="border-t border-white/10 pt-5">
+                <Button className="w-full justify-center" onClick={openApplyModal}>
+                  Apply to this opportunity
+                </Button>
+              </div>
+            )}
 
-              {applied && (
-                <motion.div
-                  key="applied"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-7 flex items-center justify-center gap-2 rounded-xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300"
-                >
-                  <Check size={16} /> Proposal sent — track it under "My Proposals".
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {applied && (
+              <div className="flex items-center justify-center gap-2 rounded-2xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
+                <Check size={16} /> Proposal sent — track it under "My Proposals".
+              </div>
+            )}
 
+            {/* Brand owner actions */}
             {isBrandOwner && (
-              <div className="mt-7 space-y-3 border-t border-white/10 pt-6">
+              <div className="space-y-3 border-t border-white/10 pt-5">
                 {campaign.status === 'open' && (
                   <Link to={`/campaigns/${id}/applications`}>
                     <Button className="w-full justify-center" variant="outline">
@@ -497,7 +666,7 @@ export default function CampaignDetail() {
                 )}
 
                 {campaign.status === 'submitted' && (
-                  <div className="rounded-xl border border-yellow-400/20 bg-yellow-400/10 p-4">
+                  <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4">
                     <p className="text-sm font-bold text-yellow-200">Work submitted for review</p>
                     {campaign.submittedWorkUrl && (
                       <a
@@ -516,15 +685,16 @@ export default function CampaignDetail() {
                 )}
 
                 {campaign.status === 'completed' && (
-                  <div className="flex items-center justify-center gap-2 rounded-xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
+                  <div className="flex items-center justify-center gap-2 rounded-2xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
                     <Check size={16} /> Completed — payment released to the creator.
                   </div>
                 )}
               </div>
             )}
 
+            {/* Assigned creator actions */}
             {isAssignedCreator && campaign.status === 'in_progress' && (
-              <div className="mt-7 space-y-3 border-t border-white/10 pt-6">
+              <div className="space-y-3 border-t border-white/10 pt-5">
                 <h3 className="text-sm font-bold text-white">Submit your work</h3>
                 <label className="block">
                   <span className="mb-1.5 block text-xs font-semibold text-white/70">Link to your deliverable (Drive, Dropbox, etc.)</span>
@@ -543,19 +713,31 @@ export default function CampaignDetail() {
             )}
 
             {isAssignedCreator && campaign.status === 'submitted' && (
-              <div className="mt-7 rounded-xl bg-yellow-400/10 py-3.5 text-center text-sm font-bold text-yellow-200">
+              <div className="rounded-2xl bg-yellow-400/10 py-3.5 text-center text-sm font-bold text-yellow-200">
                 Waiting for the brand to review your submission.
               </div>
             )}
 
             {isAssignedCreator && campaign.status === 'completed' && (
-              <div className="mt-7 flex items-center justify-center gap-2 rounded-xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
+              <div className="flex items-center justify-center gap-2 rounded-2xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
                 <Check size={16} /> Paid — this campaign is complete.
               </div>
             )}
           </div>
         </motion.div>
       </Container>
+
+      {campaign && (
+        <ApplyModal
+          open={applyModalOpen}
+          onClose={() => setApplyModalOpen(false)}
+          campaign={campaign}
+          onSubmitted={() => {
+            setApplyModalOpen(false);
+            setApplied(true);
+          }}
+        />
+      )}
 
       <AnimatePresence>
         {lightboxUrl && (

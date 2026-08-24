@@ -174,13 +174,18 @@ export default function EditCreatorProfile() {
               <p className="text-sm font-semibold text-white">Available for Work</p>
               <p className="text-xs text-white/50">Shows a live badge on your profile when brands are looking.</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsAvailableForWork((v) => !v)}
-              className={cn('relative h-7 w-12 shrink-0 rounded-full transition-colors', isAvailableForWork ? 'bg-emerald-500' : 'bg-white/15')}
-            >
-              <span className={cn('absolute top-1 h-5 w-5 rounded-full bg-white transition-transform', isAvailableForWork ? 'translate-x-6' : 'translate-x-1')} />
-            </button>
+           <button
+  type="button"
+  onClick={() => setIsAvailableForWork((v) => !v)}
+  className={cn('relative h-7 w-12 shrink-0 rounded-full transition-colors', isAvailableForWork ? 'bg-emerald-500' : 'bg-white/15')}
+>
+  <span
+    className={cn(
+      'absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-md transition-transform',
+      isAvailableForWork ? 'translate-x-5' : 'translate-x-0'
+    )}
+  />
+</button>
           </div>
 
           {/* Basics */}

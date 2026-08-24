@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LayoutDashboard, LogOut, ChevronDown, CalendarCheck, FileText, UserCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { getUploadUrl } from '@/services/apiClient';
 
 export function UserMenu() {
   const { user, logout } = useAuth();
@@ -26,7 +27,7 @@ export function UserMenu() {
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-1 hover:bg-white/10 sm:pr-2.5">
         {user.avatarUrl ? (
-          <img src={user.avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover" />
+          <img src={getUploadUrl(user.avatarUrl)} alt="" className="h-7 w-7 rounded-full object-cover" />
         ) : (
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-500/20 text-xs font-bold text-orange-300">
             {user.name.charAt(0).toUpperCase()}

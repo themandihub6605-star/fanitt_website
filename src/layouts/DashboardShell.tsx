@@ -158,7 +158,7 @@ export function DashboardShell({ children }: PropsWithChildren) {
       {/* Main column */}
       <div className="flex min-h-screen flex-1 flex-col">
         {/* Topbar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-white/10 bg-[#0A0A0A]/90 px-4 backdrop-blur-xl sm:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-white/10 bg-[#0A0A0A]/90 px-3 backdrop-blur-xl sm:gap-3 sm:px-6">
           <Link to="/" className="shrink-0 lg:hidden">
             <Logo className="h-7 w-auto" />
           </Link>
@@ -175,18 +175,19 @@ export function DashboardShell({ children }: PropsWithChildren) {
             </div>
           </form>
 
-          {/* Mobile equivalent of the sidebar's "Visit Website" link — desktop
-           * users see the full sidebar button; on mobile there's no sidebar
-           * at all, so this small icon-button lives in the topbar instead. */}
+          {/* Mobile equivalent of the sidebar's "Visit Website" link — icon
+           * only on very narrow screens so it doesn't crowd the wallet/bell/
+           * avatar cluster; the label reappears from `xs`-ish widths up. */}
           <Link
             to="/"
             aria-label="Visit website"
-            className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-bold text-white/70 hover:border-orange-400/40 hover:text-white lg:hidden"
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-2 text-xs font-bold text-white/70 hover:border-orange-400/40 hover:text-white lg:hidden"
           >
-            <Globe size={14} /> Website
+            <Globe size={14} />
+            <span className="hidden xs:inline">Website</span>
           </Link>
 
-          <div className="ml-auto flex items-center gap-2.5 sm:gap-3">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2.5">
             {isCreator ? (
               <Link
                 to="/dashboard/creator?action=create-session"
@@ -204,13 +205,20 @@ export function DashboardShell({ children }: PropsWithChildren) {
             ) : null}
 
             {walletBalance !== null && (
-              <Link to="/wallet" className="flex items-center gap-1.5 rounded-full border border-white/10 bg-navy-800/60 px-3 py-2 text-xs font-bold text-yellow-300 hover:border-yellow-400/40">
+              <Link
+                to="/wallet"
+                className="flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-navy-800/60 px-2.5 py-2 text-xs font-bold text-yellow-300 hover:border-yellow-400/40 sm:gap-1.5 sm:px-3"
+              >
                 <Coins size={14} /> {Math.round(walletBalance / 100).toLocaleString('en-IN')}
               </Link>
             )}
 
-            <NotificationBellLink />
-            <UserMenu />
+            <div className="shrink-0">
+              <NotificationBellLink />
+            </div>
+            <div className="shrink-0">
+              <UserMenu />
+            </div>
           </div>
         </header>
 

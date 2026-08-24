@@ -1,11 +1,42 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Send, Loader2, MessageCircle } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Send, Loader2, MessageCircle, X } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { chatApi, type ApiConversation, type ApiMessage } from '@/services/chatApi';
+import { getSocket } from '@/services/socket';
 import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/utils/cn';
+
+function Avatar({
+  name,
+  avatarUrl,
+  size = 'h-8 w-8',
+  onClick,
+}: {
+  name?: string;
+  avatarUrl?: string;
+  size?: string;
+  onClick?: () => void;
+}) {
+  const clickable = Boolean(avatarUrl && onClick);
+  return (
+    <button
+      type="button"
+      onClick={clickable ? onClick : undefined}
+      disabled={!clickable}
+      className={cn(size, 'shrink-0 overflow-hidden rounded-full', clickable && 'cursor-pointer hover:opacity-80')}
+    >
+      {avatarUrl ? (
+        <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span className="flex h-full w-full items-center justify-center rounded-full bg-orange-500/20 text-xs font-bold text-orange-300">
+          {name?.charAt(0).toUpperCase() || '?'}
+        </span>
+      )}
+    </button>
+  );
+}
 
 export default function Messages() {
   const [searchParams] = useSearchParams();
@@ -18,8 +49,16 @@ export default function Messages() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingThread, setLoadingThread] = useState(false);
   const [sending, setSending] = useState(false);
+  const [otherTyping, setOtherTyping] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const user = useAppSelector((s) => s.auth.user);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const activeIdRef = useRef<string | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
 
   const loadConversations = () => {
     chatApi
@@ -42,35 +81,90 @@ export default function Messages() {
   }, [startWithUserId]);
 
   useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handleNewMessage = ({ conversationId, message }: { conversationId: string; message: ApiMessage }) => {
+      if (conversationId === activeIdRef.current) {
+        setMessages((prev) => (prev.some((m) => m._id === message._id) ? prev : [...prev, message]));
+      }
+      loadConversations();
+    };
+
+    const handleMessagesRead = ({ conversationId }: { conversationId: string }) => {
+      if (conversationId !== activeIdRef.current) return;
+      setMessages((prev) => prev.map((m) => (m.sender === user?._id ? { ...m, isRead: true } : m)));
+    };
+
+    const handleTyping = ({ conversationId }: { conversationId: string }) => {
+      if (conversationId !== activeIdRef.current) return;
+      setOtherTyping(true);
+    };
+
+    const handleTypingStop = ({ conversationId }: { conversationId: string }) => {
+      if (conversationId !== activeIdRef.current) return;
+      setOtherTyping(false);
+    };
+
+    socket.on('new_message', handleNewMessage);
+    socket.on('messages_read', handleMessagesRead);
+    socket.on('typing', handleTyping);
+    socket.on('typing_stop', handleTypingStop);
+
+    return () => {
+      socket.off('new_message', handleNewMessage);
+      socket.off('messages_read', handleMessagesRead);
+      socket.off('typing', handleTyping);
+      socket.off('typing_stop', handleTypingStop);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?._id]);
+
+  useEffect(() => {
     if (!activeId) return;
+    setOtherTyping(false);
     setLoadingThread(true);
     chatApi
       .getMessages(activeId)
       .then(setMessages)
       .finally(() => setLoadingThread(false));
-
-    const interval = setInterval(() => {
-      chatApi.getMessages(activeId).then(setMessages);
-    }, 5000);
-    return () => clearInterval(interval);
   }, [activeId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
- const handleSend = async () => {
+  const emitTypingStop = () => {
+    if (!activeId) return;
+    const socket = getSocket();
+    socket?.emit('typing_stop', { conversationId: activeId });
+  };
+
+  const handleTextChange = (value: string) => {
+    setText(value);
+    if (!activeId) return;
+    const socket = getSocket();
+    socket?.emit('typing_start', { conversationId: activeId });
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(emitTypingStop, 1500);
+  };
+
+  const handleSend = () => {
     if (!activeId || !text.trim() || sending) return;
+    const socket = getSocket();
+    if (!socket) return;
+
     const textToSend = text.trim();
     setText('');
+    emitTypingStop();
     setSending(true);
-    try {
-      const message = await chatApi.sendMessage(activeId, textToSend);
-      setMessages((prev) => [...prev, message]);
-      loadConversations();
-    } finally {
+
+    socket.emit('send_message', { conversationId: activeId, text: textToSend }, (res: { success: boolean; error?: string }) => {
       setSending(false);
-    }
+      if (!res.success) {
+        setText(textToSend);
+      }
+    });
   };
 
   const activeConversation = conversations.find((c) => c._id === activeId);
@@ -103,13 +197,7 @@ export default function Messages() {
                         activeId === c._id && 'bg-navy-800/60'
                       )}
                     >
-                      {other?.avatarUrl ? (
-                        <img src={other.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
-                      ) : (
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-500/20 text-sm font-bold text-orange-300">
-                          {other?.name.charAt(0).toUpperCase()}
-                        </span>
-                      )}
+                      <Avatar name={other?.name} avatarUrl={other?.avatarUrl} size="h-10 w-10" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
                           <p className="truncate text-sm font-bold text-white">{other?.name}</p>
@@ -140,10 +228,19 @@ export default function Messages() {
                   <button onClick={() => setActiveId(null)} className="text-white/60 sm:hidden">
                     ←
                   </button>
-                  <p className="font-bold text-white">{otherParticipant?.name}</p>
+                  <Avatar
+                    name={otherParticipant?.name}
+                    avatarUrl={otherParticipant?.avatarUrl}
+                    size="h-9 w-9"
+                    onClick={() => otherParticipant?.avatarUrl && setLightboxUrl(otherParticipant.avatarUrl)}
+                  />
+                  <div>
+                    <p className="font-bold text-white">{otherParticipant?.name}</p>
+                    {otherTyping && <p className="text-xs text-orange-300">typing...</p>}
+                  </div>
                 </div>
 
-                <div className="flex-1 space-y-2 overflow-y-auto p-4">
+                <div className="flex-1 space-y-3 overflow-y-auto p-4">
                   {loadingThread ? (
                     <div className="flex items-center justify-center py-10 text-white/40">
                       <Loader2 size={20} className="animate-spin" />
@@ -151,16 +248,23 @@ export default function Messages() {
                   ) : (
                     messages.map((m) => {
                       const isMine = m.sender === user?._id;
+                      const senderInfo = isMine ? user : otherParticipant;
                       return (
                         <motion.div
                           key={m._id}
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className={cn('flex', isMine ? 'justify-end' : 'justify-start')}
+                          className={cn('flex items-end gap-2', isMine ? 'flex-row-reverse' : 'flex-row')}
                         >
+                          <Avatar
+                            name={senderInfo?.name}
+                            avatarUrl={senderInfo?.avatarUrl}
+                            size="h-7 w-7"
+                            onClick={() => senderInfo?.avatarUrl && setLightboxUrl(senderInfo.avatarUrl)}
+                          />
                           <div
                             className={cn(
-                              'max-w-[75%] rounded-2xl px-4 py-2.5 text-sm',
+                              'max-w-[70%] rounded-2xl px-4 py-2.5 text-sm',
                               isMine ? 'bg-orange-500 text-white' : 'bg-white/10 text-white/90'
                             )}
                           >
@@ -176,7 +280,8 @@ export default function Messages() {
                 <div className="flex items-center gap-2 border-t border-white/10 p-3">
                   <input
                     value={text}
-                    onChange={(e) => setText(e.target.value)}
+                    onChange={(e) => handleTextChange(e.target.value)}
+                    onBlur={emitTypingStop}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                     placeholder="Type a message..."
                     className="flex-1 rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
@@ -194,6 +299,34 @@ export default function Messages() {
           </div>
         </div>
       </Container>
+
+      <AnimatePresence>
+        {lightboxUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <button
+              type="button"
+              onClick={() => setLightboxUrl(null)}
+              className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            >
+              <X size={20} />
+            </button>
+            <motion.img
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              src={lightboxUrl}
+              alt=""
+              className="max-h-[85vh] max-w-full rounded-2xl object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
