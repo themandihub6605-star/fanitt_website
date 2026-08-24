@@ -450,18 +450,7 @@ export default function Campaigns() {
 
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-bold text-white">{campaign.title}</p>
-                      {campaign.brand.slug ? (
-                        <Link
-                          to={`/brand/${campaign.brand.slug}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="mt-0.5 block w-fit truncate text-xs text-orange-300 hover:underline"
-                        >
-                          By {campaign.brand.companyName}
-                        </Link>
-                      ) : (
-                        <p className="mt-0.5 truncate text-xs text-orange-300">By {campaign.brand.companyName}</p>
-                      )}
-
+                                          <p className="mt-0.5 truncate text-xs text-orange-300">By {campaign.brand.companyName}</p>
                       <p className="mt-1.5 flex items-center gap-1.5 text-sm font-semibold text-white/80">
                         <Briefcase size={13} className="text-orange-400" />
                         {campaign.campaignType === 'paid' ? formatRupees(campaign.budget) : `${campaign.products.length} product(s)`}

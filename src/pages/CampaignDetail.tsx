@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -75,8 +75,6 @@ function ExpandableImage({
     </button>
   );
 }
-
-const DESCRIPTION_TRUNCATE_LENGTH = 220;
 
 function ApplyModal({
   open,
@@ -267,6 +265,20 @@ export default function CampaignDetail() {
 
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [descIsClamped, setDescIsClamped] = useState(false);
+  const descRef = useRef<HTMLParagraphElement>(null);
+
+  // Detects whether the description actually overflows 4 lines at the
+  // current screen width — character-count checks are wrong on mobile,
+  // where the same text wraps to more lines in a narrower column.
+  useEffect(() => {
+    const el = descRef.current;
+    if (!el) return;
+    const check = () => setDescIsClamped(el.scrollHeight > el.clientHeight + 1);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [campaign?.description]);
 
   const load = () => {
     if (!id) return;
@@ -373,7 +385,6 @@ export default function CampaignDetail() {
   const hasDeliverables = campaign.deliverables && (campaign.deliverables.reel || campaign.deliverables.story || campaign.deliverables.post);
   const hasProducts = campaign.products && campaign.products.length > 0;
   const hasSampleMedia = campaign.sampleMedia && campaign.sampleMedia.length > 0;
-  const descriptionIsLong = campaign.description.length > DESCRIPTION_TRUNCATE_LENGTH;
 
   return (
     <div className="pt-24 pb-24 sm:pt-28">
@@ -386,151 +397,155 @@ export default function CampaignDetail() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mt-4 overflow-hidden rounded-3xl border border-white/10 bg-navy-800/70 backdrop-blur-xl"
+          className="mt-4 space-y-4"
         >
-          {campaign.campaignImageUrl && (
-            <ExpandableImage
-              src={campaign.campaignImageUrl}
-              className="h-48 w-full object-cover sm:h-56"
-              onExpand={setLightboxUrl}
-              roundedClassName="rounded-none"
-            />
-          )}
-
-          <div className="space-y-6 p-5 text-left sm:p-6">
-            {/* Brand header */}
-            <div>
-              <div className="flex items-center gap-3.5">
-                {campaign.brand.slug ? (
-                  <Link to={`/brand/${campaign.brand.slug}`} className="shrink-0">
-                    <img
-                      src={campaign.brand.logoUrl || `https://i.pravatar.cc/80?u=${campaign.brand._id}`}
-                      alt=""
-                      className="h-14 w-14 rounded-2xl object-cover ring-1 ring-white/10"
-                    />
-                  </Link>
-                ) : (
-                  <img
-                    src={campaign.brand.logoUrl || `https://i.pravatar.cc/80?u=${campaign.brand._id}`}
-                    alt=""
-                    className="h-14 w-14 shrink-0 rounded-2xl object-cover ring-1 ring-white/10"
+          {/* Hero card — image + brand/price/applied count side-by-side, orange accent card */}
+          <div className="rounded-3xl border border-orange-400/20 bg-gradient-to-br from-orange-500/10 via-navy-800/60 to-navy-800/60 p-4 sm:p-5">
+            <div className="flex gap-4">
+              {campaign.campaignImageUrl ? (
+                <div className="relative w-28 shrink-0 sm:w-36">
+                  <ExpandableImage
+                    src={campaign.campaignImageUrl}
+                    className="aspect-square w-full rounded-2xl object-cover"
+                    onExpand={setLightboxUrl}
+                    roundedClassName="rounded-2xl"
                   />
-                )}
-                <div className="min-w-0 flex-1">
-                  {campaign.brand.slug ? (
-                    <Link to={`/brand/${campaign.brand.slug}`} className="inline-flex items-center gap-1 text-sm font-bold text-orange-300 hover:opacity-80">
-                      {campaign.brand.companyName} <ExternalLink size={11} className="shrink-0" />
-                    </Link>
-                  ) : (
-                    <span className="text-sm font-bold text-white">{campaign.brand.companyName}</span>
-                  )}
-                  {campaign.category && (
-                    <div className="mt-1.5">
-                      <span className="inline-block rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white/70">
-                        {campaign.category.label}
-                      </span>
-                    </div>
+                  {campaign.campaignType && (
+                    <span
+                      className={cn(
+                        'absolute inset-x-1.5 bottom-1.5 rounded-full py-1 text-center text-[10px] font-bold uppercase tracking-wide text-white',
+                        campaign.campaignType === 'paid' ? 'bg-emerald-500' : 'bg-orange-600'
+                      )}
+                    >
+                      {campaign.campaignType === 'paid' ? 'Paid' : 'Barter'}
+                    </span>
                   )}
                 </div>
-              </div>
-
-              <h1 className="mt-4 text-2xl font-bold leading-tight text-white sm:text-[1.75rem]">{campaign.title}</h1>
-
-              <div className="mt-3 flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 w-fit">
-                <Instagram size={13} /> {campaign.applicantCount} Creator{campaign.applicantCount === 1 ? '' : 's'} Applied
-              </div>
-            </div>
-
-            {/* Description */}
-            <div>
-              <p className={cn('leading-relaxed text-white/70', !descExpanded && descriptionIsLong && 'line-clamp-4')}>
-                {campaign.description}
-              </p>
-              {descriptionIsLong && (
-                <button
-                  onClick={() => setDescExpanded((v) => !v)}
-                  className="mt-1.5 flex items-center gap-1 text-sm font-semibold text-orange-400 hover:underline"
-                >
-                  {descExpanded ? 'See less' : 'See more'}
-                  <ChevronDown size={14} className={cn('transition-transform', descExpanded && 'rotate-180')} />
-                </button>
+              ) : (
+                <div className="flex aspect-square w-28 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white/30 sm:w-36">
+                  <ImagePlus size={22} />
+                </div>
               )}
-            </div>
 
-            {/* Key stats */}
-            <div className="grid grid-cols-3 gap-2.5">
-              <div className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-navy-800/45 px-2 py-4 text-center">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/15 text-orange-400">
-                  <Briefcase size={16} />
-                </span>
-                <p className="text-sm font-bold leading-tight text-white">
+              <div className="min-w-0 flex-1">
+                <h1 className="line-clamp-2 text-lg font-bold leading-tight text-white sm:text-xl">{campaign.title}</h1>
+
+                <p className="mt-1 text-sm font-semibold text-white/70">By {campaign.brand.companyName}</p>
+
+                <div className="mt-2.5 flex items-center gap-1.5 text-lg font-bold text-white">
+                  <Briefcase size={16} className="text-emerald-400" />
                   {campaign.campaignType === 'paid'
                     ? formatRupees(campaign.budget)
                     : `${campaign.products.length} item${campaign.products.length === 1 ? '' : 's'}`}
-                </p>
-                <p className="text-[11px] text-white/50">{campaign.campaignType === 'paid' ? 'Budget' : 'Offering'}</p>
-              </div>
-              <div className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-navy-800/45 px-2 py-4 text-center">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-500/15 text-teal-400">
-                  <Clock size={16} />
-                </span>
-                <p className="text-sm font-bold leading-tight text-white">{campaign.durationLabel || 'Flexible'}</p>
-                <p className="text-[11px] text-white/50">Duration</p>
-              </div>
-              <div className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-navy-800/45 px-2 py-4 text-center">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500/15 text-yellow-400">
-                  <MapPin size={16} />
-                </span>
-                <p className="w-full text-sm font-bold leading-tight text-white break-words">{campaign.location}</p>
-                <p className="text-[11px] text-white/50">Location</p>
+                </div>
+
+                <div className="mt-2.5 flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 w-fit">
+                  <Instagram size={13} /> Creators Applied · {campaign.applicantCount}
+                </div>
               </div>
             </div>
 
-            {/* Deliverables */}
+            {/* Deliverables row — orange divided bar */}
             {hasDeliverables && (
-              <div className="grid grid-cols-3 divide-x divide-white/10 rounded-2xl border border-white/10 bg-navy-800/45 py-3.5 text-center">
+              <div className="mt-4 grid grid-cols-3 divide-x divide-orange-300/20 rounded-2xl bg-orange-500/15 py-3.5 text-center">
                 <div>
                   <p className="text-lg font-bold text-white">{campaign.deliverables.reel}</p>
-                  <p className="text-[11px] text-white/50">Reel</p>
+                  <p className="text-[11px] text-orange-200/70">Reel</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-white">{campaign.deliverables.story}</p>
-                  <p className="text-[11px] text-white/50">Story</p>
+                  <p className="text-[11px] text-orange-200/70">Story</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-white">{campaign.deliverables.post}</p>
-                  <p className="text-[11px] text-white/50">Post</p>
+                  <p className="text-[11px] text-orange-200/70">Post</p>
                 </div>
               </div>
             )}
+          </div>
 
-            {/* Creator requirement */}
-            {(campaign.minFollowers || campaign.ageRange || campaign.genderTarget?.length > 0) && (
-              <div className="rounded-2xl border border-white/10 bg-navy-800/45 p-4">
-                <p className="mb-3 flex items-center gap-1.5 text-sm font-bold text-white">
-                  <Users2 size={14} className="text-white/50" /> Creator Requirement
-                </p>
-                <div className="flex flex-wrap gap-6 text-center">
-                  {campaign.minFollowers ? (
-                    <div>
-                      <p className="font-bold text-white">{campaign.minFollowers.toLocaleString('en-IN')}+</p>
-                      <p className="text-[10px] text-white/40">Followers</p>
-                    </div>
-                  ) : null}
-                  <div>
-                    <p className="font-bold text-white">{campaign.ageRange.min} - {campaign.ageRange.max}</p>
-                    <p className="text-[10px] text-white/40">Age</p>
+          {/* Category tag, if any */}
+          {campaign.category && (
+            <div className="px-1">
+              <span className="inline-block rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white/70">
+                {campaign.category.label}
+              </span>
+            </div>
+          )}
+
+          {/* About Campaign — accent card, description overflow detected by rendered height */}
+          <div className="rounded-2xl border-l-4 border-orange-400 bg-navy-800/60 p-5">
+            <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-white">About Campaign</p>
+            {campaign.location && (
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-white/60">
+                <MapPin size={12} className="text-orange-400" /> {campaign.location}
+              </p>
+            )}
+            <p ref={descRef} className={cn('leading-relaxed text-white/70', !descExpanded && 'line-clamp-4')}>
+              {campaign.description}
+            </p>
+            {(descIsClamped || descExpanded) && (
+              <button
+                onClick={() => setDescExpanded((v) => !v)}
+                className="mt-1.5 flex items-center gap-1 text-sm font-semibold text-orange-400 hover:underline"
+              >
+                {descExpanded ? 'See less' : 'Read more'}
+                <ChevronDown size={14} className={cn('transition-transform', descExpanded && 'rotate-180')} />
+              </button>
+            )}
+          </div>
+
+          {/* Duration & Location */}
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-navy-800/45 px-4 py-3.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-500/15 text-teal-400">
+                <Clock size={16} />
+              </span>
+              <div>
+                <p className="text-sm font-bold text-white">{campaign.durationLabel || 'Flexible'}</p>
+                <p className="text-[11px] text-white/50">Duration</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-navy-800/45 px-4 py-3.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-yellow-500/15 text-yellow-400">
+                <MapPin size={16} />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-white">{campaign.location}</p>
+                <p className="text-[11px] text-white/50">Location</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Creator Requirement — accent card */}
+          {(campaign.minFollowers || campaign.ageRange || campaign.genderTarget?.length > 0) && (
+            <div className="rounded-2xl border-l-4 border-orange-400 bg-navy-800/60 p-5">
+              <p className="mb-3 flex items-center gap-1.5 text-sm font-bold text-white">
+                <Users2 size={14} className="text-white/50" /> Creator Requirement
+              </p>
+              <div className="flex flex-wrap justify-around gap-6 divide-x divide-white/10 text-center">
+                {campaign.minFollowers ? (
+                  <div className="flex-1 min-w-[80px]">
+                    <p className="font-bold text-white">{campaign.minFollowers.toLocaleString('en-IN')}+</p>
+                    <p className="text-[10px] text-white/40">Followers</p>
                   </div>
-                  {campaign.genderTarget?.length > 0 && (
-                    <div>
-                      <p className="font-bold text-white">{campaign.genderTarget.map((g) => g[0].toUpperCase()).join('/')}</p>
-                      <p className="text-[10px] text-white/40">Gender</p>
-                    </div>
-                  )}
+                ) : null}
+                <div className="flex-1 min-w-[80px]">
+                  <p className="font-bold text-white">{campaign.ageRange.min} - {campaign.ageRange.max}</p>
+                  <p className="text-[10px] text-white/40">Age</p>
                 </div>
+                {campaign.genderTarget?.length > 0 && (
+                  <div className="flex-1 min-w-[80px]">
+                    <p className="font-bold text-white">{campaign.genderTarget.map((g) => g[0].toUpperCase()).join('/')}</p>
+                    <p className="text-[10px] text-white/40">Gender</p>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+          )}
 
+          {/* Everything below stays inside the same rounded card shell as before */}
+          <div className="space-y-6 rounded-3xl border border-white/10 bg-navy-800/70 p-5 text-left backdrop-blur-xl sm:p-6">
             {/* Influencer categories */}
             {campaign.influencerCategories?.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -779,3 +794,4 @@ export default function CampaignDetail() {
     </div>
   );
 }
+

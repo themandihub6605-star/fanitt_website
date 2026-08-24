@@ -34,6 +34,17 @@ export function MobileTabBar() {
     ? '/dashboard/agency'
     : '/profile';
 
+  // Logged-in Creator/Brand/Agency see their dashboard when tapping Home —
+  // Fan and logged-out visitors keep seeing the public marketing homepage.
+  const homeHref =
+    isAuthenticated && user?.role === 'creator'
+      ? '/dashboard/creator'
+      : isAuthenticated && user?.role === 'brand'
+      ? '/dashboard/brand'
+      : isAuthenticated && user?.role === 'agency'
+      ? '/dashboard/agency'
+      : '/';
+
   // Creators & brands: tapping Profile goes straight to their own public
   // profile page (Dashboard/My Profile/Bookings/Proposals/Logout stay one
   // tap away in the top hamburger menu). Fans/unauthenticated keep the plain link.
@@ -67,7 +78,7 @@ export function MobileTabBar() {
 
   const TABS = [
     {
-      href: '/',
+      href: homeHref,
       label: 'Home',
       icon: Home,
       match: (p: string) => p === '/' || p === '/dashboard/creator' || p === '/dashboard/brand' || p === '/dashboard/agency',

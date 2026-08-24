@@ -178,10 +178,10 @@ export function DashboardShell({ children }: PropsWithChildren) {
           {/* Mobile equivalent of the sidebar's "Visit Website" link — icon
            * only on very narrow screens so it doesn't crowd the wallet/bell/
            * avatar cluster; the label reappears from `xs`-ish widths up. */}
-          <Link
+                         <Link
             to="/"
             aria-label="Visit website"
-            className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-2 text-xs font-bold text-white/70 hover:border-orange-400/40 hover:text-white lg:hidden"
+            className="ml-6 flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-2 text-xs font-bold text-white/70 hover:border-orange-400/40 hover:text-white lg:hidden"
           >
             <Globe size={14} />
             <span className="hidden xs:inline">Website</span>
