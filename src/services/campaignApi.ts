@@ -129,8 +129,23 @@ export interface DecideApplicationOptions {
   rejectionReason?: string;
 }
 
+export interface ListCampaignsParams {
+  category?: string;
+  status?: string;
+  page?: number;
+  campaignType?: string;
+  deliverables?: string;
+  minBudget?: number;
+  maxBudget?: number;
+  locationType?: string;
+  location?: string;
+  minFollowers?: number;
+  maxFollowers?: number;
+  gender?: string;
+}
+
 export const campaignApi = {
- list: (params?: { category?: string; status?: string; page?: number; campaignType?: string; deliverables?: string }) =>
+  list: (params?: ListCampaignsParams) =>
     apiClient
       .get<ApiEnvelope<{ campaigns: ApiCampaign[]; total: number }>>('/campaigns', { params })
       .then((r) => r.data.data),
