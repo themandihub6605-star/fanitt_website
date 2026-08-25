@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
@@ -8,6 +9,7 @@ import { HeroBackdrop } from '@/components/HeroBackdrop';
 import { CATEGORIES } from '@/constants/content';
 import { sessionApi, type ApiSession } from '@/services/sessionApi';
 import { resolveIcon } from '@/utils/icons';
+import { useAppSelector } from '@/store/hooks';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 22 },
@@ -24,9 +26,21 @@ const CARD_STYLES = [
   { rotate: -10, scale: 0.86, x: -130, z: 5 },
 ];
 
+// Where a logged-in user's own dashboard lives, by role — Fan has no
+// dashboard of its own, so it falls back to the get-started flow same as
+// a logged-out visitor would.
+function dashboardHrefFor(role?: string) {
+  if (role === 'creator') return '/dashboard/creator';
+  if (role === 'brand') return '/dashboard/brand';
+  if (role === 'agency') return '/dashboard/agency';
+  return '/get-started';
+}
+
 export function Hero() {
   const [active, setActive] = useState(0);
   const [sessions, setSessions] = useState<ApiSession[]>([]);
+  const navigate = useNavigate();
+  const { isAuthenticated, user } = useAppSelector((s) => s.auth);
 
   useEffect(() => {
     sessionApi
@@ -40,6 +54,15 @@ export function Hero() {
     const id = setInterval(() => setActive((p) => (p + 1) % sessions.length), 3200);
     return () => clearInterval(id);
   }, [sessions.length]);
+
+  // Logged-in: always land on the person's own dashboard, whatever their
+  // role — never re-enter the get-started/signup flow they've already
+  // completed. Logged-out: behaves exactly as before.
+  const primaryHref = isAuthenticated ? dashboardHrefFor(user?.role) : '/get-started';
+  const secondaryHref = isAuthenticated ? dashboardHrefFor(user?.role) : '/get-started';
+
+  const goToPrimary = () => navigate(primaryHref);
+  const goToSecondary = () => navigate(secondaryHref);
 
   return (
     <section className="relative isolate overflow-hidden pt-28 pb-20 md:pt-36 md:pb-28">
@@ -82,10 +105,9 @@ export function Hero() {
               variants={fadeUp}
               className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center xl:justify-start"
             >
-              <Button
+                           <Button
                 size="lg"
-                as="a"
-                href="/get-started"
+                onClick={goToPrimary}
                 className="!bg-orange-500 hover:!bg-orange-400 !bg-none !px-5 !py-2.5 !text-sm sm:!px-8 sm:!py-3.5 sm:!text-base w-full sm:w-auto sm:min-w-[220px] justify-center"
               >
                 Start My Page <ArrowRight size={18} />
@@ -93,8 +115,7 @@ export function Hero() {
               <Button
                 size="lg"
                 variant="outline"
-                as="a"
-                href="/get-started"
+                onClick={goToSecondary}
                 className="!border-white/20 !text-cream hover:!border-orange-400 hover:!text-orange-300 !px-5 !py-2.5 !text-sm sm:!px-8 sm:!py-3.5 sm:!text-base w-full sm:w-auto sm:min-w-[220px] justify-center"
               >
                 Launch a brand campaign
