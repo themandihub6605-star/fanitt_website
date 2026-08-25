@@ -44,6 +44,7 @@ import Feed from '@/pages/Feed';
 import ContactUs from '@/pages/ContactUs';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import FAQ from '@/pages/FAQ';
+import Pricing from '@/pages/Pricing';
 
 function PageTransition({ children }: { children: ReactNode }) {
   return (
@@ -100,6 +101,7 @@ const LAYOUT_ROUTES: { path: string; element: ReactNode }[] = [
   { path: '/contact', element: <ContactUs /> },
   { path: '/privacy-policy', element: <PrivacyPolicy /> },
   { path: '/faq', element: <FAQ /> },
+  { path: '/pricing', element: <Pricing /> },
   { path: '/campaigns', element: <Campaigns /> },
   {
     path: '/campaigns/new',

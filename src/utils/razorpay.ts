@@ -14,6 +14,21 @@ interface RazorpaySuccessResponse {
   razorpay_signature: string;
 }
 
+interface RazorpaySubscriptionCheckoutOptions {
+  subscriptionId: string;
+  name: string;
+  description: string;
+  prefillName?: string;
+  prefillEmail?: string;
+  prefillContact?: string;
+}
+
+interface RazorpaySubscriptionSuccessResponse {
+  razorpay_subscription_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
 let scriptLoadPromise: Promise<boolean> | null = null;
 
 function loadRazorpayScript(): Promise<boolean> {
@@ -61,6 +76,45 @@ export async function openRazorpayCheckout(options: RazorpayCheckoutOptions): Pr
       },
       theme: { color: '#F4511E' },
       handler: (response: RazorpaySuccessResponse) => resolve(response),
+      modal: {
+        ondismiss: () => reject(new Error('Payment cancelled')),
+      },
+    });
+
+    rzp.open();
+  });
+}
+
+/**
+ * Opens Razorpay checkout in *subscription* mode — pass `subscription_id`
+ * instead of `order_id`, and Razorpay handles collecting the payment method
+ * for recurring billing rather than a single one-time charge. The success
+ * callback shape is slightly different (`razorpay_subscription_id` instead
+ * of `razorpay_order_id`) — kept as a separate function/type rather than
+ * overloading openRazorpayCheckout so callers can't mix the two up.
+ */
+export async function openRazorpaySubscriptionCheckout(
+  options: RazorpaySubscriptionCheckoutOptions
+): Promise<RazorpaySubscriptionSuccessResponse> {
+  const loaded = await loadRazorpayScript();
+  if (!loaded) throw new Error('Failed to load Razorpay checkout — check your internet connection');
+
+  const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID;
+
+  return new Promise((resolve, reject) => {
+    // @ts-expect-error Razorpay is injected globally by the checkout.js script
+    const rzp = new window.Razorpay({
+      key: keyId,
+      name: options.name,
+      description: options.description,
+      subscription_id: options.subscriptionId,
+      prefill: {
+        name: options.prefillName,
+        email: options.prefillEmail,
+        contact: options.prefillContact,
+      },
+      theme: { color: '#F4511E' },
+      handler: (response: RazorpaySubscriptionSuccessResponse) => resolve(response),
       modal: {
         ondismiss: () => reject(new Error('Payment cancelled')),
       },

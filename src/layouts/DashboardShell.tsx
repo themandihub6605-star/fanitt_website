@@ -23,6 +23,7 @@ import { Logo } from '@/components/Logo';
 import { NotificationBellLink } from '@/components/NotificationBellLink';
 import { UserMenu } from '@/components/UserMenu';
 import { MobileTabBar } from '@/components/MobileTabBar';
+import { UpgradePromptModal } from '@/components/UpgradePromptModal';
 import { walletApi } from '@/services/walletApi';
 import { chatApi } from '@/services/chatApi';
 import { useAppSelector } from '@/store/hooks';
@@ -128,7 +129,10 @@ export function DashboardShell({ children }: PropsWithChildren) {
           })}
         </nav>
 
-        <div className="mt-6 rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-pink-500/10 p-4">
+        <Link
+          to="/pricing"
+          className="mt-6 block rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-pink-500/10 p-4 transition-colors hover:border-orange-400/40"
+        >
           <div className="flex items-center gap-2 text-orange-300">
             <Crown size={16} />
             <span className="text-sm font-bold">Fanitt Pro</span>
@@ -136,7 +140,7 @@ export function DashboardShell({ children }: PropsWithChildren) {
           <p className="mt-1.5 text-xs leading-snug text-white/50">
             Unlock advanced tools and grow your audience faster.
           </p>
-        </div>
+        </Link>
 
         {user && (
           <div className="mt-5 flex items-center gap-2.5 border-t border-white/10 pt-4 px-1">
@@ -178,10 +182,10 @@ export function DashboardShell({ children }: PropsWithChildren) {
           {/* Mobile equivalent of the sidebar's "Visit Website" link — icon
            * only on very narrow screens so it doesn't crowd the wallet/bell/
            * avatar cluster; the label reappears from `xs`-ish widths up. */}
-                         <Link
+          <Link
             to="/"
             aria-label="Visit website"
-            className="ml-6 flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-2 text-xs font-bold text-white/70 hover:border-orange-400/40 hover:text-white lg:hidden"
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-2 text-xs font-bold text-white/70 hover:border-orange-400/40 hover:text-white lg:hidden"
           >
             <Globe size={14} />
             <span className="hidden xs:inline">Website</span>
@@ -226,6 +230,7 @@ export function DashboardShell({ children }: PropsWithChildren) {
       </div>
 
       <MobileTabBar />
+      <UpgradePromptModal />
     </div>
   );
 }
