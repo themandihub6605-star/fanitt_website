@@ -77,6 +77,23 @@ export function getApiErrorMessage(error: unknown): string {
   return 'Something went wrong';
 }
 
+// Stable machine-readable code from ApiError's `errorCode` field (e.g.
+// 'PROPOSAL_QUOTA_EXCEEDED', 'CAMPAIGN_QUOTA_EXCEEDED') — use this to
+// branch to a specific UI (an upgrade modal) instead of pattern-matching
+// on getApiErrorMessage's message text, which breaks the moment the
+// backend rewords a message.
+//
+// NOTE: this only works once the backend's global error-handling
+// middleware actually includes `errorCode` in the JSON error response —
+// confirm that middleware forwards it before relying on this.
+export function getApiErrorCode(error: unknown): string | null {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { errorCode?: string | null } | undefined;
+    return data?.errorCode ?? null;
+  }
+  return null;
+}
+
 export function getUploadUrl(relativePath: string) {
   if (!relativePath) return '';
   if (relativePath.startsWith('http')) return relativePath;

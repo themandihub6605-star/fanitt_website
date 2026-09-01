@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Wallet, Users, Eye, Star, TrendingUp, Loader2, AlertCircle, Plus, Video, Grid3x3, ArrowRight, ChevronRight } from 'lucide-react';
+import { Wallet, Users, Eye, Star, TrendingUp, Loader2, AlertCircle, Plus, Video, Grid3x3, ArrowRight, ChevronRight, FileText, Sparkles } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
-import { CreateSessionModal } from '@/components/CreateSessionModal';
+// TEMPORARY (Point 4, live marketplace not launched yet): using ComingSoonModal
+// in place of CreateSessionModal below. To REVERT once Go Live is ready:
+//   1. Change this import back to: import { CreateSessionModal } from '@/components/CreateSessionModal';
+//   2. Undo the 3 other spots in this file tagged "REVERT-GO-LIVE" (search for that tag).
+import { ComingSoonModal } from '@/components/ComingSoonModal';
 import { CreatePostModal } from '@/components/CreatePostModal';
 import { PostsGrid } from '@/components/PostsGrid';
 import { ApiSessionCard } from '@/components/ApiSessionCard';
@@ -14,9 +18,12 @@ import { postApi, type ApiPost, MAX_POSTS_PER_CREATOR } from '@/services/postApi
 import { sessionApi, type ApiSession } from '@/services/sessionApi';
 import { categoryApi, type ApiCategory } from '@/services/categoryApi';
 import { walletApi } from '@/services/walletApi';
-import { getApiErrorMessage } from '@/services/apiClient';
+import { campaignApi, type ApiProposal, type SuggestedCampaign } from '@/services/campaignApi';
+import { subscriptionApi, type ApiUserSubscription } from '@/services/subscriptionApi';
+import { getApiErrorMessage, getApiErrorCode } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
 import { resolveIcon } from '@/utils/icons';
+import { cn } from '@/utils/cn';
 
 const toneClasses = {
   orange: 'bg-orange-500/15 text-orange-400',
@@ -31,6 +38,16 @@ const toneClasses = {
 function formatRupees(paise: number) {
   return `₹${(paise / 100).toLocaleString('en-IN')}`;
 }
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+const PROPOSAL_STATUS_STYLES: Record<string, string> = {
+  pending: 'bg-yellow-400/15 text-yellow-300',
+  accepted: 'bg-emerald-500/15 text-emerald-300',
+  rejected: 'bg-red-500/15 text-red-300',
+};
 
 function canJoinNow(scheduledAt: string) {
   const diffMinutes = (new Date(scheduledAt).getTime() - Date.now()) / 60000;
@@ -54,6 +71,67 @@ function computeProfileCompletion(profile: ApiCreator | null, hasAvatar: boolean
   return Math.round((done / checks.length) * 100);
 }
 
+// "Proposal Credits" card — how many proposals this cycle's plan allows,
+// how many are used, how many are left, and when the cycle resets. If
+// they've gone past their plan's included quota, shows how many extra
+// (pay-per-proposal) sends they've made this cycle at the plan's rate —
+// there's no separate "credit pack" concept, extras are simply charged
+// from the wallet per send past the limit (see subscription.service.js).
+function ProposalCreditsCard({ subscription }: { subscription: ApiUserSubscription }) {
+  const { plan } = subscription;
+  const limit = plan.proposalLimit;
+  const used = subscription.proposalsUsedThisCycle;
+  const remaining = limit == null ? null : Math.max(0, limit - used);
+  const extraSent = limit == null ? 0 : Math.max(0, used - limit);
+  const percentUsed = limit == null || limit === 0 ? 0 : Math.min(100, Math.round((used / limit) * 100));
+  const isFreePlan = plan.price === 0;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-5">
+      <div className="flex items-center justify-between">
+        <h2 className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-white/50">
+          <FileText size={14} /> Proposal Credits
+        </h2>
+        <span className="rounded-full bg-orange-500/15 px-2.5 py-1 text-[11px] font-bold text-orange-300">{plan.name}</span>
+      </div>
+
+      {limit == null ? (
+        <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-emerald-300">
+          <Sparkles size={14} /> Unlimited proposals this cycle
+        </p>
+      ) : (
+        <>
+          <p className="mt-3 text-2xl font-bold text-white">
+            {remaining} <span className="text-sm font-semibold text-white/50">of {limit} left</span>
+          </p>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className={cn('h-full rounded-full', percentUsed >= 100 ? 'bg-red-500' : percentUsed >= 75 ? 'bg-yellow-500' : 'bg-orange-500')}
+              style={{ width: `${percentUsed}%` }}
+            />
+          </div>
+          {extraSent > 0 && (
+            <p className="mt-2 text-xs text-white/50">
+              +{extraSent} extra sent this cycle at {formatRupees(plan.extraProposalCost)} each
+            </p>
+          )}
+        </>
+      )}
+
+      <p className="mt-3 text-xs text-white/40">Resets on {formatDate(subscription.currentPeriodEnd)}</p>
+
+      {isFreePlan && (
+        <Link
+          to="/pricing"
+          className="mt-4 flex w-full items-center justify-center rounded-full bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-400"
+        >
+          Upgrade for more proposals
+        </Link>
+      )}
+    </div>
+  );
+}
+
 export default function CreatorDashboard() {
   const [data, setData] = useState<CreatorDashboardData | null>(null);
   const [profile, setProfile] = useState<ApiCreator | null>(null);
@@ -61,9 +139,14 @@ export default function CreatorDashboard() {
   const [recommended, setRecommended] = useState<ApiSession[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [mySubscription, setMySubscription] = useState<ApiUserSubscription | null>(null);
+  const [appliedCampaigns, setAppliedCampaigns] = useState<ApiProposal[]>([]);
+  const [suggestedCampaigns, setSuggestedCampaigns] = useState<SuggestedCampaign[] | null>(null);
+  const [suggestionsLocked, setSuggestionsLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [createSessionOpen, setCreateSessionOpen] = useState(false);
+  // REVERT-GO-LIVE: was `const [createSessionOpen, setCreateSessionOpen] = useState(false);`
+  const [comingSoonOpen, setComingSoonOpen] = useState(false);
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const user = useAppSelector((s) => s.auth.user);
@@ -71,8 +154,10 @@ export default function CreatorDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
+    // REVERT-GO-LIVE: was `setCreateSessionOpen(true);` — deep link (?action=create-session)
+    // into the real create-session flow once it's back.
     if (searchParams.get('action') === 'create-session') {
-      setCreateSessionOpen(true);
+      setComingSoonOpen(true);
       searchParams.delete('action');
       setSearchParams(searchParams, { replace: true });
     }
@@ -94,6 +179,24 @@ export default function CreatorDashboard() {
     creatorApi.getMyProfile().then(setProfile).catch(() => setProfile(null));
     walletApi.getMy().then((w) => setWalletBalance(w.balance)).catch(() => setWalletBalance(null));
     categoryApi.list().then(setCategories).catch(() => setCategories([]));
+    subscriptionApi.getMySubscription().then(setMySubscription).catch(() => setMySubscription(null));
+    campaignApi
+      .getMyProposals()
+      .then((d) => setAppliedCampaigns(d.proposals.filter((p) => p.campaign).slice(0, 5)))
+      .catch(() => setAppliedCampaigns([]));
+    campaignApi
+      .getSuggested()
+      .then((suggestions) => {
+        setSuggestedCampaigns(suggestions);
+        setSuggestionsLocked(false);
+      })
+      .catch((err) => {
+        if (getApiErrorCode(err) === 'PRO_FEATURE_LOCKED') {
+          setSuggestionsLocked(true);
+        } else {
+          setSuggestedCampaigns([]);
+        }
+      });
     sessionApi
       .list({ page: 1 })
       .then((d) => setRecommended(d.sessions.slice(0, 4)))
@@ -215,6 +318,56 @@ export default function CreatorDashboard() {
           </div>
         )}
 
+        {/* Point 8: rule-based AI-suggested campaigns — Pro/Exclusive only.
+            Locked state entices Lite users to upgrade instead of hiding
+            the feature entirely. */}
+        {(suggestionsLocked || (suggestedCampaigns && suggestedCampaigns.length > 0)) && (
+          <div className="mt-8">
+            <div className="flex items-center gap-2">
+              <Sparkles size={18} className="text-orange-400" />
+              <h2 className="text-lg font-bold text-white">AI-Suggested Campaigns</h2>
+              <span className="rounded-full bg-orange-500/15 px-2.5 py-0.5 text-[11px] font-bold uppercase text-orange-300">Pro</span>
+            </div>
+
+            {suggestionsLocked ? (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-orange-500/20 bg-gradient-to-r from-orange-500/10 to-pink-500/10 p-5">
+                <div>
+                  <p className="font-bold text-white">Unlock personalized campaign matches</p>
+                  <p className="mt-1 text-sm text-white/60">Upgrade to Pro to see campaigns picked for your category, location and skills.</p>
+                </div>
+                <Link to="/pricing" className="shrink-0 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600">
+                  Upgrade to Pro
+                </Link>
+              </div>
+            ) : (
+              <div className="mt-4 flex gap-4 overflow-x-auto pb-3 pr-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {(suggestedCampaigns || []).map(({ campaign, matchReasons }) => (
+                  <Link
+                    key={campaign._id}
+                    to={`/campaigns/${campaign._id}`}
+                    className="w-72 shrink-0 rounded-2xl border border-white/10 bg-navy-800/60 p-4 transition-colors hover:border-orange-400/40"
+                  >
+                    <p className="truncate text-sm font-bold text-white">{campaign.title}</p>
+                    <p className="mt-1 text-xs text-white/50">{campaign.brand.companyName}</p>
+                    <p className="mt-2 text-sm font-semibold text-orange-300">
+                      {campaign.campaignType === 'paid' ? formatRupees(campaign.budget) : `${campaign.products.length} product(s)`}
+                    </p>
+                    {matchReasons.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {matchReasons.slice(0, 2).map((reason, i) => (
+                          <span key={i} className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                            {reason}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {completion < 100 && (
           <Link
             to="/dashboard/creator/edit"
@@ -271,6 +424,34 @@ export default function CreatorDashboard() {
 
             <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-6">
               <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-white">Applied Campaigns</h2>
+                <Link to="/proposals" className="text-xs font-semibold text-orange-400 hover:underline">View all</Link>
+              </div>
+              {appliedCampaigns.length === 0 ? (
+                <p className="mt-4 text-sm text-white/50">You haven't applied to any campaigns yet — browse open campaigns to send your first proposal.</p>
+              ) : (
+                <div className="mt-4 divide-y divide-white/10">
+                  {appliedCampaigns.map((p) => (
+                    <Link
+                      key={p._id}
+                      to={`/campaigns/${p.campaign._id}`}
+                      className="-mx-2 flex items-center gap-4 rounded-lg px-2 py-3.5 transition-colors hover:bg-navy-800/45"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-white">{p.campaign.title}</p>
+                        <p className="text-xs text-white/50">{p.campaign.brand.companyName} · {formatDate(p.createdAt)}</p>
+                      </div>
+                      <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold capitalize', PROPOSAL_STATUS_STYLES[p.status] || 'bg-white/10 text-white/60')}>
+                        {p.status}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-6">
+              <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-white">Your posts</h2>
                 <span className="text-xs text-white/50">{posts.length}/{MAX_POSTS_PER_CREATOR} used</span>
               </div>
@@ -285,11 +466,15 @@ export default function CreatorDashboard() {
           </div>
 
           <div className="space-y-6">
+            {mySubscription && <ProposalCreditsCard subscription={mySubscription} />}
+
             <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-5">
               <h2 className="text-sm font-bold uppercase tracking-wide text-white/50">Quick Actions</h2>
               <div className="mt-3 space-y-1">
+                {/* REVERT-GO-LIVE: onClick was `() => setCreateSessionOpen(true)` — swap back
+                    when the live marketplace launches. */}
                 <button
-                  onClick={() => setCreateSessionOpen(true)}
+                  onClick={() => setComingSoonOpen(true)}
                   className="flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left hover:bg-white/[0.03]"
                 >
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/15 text-red-400"><Video size={17} /></span>
@@ -369,7 +554,10 @@ export default function CreatorDashboard() {
         </div>
       </Container>
 
-      <CreateSessionModal open={createSessionOpen} onClose={() => setCreateSessionOpen(false)} onCreated={loadDashboard} />
+      {/* REVERT-GO-LIVE: was
+          <CreateSessionModal open={createSessionOpen} onClose={() => setCreateSessionOpen(false)} onCreated={loadDashboard} />
+          Swap this ComingSoonModal line back to that when re-enabling Go Live. */}
+      <ComingSoonModal open={comingSoonOpen} onClose={() => setComingSoonOpen(false)} />
       <CreatePostModal open={createPostOpen} onClose={() => setCreatePostOpen(false)} onCreated={loadDashboard} />
       <ConfirmDialog
         open={!!deleteTarget}

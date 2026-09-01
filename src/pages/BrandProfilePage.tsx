@@ -8,7 +8,7 @@ import {
   Loader2,
   AlertCircle,
   MessageCircle,
-  BadgeCheck,
+  Sparkles,
   Globe2,
   Calendar,
   Building2,
@@ -27,6 +27,7 @@ import { getUploadUrl } from '@/services/apiClient';
 import { brandApi, type ApiBrand } from '@/services/brandApi';
 import type { ApiCampaign } from '@/services/campaignApi';
 import { reviewApi, type ApiReview } from '@/services/reviewApi';
+import { subscriptionApi, type ApiUserSubscription } from '@/services/subscriptionApi';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/utils/cn';
@@ -53,7 +54,10 @@ export default function BrandProfilePage() {
   const [error, setError] = useState('');
   const [following, setFollowing] = useState(false);
   const [tab, setTab] = useState<Tab>('Reviews');
+  const [mySubscription, setMySubscription] = useState<ApiUserSubscription | null>(null);
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
+  const authUser = useAppSelector((s) => s.auth.user);
+  const isOwnProfile = Boolean(isAuthenticated && authUser && brand && authUser._id === brand.user._id);
 
   useEffect(() => {
     if (!slug) return;
@@ -88,6 +92,20 @@ export default function BrandProfilePage() {
     };
   }, [brand?.user._id, tab]);
 
+  // Only fetch subscription info once we know this is the logged-in
+  // user's own brand profile — a visitor has no business seeing (or
+  // upgrading) someone else's plan.
+  useEffect(() => {
+    if (!isOwnProfile) {
+      setMySubscription(null);
+      return;
+    }
+    subscriptionApi
+      .getMySubscription()
+      .then(setMySubscription)
+      .catch(() => setMySubscription(null));
+  }, [isOwnProfile]);
+
   const handleFollow = async () => {
     if (!isAuthenticated || !brand) return;
     const result = await brandApi.follow(brand._id);
@@ -117,8 +135,8 @@ export default function BrandProfilePage() {
     );
   }
 
-  const isVerified = brand.verificationStatus === 'verified';
   const websiteHost = brand.website ? brand.website.replace(/^https?:\/\//, '').replace(/\/$/, '') : '';
+  const isOnFreePlan = mySubscription ? mySubscription.plan.price === 0 : false;
   const socialEntries = [
     { key: 'instagram', label: 'Instagram', icon: Instagram, url: brand.socials?.instagram },
     { key: 'youtube', label: 'YouTube', icon: Youtube, url: brand.socials?.youtube },
@@ -154,7 +172,19 @@ export default function BrandProfilePage() {
 
           <div className="mt-3 flex items-center justify-center gap-1.5">
             <h1 className="text-xl font-bold text-white sm:text-2xl">{brand.companyName}</h1>
-            {isVerified && <BadgeCheck size={18} className="fill-sky-500 text-white" strokeWidth={2.5} />}
+            {isOwnProfile && mySubscription && (
+              <span className="flex items-center gap-1 rounded-full bg-orange-500/15 px-2.5 py-1 text-xs font-bold text-orange-300">
+                <Sparkles size={12} /> {mySubscription.plan.name} Plan
+              </span>
+            )}
+            {isOwnProfile && isOnFreePlan && (
+              <Link
+                to="/pricing"
+                className="rounded-full bg-orange-500 px-3 py-1 text-xs font-bold text-white hover:bg-orange-600"
+              >
+                Upgrade
+              </Link>
+            )}
           </div>
           {brand.industry && <p className="mt-1 text-sm text-orange-300">{brand.industry}</p>}
 

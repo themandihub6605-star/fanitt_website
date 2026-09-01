@@ -22,11 +22,13 @@ import {
   Timer,
   Building2,
   Plus,
+  Sparkles,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { campaignApi, type ApiCampaign } from '@/services/campaignApi';
-import { getApiErrorMessage } from '@/services/apiClient';
+import { subscriptionApi, type ApiUserSubscription } from '@/services/subscriptionApi';
+import { getApiErrorMessage, getApiErrorCode } from '@/services/apiClient';
 import { openRazorpayCheckout } from '@/utils/razorpay';
 import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/utils/cn';
@@ -95,8 +97,25 @@ function ApplyModal({
   const [pitch, setPitch] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
+
+  const [mySubscription, setMySubscription] = useState<ApiUserSubscription | null>(null);
+  const [subLoading, setSubLoading] = useState(true);
 
   const MAX_LINKS = 3;
+
+  // Load the creator's current plan + usage whenever the modal opens, so
+  // "X of Y proposals left" reflects the real count instead of going
+  // stale between opens.
+  useEffect(() => {
+    if (!open) return;
+    setSubLoading(true);
+    subscriptionApi
+      .getMySubscription()
+      .then(setMySubscription)
+      .catch(() => setMySubscription(null))
+      .finally(() => setSubLoading(false));
+  }, [open]);
 
   const updateLink = (index: number, value: string) => {
     setPortfolioLinks((links) => links.map((l, i) => (i === index ? value : l)));
@@ -113,6 +132,7 @@ function ApplyModal({
   const handleSubmit = async () => {
     setSubmitting(true);
     setError('');
+    setQuotaExceeded(false);
     try {
       const parsedQuote = quotedAmount.trim() ? Math.round(parseFloat(quotedAmount) * 100) : NaN;
       await campaignApi.apply(campaign._id, {
@@ -123,11 +143,19 @@ function ApplyModal({
       });
       onSubmitted();
     } catch (err) {
-      setError(getApiErrorMessage(err));
+      if (getApiErrorCode(err) === 'PROPOSAL_QUOTA_EXCEEDED') {
+        setQuotaExceeded(true);
+      } else {
+        setError(getApiErrorMessage(err));
+      }
     } finally {
       setSubmitting(false);
     }
   };
+
+  const limit = mySubscription?.plan.proposalLimit ?? null;
+  const used = mySubscription?.proposalsUsedThisCycle ?? 0;
+  const remaining = limit == null ? null : Math.max(0, limit - used);
 
   return (
     <AnimatePresence>
@@ -154,92 +182,117 @@ function ApplyModal({
             </div>
             <p className="mt-1 truncate text-sm text-white/50">{campaign.title}</p>
 
+            {!subLoading && limit != null && !quotaExceeded && (
+              <p className="mt-2 text-xs font-semibold text-white/50">
+                {remaining} of {limit} proposal{limit === 1 ? '' : 's'} left this cycle
+              </p>
+            )}
+
+            {quotaExceeded && (
+              <div className="mt-4 rounded-2xl border border-orange-400/30 bg-orange-500/10 p-4">
+                <p className="flex items-center gap-1.5 text-sm font-bold text-orange-300">
+                  <Sparkles size={14} /> You're out of proposals for this cycle
+                </p>
+                <p className="mt-1.5 text-sm text-white/60">
+                  Upgrade your plan to send more proposals — or wait for your usage to reset next cycle.
+                </p>
+                <Link
+                  to="/pricing"
+                  className="mt-3 inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-600"
+                >
+                  View plans
+                </Link>
+              </div>
+            )}
+
             {error && (
               <div className="mt-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
                 <AlertCircle size={16} className="shrink-0" /> {error}
               </div>
             )}
 
-            <div className="mt-5 space-y-4">
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-white/70">
-                  Your quote (₹, optional — leave blank to accept posted budget)
-                </span>
-                <input
-                  type="number"
-                  min="1"
-                  value={quotedAmount}
-                  onChange={(e) => setQuotedAmount(e.target.value)}
-                  placeholder={campaign.budget ? `e.g. ${campaign.budget / 100}` : undefined}
-                  className="w-full rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
-                />
-              </label>
+            {!quotaExceeded && (
+              <div className="mt-5 space-y-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold text-white/70">
+                    Your quote (₹, optional — leave blank to accept posted budget)
+                  </span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={quotedAmount}
+                    onChange={(e) => setQuotedAmount(e.target.value)}
+                    placeholder={campaign.budget ? `e.g. ${campaign.budget / 100}` : undefined}
+                    className="w-full rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
+                  />
+                </label>
 
-              <div>
-                <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-white/70">
-                  <Link2 size={12} /> Portfolio link(s) (optional, up to {MAX_LINKS})
-                </span>
-                <div className="space-y-2">
-                  {portfolioLinks.map((link, i) => (
-                    <div key={i} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={link}
-                        onChange={(e) => updateLink(i, e.target.value)}
-                        placeholder="https://instagram.com/reel/..."
-                        className="min-w-0 flex-1 rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
-                      />
-                      {portfolioLinks.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeLinkField(i)}
-                          className="shrink-0 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 text-white/40 hover:border-red-400/50 hover:text-red-400"
-                        >
-                          <X size={15} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                <div>
+                  <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-white/70">
+                    <Link2 size={12} /> Portfolio link(s) (optional, up to {MAX_LINKS})
+                  </span>
+                  <div className="space-y-2">
+                    {portfolioLinks.map((link, i) => (
+                      <div key={i} className="flex gap-2">
+                        <input
+                          type="text"
+                          value={link}
+                          onChange={(e) => updateLink(i, e.target.value)}
+                          placeholder="https://instagram.com/reel/..."
+                          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
+                        />
+                        {portfolioLinks.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeLinkField(i)}
+                            className="shrink-0 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 text-white/40 hover:border-red-400/50 hover:text-red-400"
+                          >
+                            <X size={15} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {portfolioLinks.length < MAX_LINKS && (
+                    <button
+                      type="button"
+                      onClick={addLinkField}
+                      className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-orange-400 hover:underline"
+                    >
+                      <Plus size={13} /> Add another link
+                    </button>
+                  )}
                 </div>
-                {portfolioLinks.length < MAX_LINKS && (
-                  <button
-                    type="button"
-                    onClick={addLinkField}
-                    className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-orange-400 hover:underline"
-                  >
-                    <Plus size={13} /> Add another link
-                  </button>
-                )}
+
+                <label className="block">
+                  <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-white/70">
+                    <Timer size={12} /> Delivery timeline (optional)
+                  </span>
+                  <input
+                    type="text"
+                    value={deliveryTimeline}
+                    onChange={(e) => setDeliveryTimeline(e.target.value)}
+                    placeholder="e.g. 3 days"
+                    className="w-full rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold text-white/70">Pitch (optional)</span>
+                  <textarea
+                    rows={3}
+                    value={pitch}
+                    onChange={(e) => setPitch(e.target.value)}
+                    placeholder="Why you're a great fit for this..."
+                    className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
+                  />
+                </label>
+
+                <Button className="w-full justify-center" disabled={submitting} onClick={handleSubmit}>
+                  {submitting ? <Loader2 size={18} className="animate-spin" /> : 'Send proposal'}
+                </Button>
               </div>
-
-              <label className="block">
-                <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-white/70">
-                  <Timer size={12} /> Delivery timeline (optional)
-                </span>
-                <input
-                  type="text"
-                  value={deliveryTimeline}
-                  onChange={(e) => setDeliveryTimeline(e.target.value)}
-                  placeholder="e.g. 3 days"
-                  className="w-full rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-white/70">Pitch (optional)</span>
-                <textarea
-                  rows={3}
-                  value={pitch}
-                  onChange={(e) => setPitch(e.target.value)}
-                  placeholder="Why you're a great fit for this..."
-                  className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
-                />
-              </label>
-
-              <Button className="w-full justify-center" disabled={submitting} onClick={handleSubmit}>
-                {submitting ? <Loader2 size={18} className="animate-spin" /> : 'Send proposal'}
-              </Button>
-            </div>
+            )}
           </motion.div>
         </motion.div>
       )}

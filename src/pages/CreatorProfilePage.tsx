@@ -11,7 +11,7 @@ import {
   AlertCircle,
   Gift,
   MessageCircle,
-  BadgeCheck,
+  Sparkles,
   ShieldCheck,
   Clock,
   Calendar,
@@ -35,6 +35,7 @@ import { creatorApi, type ApiCreator } from '@/services/creatorApi';
 import { postApi, type ApiPost } from '@/services/postApi';
 import type { ApiSession } from '@/services/sessionApi';
 import type { ApiReview } from '@/services/reviewApi';
+import { subscriptionApi, type ApiUserSubscription } from '@/services/subscriptionApi';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
 import { useAuth } from '@/hooks/useAuth';
@@ -57,6 +58,7 @@ export default function CreatorProfilePage() {
   const [giftOpen, setGiftOpen] = useState(false);
   const [tab, setTab] = useState<Tab>('Overview');
   const [bioExpanded, setBioExpanded] = useState(false);
+  const [mySubscription, setMySubscription] = useState<ApiUserSubscription | null>(null);
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
   const authUser = useAppSelector((s) => s.auth.user);
   const { logout } = useAuth();
@@ -91,6 +93,20 @@ export default function CreatorProfilePage() {
       cancelled = true;
     };
   }, [slug]);
+
+  // Only fetch subscription info once we know this is the logged-in
+  // user's own profile — a visitor has no business seeing (or upgrading)
+  // someone else's plan.
+  useEffect(() => {
+    if (!isOwnProfile) {
+      setMySubscription(null);
+      return;
+    }
+    subscriptionApi
+      .getMySubscription()
+      .then(setMySubscription)
+      .catch(() => setMySubscription(null));
+  }, [isOwnProfile]);
 
   const handleFollow = async () => {
     if (!isAuthenticated || !creator) return;
@@ -128,6 +144,7 @@ export default function CreatorProfilePage() {
   const visibleSkills = (creator.skills || []).slice(0, 5);
   const extraSkillCount = Math.max(0, (creator.skills?.length || 0) - visibleSkills.length);
   const isTopRated = creator.averageRating >= 4.5 && creator.reviewCount >= 20;
+  const isOnFreePlan = mySubscription ? mySubscription.plan.price === 0 : false;
 
   return (
     <div className="pb-24">
@@ -179,7 +196,19 @@ export default function CreatorProfilePage() {
           <div className="flex-1 pb-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold text-white sm:text-3xl">{creator.user.name}</h1>
-              <BadgeCheck size={20} className="fill-sky-500 text-white" strokeWidth={2.5} />
+              {isOwnProfile && mySubscription && (
+                <span className="flex items-center gap-1 rounded-full bg-orange-500/15 px-2.5 py-1 text-xs font-bold text-orange-300">
+                  <Sparkles size={12} /> {mySubscription.plan.name} Plan
+                </span>
+              )}
+              {isOwnProfile && isOnFreePlan && (
+                <Link
+                  to="/pricing"
+                  className="rounded-full bg-orange-500 px-3 py-1 text-xs font-bold text-white hover:bg-orange-600"
+                >
+                  Upgrade
+                </Link>
+              )}
             </div>
             <p className="text-sm text-white/50">@{creator.slug}</p>
             {creator.title && <p className="mt-1 text-white/80">{creator.title}</p>}

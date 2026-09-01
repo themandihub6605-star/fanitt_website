@@ -10,6 +10,7 @@ export interface ApiSubscriptionPlan {
   appliesTo: 'creator' | 'brand';
   price: number; // paise, 0 = free
   billingCycle: BillingCycle;
+  billingGroupSlug: string; // links monthly/yearly variants of the same tier — see backend model comment
   isDefault: boolean;
   proposalLimit: number | null;
   extraProposalCost: number;

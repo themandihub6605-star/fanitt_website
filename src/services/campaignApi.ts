@@ -50,6 +50,8 @@ export interface ApiCampaign {
   };
   assignedCreator?: { _id: string; user: { _id: string; name: string; avatarUrl?: string } } | null;
   applicantCount: number;
+  applicantLimit?: number | null;
+  dailyApplicantLimit?: number | null;
   isEscrowFunded: boolean;
   isEscrowReleased: boolean;
   submittedWorkUrl?: string;
@@ -87,6 +89,15 @@ export interface ProposalCounts {
   rejected: number;
 }
 
+// Point 8: rule-based match result — matchReasons are short, human-
+// readable strings the UI can render directly as chips (no parsing
+// needed on the frontend side).
+export interface SuggestedCampaign {
+  campaign: ApiCampaign;
+  matchScore: number;
+  matchReasons: string[];
+}
+
 export interface DraftCampaignPayload {
   title: string;
   campaignType: CampaignType;
@@ -112,6 +123,8 @@ export interface UpdateDraftPayload {
   dos?: string[];
   donts?: string[];
   deliverables?: { reel?: number; story?: number; post?: number };
+  applicantLimit?: number;
+  dailyApplicantLimit?: number;
 }
 
 export interface ApplyPayload {
@@ -198,6 +211,13 @@ export const campaignApi = {
         params: status ? { status } : undefined,
       })
       .then((r) => r.data.data),
+
+  // Point 8: rule-based AI-suggested campaigns — Pro/Exclusive creators
+  // only. A 403 with errorCode 'PRO_FEATURE_LOCKED' means the caller is
+  // on a Lite plan; catch that specifically to show an upgrade prompt
+  // instead of a generic error.
+  getSuggested: () =>
+    apiClient.get<ApiEnvelope<SuggestedCampaign[]>>('/campaigns/suggested/me').then((r) => r.data.data),
 
   getApplications: (campaignId: string) =>
     apiClient.get<ApiEnvelope<ApiApplication[]>>(`/campaigns/${campaignId}/applications`).then((r) => r.data.data),

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Check, AlertCircle, Loader2, Plus, X, ImagePlus, Minus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, AlertCircle, Loader2, Plus, X, ImagePlus, Minus, Sparkles } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { categoryApi, type ApiCategory } from '@/services/categoryApi';
 import { campaignApi, type ApiCampaign, type CampaignType, type LocationType, type GenderTarget } from '@/services/campaignApi';
-import { getApiErrorMessage } from '@/services/apiClient';
+import { subscriptionApi, type ApiUserSubscription } from '@/services/subscriptionApi';
+import { getApiErrorMessage, getApiErrorCode } from '@/services/apiClient';
 import { cn } from '@/utils/cn';
 
 const STEPS = ['Basics', 'Budget', 'Targeting', 'Media', 'Preview'] as const;
@@ -195,8 +196,11 @@ export default function PostCampaign() {
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
 
   const [categories, setCategories] = useState<ApiCategory[]>([]);
+
+  const [mySubscription, setMySubscription] = useState<ApiUserSubscription | null>(null);
 
   // step 1
   const [title, setTitle] = useState('');
@@ -211,6 +215,7 @@ export default function PostCampaign() {
   const [maxInfluencers, setMaxInfluencers] = useState(1);
   const [minFollowersK, setMinFollowersK] = useState(1);
   const [costPerInfluencer, setCostPerInfluencer] = useState('');
+  const [dailyApplicantLimit, setDailyApplicantLimit] = useState('');
   const [products, setProducts] = useState<LocalProduct[]>([]);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [productDraft, setProductDraft] = useState<LocalProduct>({
@@ -252,9 +257,23 @@ export default function PostCampaign() {
     });
   }, []);
 
+  // Load the brand's current plan on mount — needed by the Budget step
+  // (Point 11: daily applicant limit, Pro/Exclusive only) as well as the
+  // Preview step's "X of Y campaigns left" count, so one fetch covers
+  // both instead of only firing once Preview is reached.
+  useEffect(() => {
+    subscriptionApi
+      .getMySubscription()
+      .then(setMySubscription)
+      .catch(() => setMySubscription(null));
+  }, []);
+
   const goBack = () => setStepIndex((i) => Math.max(0, i - 1));
 
   const totalBudgetPreview = Math.round((parseFloat(costPerInfluencer) || 0) * 100) * maxInfluencers;
+  // Point 11: daily applicant limit is a Pro/Exclusive-only feature —
+  // same flag that already gates the total applicantLimit server-side.
+  const canSetApplicantLimit = mySubscription?.plan.canSetApplicantLimit ?? false;
 
   const handleAddProduct = async () => {
     if (!campaignId) return;
@@ -339,6 +358,11 @@ export default function PostCampaign() {
         maxInfluencers,
         minFollowers: minFollowersK * 1000,
         deliverables: { reel: reelCount, story: storyCount, post: postCount },
+        // Silently ignored server-side if the brand's plan doesn't allow
+        // it (canSetApplicantLimit) — only sent when the field is shown.
+        ...(canSetApplicantLimit && dailyApplicantLimit.trim()
+          ? { dailyApplicantLimit: Math.max(1, Number(dailyApplicantLimit)) }
+          : {}),
       });
       setStepIndex(2);
     } catch (err) {
@@ -401,12 +425,17 @@ export default function PostCampaign() {
     if (!campaignId) return;
     setPublishing(true);
     setError('');
+    setQuotaExceeded(false);
     try {
       await campaignApi.publish(campaignId);
       setPublished(true);
       setTimeout(() => navigate('/campaigns'), 1600);
     } catch (err) {
-      setError(getApiErrorMessage(err));
+      if (getApiErrorCode(err) === 'CAMPAIGN_QUOTA_EXCEEDED') {
+        setQuotaExceeded(true);
+      } else {
+        setError(getApiErrorMessage(err));
+      }
     } finally {
       setPublishing(false);
     }
@@ -415,6 +444,11 @@ export default function PostCampaign() {
   const toggleGender = (g: GenderTarget) => {
     setGenderTarget((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
   };
+
+  const campaignLimit = mySubscription?.plan.campaignPostLimit ?? null;
+  const campaignsUsed = mySubscription?.campaignsPostedThisCycle ?? 0;
+  const campaignsRemaining = campaignLimit == null ? null : Math.max(0, campaignLimit - campaignsUsed);
+  const cyclePeriodLabel = mySubscription?.plan.billingCycle === 'yearly' ? 'year' : 'month';
 
   return (
     <div className="pt-28 pb-24">
@@ -443,6 +477,23 @@ export default function PostCampaign() {
           {error && (
             <div className="mt-5 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
               <AlertCircle size={16} className="shrink-0" /> {error}
+            </div>
+          )}
+
+          {quotaExceeded && (
+            <div className="mt-5 rounded-2xl border border-orange-400/30 bg-orange-500/10 p-4">
+              <p className="flex items-center gap-1.5 text-sm font-bold text-orange-300">
+                <Sparkles size={14} /> You're out of campaign posts for this {cyclePeriodLabel}
+              </p>
+              <p className="mt-1.5 text-sm text-white/60">
+                Upgrade your plan to post more campaigns — your draft is saved, so you can publish it once you upgrade.
+              </p>
+              <Link
+                to="/pricing"
+                className="mt-3 inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-600"
+              >
+                View plans
+              </Link>
             </div>
           )}
 
@@ -560,6 +611,25 @@ export default function PostCampaign() {
                       <div>
                         <TextField label="Cost Per Influencer (₹)" type="number" value={costPerInfluencer} onChange={setCostPerInfluencer} placeholder="e.g. 5000" required />
                         <p className="mt-1.5 text-xs text-white/40">Total Budget: {formatRupees(totalBudgetPreview)}</p>
+                      </div>
+                    )}
+
+                    {/* Point 11: Pro/Exclusive-only — caps how many applications
+                        land per day so the brand isn't overwhelmed reviewing
+                        profiles. Hidden entirely for Lite brands rather than
+                        shown disabled, since it's not something they can act on. */}
+                    {canSetApplicantLimit && (
+                      <div>
+                        <TextField
+                          label="Daily Applicant Limit (optional)"
+                          type="number"
+                          value={dailyApplicantLimit}
+                          onChange={setDailyApplicantLimit}
+                          placeholder="e.g. 20"
+                        />
+                        <p className="mt-1.5 text-xs text-white/40">
+                          Caps new applications to this many per day, so review stays manageable. Leave blank for no daily cap.
+                        </p>
                       </div>
                     )}
 
@@ -790,6 +860,11 @@ export default function PostCampaign() {
                       <p className="text-sm font-bold text-white">About Campaign</p>
                       <p className="mt-1 text-xs text-white/50">{previewCampaign.location}</p>
                       <p className="mt-2 text-sm text-white/70">{previewCampaign.description}</p>
+                      {previewCampaign.dailyApplicantLimit != null && (
+                        <p className="mt-2 text-xs font-semibold text-orange-300">
+                          Capped at {previewCampaign.dailyApplicantLimit} new applicant{previewCampaign.dailyApplicantLimit === 1 ? '' : 's'} per day
+                        </p>
+                      )}
                     </div>
 
                     {previewCampaign.products.length > 0 && (
@@ -816,6 +891,12 @@ export default function PostCampaign() {
                         <div><p className="font-bold text-white">{previewCampaign.genderTarget.map((g) => g[0].toUpperCase()).join('/') || 'Any'}</p><p className="text-[10px] text-white/40">Gender</p></div>
                       </div>
                     </div>
+
+                    {campaignLimit != null && !quotaExceeded && (
+                      <p className="text-center text-xs font-semibold text-white/50">
+                        {campaignsRemaining} of {campaignLimit} campaign{campaignLimit === 1 ? '' : 's'} left this {cyclePeriodLabel}
+                      </p>
+                    )}
 
                     <div className="flex flex-col gap-3 pt-1 sm:flex-row">
                       <button type="button" onClick={handleSaveAsDraft} className="flex-1 rounded-2xl border border-white/15 py-3 text-sm font-semibold text-white/70 hover:border-white/30">
