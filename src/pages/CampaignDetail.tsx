@@ -23,10 +23,12 @@ import {
   Building2,
   Plus,
   Sparkles,
+  Wallet,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { campaignApi, type ApiCampaign } from '@/services/campaignApi';
+import { milestoneApi, type ApiMilestone } from '@/services/milestoneApi';
 import { subscriptionApi, type ApiUserSubscription } from '@/services/subscriptionApi';
 import { getApiErrorMessage, getApiErrorCode } from '@/services/apiClient';
 import { openRazorpayCheckout } from '@/utils/razorpay';
@@ -300,6 +302,184 @@ function ApplyModal({
   );
 }
 
+const MILESTONE_STATUS_LABEL: Record<string, string> = {
+  pending: 'Awaiting funding',
+  funded: 'Funded — in progress',
+  submitted: 'Submitted — awaiting review',
+  released: 'Released',
+};
+
+const MILESTONE_STATUS_STYLES: Record<string, string> = {
+  pending: 'bg-white/10 text-white/60',
+  funded: 'bg-sky-500/15 text-sky-300',
+  submitted: 'bg-yellow-400/15 text-yellow-300',
+  released: 'bg-emerald-500/15 text-emerald-300',
+};
+
+// One milestone's card — renders whichever action (fund / submit / approve /
+// waiting) applies given the viewer's role and the milestone's current
+// status. Point 12: replaces the old single whole-budget escrow flow with
+// per-milestone funding, so the brand only ever commits one chunk (the
+// advance) up front instead of the entire campaign budget.
+function MilestoneCard({
+  milestone,
+  isBrandOwner,
+  isAssignedCreator,
+  brandName,
+  onChanged,
+}: {
+  milestone: ApiMilestone;
+  isBrandOwner: boolean;
+  isAssignedCreator: boolean;
+  brandName: string;
+  onChanged: () => void;
+}) {
+  const [funding, setFunding] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [workUrl, setWorkUrl] = useState('');
+  const [error, setError] = useState('');
+
+  const handleFund = async () => {
+    setFunding(true);
+    setError('');
+    try {
+      const { order } = await milestoneApi.initiateFunding(milestone._id);
+      const paymentResponse = await openRazorpayCheckout({
+        orderId: order.id,
+        amount: order.amount,
+        name: 'Fanitt',
+        description: `${milestone.title} — escrow`,
+        prefillName: brandName,
+      });
+      await milestoneApi.verifyFunding(milestone._id, {
+        razorpayOrderId: paymentResponse.razorpay_order_id,
+        razorpayPaymentId: paymentResponse.razorpay_payment_id,
+        razorpaySignature: paymentResponse.razorpay_signature,
+      });
+      onChanged();
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setFunding(false);
+    }
+  };
+
+  const handleSubmitWork = async () => {
+    if (!workUrl.trim()) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await milestoneApi.submitWork(milestone._id, workUrl.trim());
+      onChanged();
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    setApproving(true);
+    setError('');
+    try {
+      await milestoneApi.approve(milestone._id);
+      onChanged();
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-navy-800/50 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-1.5 text-sm font-bold text-white">
+            {milestone.isAdvance && <Wallet size={13} className="text-orange-400" />}
+            {milestone.title}
+          </p>
+          <p className="mt-0.5 text-lg font-bold text-orange-300">{formatRupees(milestone.amount)}</p>
+        </div>
+        <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold', MILESTONE_STATUS_STYLES[milestone.status])}>
+          {MILESTONE_STATUS_LABEL[milestone.status]}
+        </span>
+      </div>
+
+      {error && (
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          <AlertCircle size={13} className="shrink-0" /> {error}
+        </div>
+      )}
+
+      {/* Brand actions */}
+      {isBrandOwner && milestone.status === 'pending' && (
+        <Button className="mt-3 w-full justify-center" disabled={funding} onClick={handleFund}>
+          {funding ? <Loader2 size={16} className="animate-spin" /> : `Fund ${formatRupees(milestone.amount)}`}
+        </Button>
+      )}
+      {isBrandOwner && milestone.status === 'funded' && (
+        <p className="mt-3 text-xs text-white/50">Waiting for the creator to submit work for this milestone.</p>
+      )}
+      {isBrandOwner && milestone.status === 'submitted' && (
+        <div className="mt-3">
+          {milestone.submittedWorkUrl && (
+            <a
+              href={milestone.submittedWorkUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-300 hover:underline"
+            >
+              View submission <ExternalLink size={12} />
+            </a>
+          )}
+          {milestone.autoReleaseAt && (
+            <p className="mt-1.5 text-[11px] text-white/40">
+              Auto-releases on {formatDate(milestone.autoReleaseAt)} if not reviewed.
+            </p>
+          )}
+          <Button className="mt-2 w-full justify-center" disabled={approving} onClick={handleApprove}>
+            {approving ? <Loader2 size={16} className="animate-spin" /> : 'Approve & release'}
+          </Button>
+        </div>
+      )}
+      {isBrandOwner && milestone.status === 'released' && (
+        <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-emerald-300">
+          <Check size={13} /> Released on {milestone.releasedAt ? formatDate(milestone.releasedAt) : ''}
+        </p>
+      )}
+
+      {/* Creator actions */}
+      {isAssignedCreator && milestone.status === 'pending' && (
+        <p className="mt-3 text-xs text-white/50">Waiting for the brand to fund this milestone.</p>
+      )}
+      {isAssignedCreator && milestone.status === 'funded' && (
+        <div className="mt-3 space-y-2">
+          <input
+            type="text"
+            value={workUrl}
+            onChange={(e) => setWorkUrl(e.target.value)}
+            placeholder="Link to your deliverable (Drive, Dropbox, etc.)"
+            className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-orange-400"
+          />
+          <Button className="w-full justify-center" disabled={submitting || !workUrl.trim()} onClick={handleSubmitWork}>
+            {submitting ? <Loader2 size={16} className="animate-spin" /> : 'Submit work'}
+          </Button>
+        </div>
+      )}
+      {isAssignedCreator && milestone.status === 'submitted' && (
+        <p className="mt-3 text-xs text-yellow-300">Waiting for the brand to review your submission.</p>
+      )}
+      {isAssignedCreator && milestone.status === 'released' && (
+        <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-emerald-300">
+          <Check size={13} /> Paid
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -311,12 +491,8 @@ export default function CampaignDetail() {
   const [applyModalOpen, setApplyModalOpen] = useState(false);
   const [applied, setApplied] = useState(false);
 
-  const [funding, setFunding] = useState(false);
-
-  const [workUrl, setWorkUrl] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const [approving, setApproving] = useState(false);
+  const [milestones, setMilestones] = useState<ApiMilestone[]>([]);
+  const [milestonesLoading, setMilestonesLoading] = useState(false);
 
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [descExpanded, setDescExpanded] = useState(false);
@@ -337,6 +513,21 @@ export default function CampaignDetail() {
   const isAssignedCreator = campaign?.assignedCreator?.user._id === user?._id;
   const canApply = user?.role === 'creator' && campaign?.status === 'open';
 
+  // Milestones only exist for paid campaigns with an assigned creator —
+  // and only the brand owner or the assigned creator can see them.
+  const loadMilestones = () => {
+    if (!id || !campaign || campaign.campaignType !== 'paid' || !campaign.assignedCreator) return;
+    if (!isBrandOwner && !isAssignedCreator) return;
+    setMilestonesLoading(true);
+    milestoneApi
+      .getForCampaign(id)
+      .then(setMilestones)
+      .catch(() => setMilestones([]))
+      .finally(() => setMilestonesLoading(false));
+  };
+
+  useEffect(loadMilestones, [id, campaign?.assignedCreator, isBrandOwner, isAssignedCreator]);
+
   const openApplyModal = () => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: `/campaigns/${id}` } });
@@ -345,59 +536,9 @@ export default function CampaignDetail() {
     setApplyModalOpen(true);
   };
 
-  const handleFundEscrow = async () => {
-    if (!id || !campaign) return;
-    setFunding(true);
-    setError('');
-    try {
-      const { order } = await campaignApi.initiateEscrowFunding(id);
-      const paymentResponse = await openRazorpayCheckout({
-        orderId: order.id,
-        amount: order.amount,
-        name: 'Fanitt',
-        description: `Escrow for "${campaign.title}"`,
-        prefillName: user?.name,
-        prefillEmail: user?.email,
-      });
-      await campaignApi.verifyEscrowPayment(id, {
-        razorpayOrderId: paymentResponse.razorpay_order_id,
-        razorpayPaymentId: paymentResponse.razorpay_payment_id,
-        razorpaySignature: paymentResponse.razorpay_signature,
-      });
-      load();
-    } catch (err) {
-      setError(getApiErrorMessage(err));
-    } finally {
-      setFunding(false);
-    }
-  };
-
-  const handleSubmitWork = async () => {
-    if (!id || !workUrl.trim()) return;
-    setSubmitting(true);
-    setError('');
-    try {
-      await campaignApi.submitWork(id, workUrl.trim());
-      load();
-    } catch (err) {
-      setError(getApiErrorMessage(err));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleApprove = async () => {
-    if (!id) return;
-    setApproving(true);
-    setError('');
-    try {
-      await campaignApi.approveWork(id);
-      load();
-    } catch (err) {
-      setError(getApiErrorMessage(err));
-    } finally {
-      setApproving(false);
-    }
+  const handleMilestoneChanged = () => {
+    loadMilestones();
+    load(); // refresh campaign status too (e.g. moves to in_progress / completed)
   };
 
   if (loading) {
@@ -676,13 +817,13 @@ export default function CampaignDetail() {
               </div>
             )}
 
-            {/* Escrow note */}
+            {/* Escrow note — updated for Point 12's milestone-based flow */}
             {campaign.campaignType === 'paid' && (
               <div className="flex items-start gap-3 rounded-2xl border border-teal-500/20 bg-teal-500/10 p-4">
                 <ShieldCheck size={16} className="mt-0.5 shrink-0 text-teal-400" />
                 <p className="text-sm text-teal-200">
-                  This budget is held in Fanitt escrow the moment a creator is accepted and funded, and released the moment
-                  their work is approved.
+                  This budget is held in Fanitt escrow in stages — an advance once a creator is accepted, and the remainder on
+                  final delivery — released as each milestone is approved.
                 </p>
               </div>
             )}
@@ -714,79 +855,50 @@ export default function CampaignDetail() {
               </div>
             )}
 
-            {/* Brand owner actions */}
-            {isBrandOwner && (
-              <div className="space-y-3 border-t border-white/10 pt-5">
-                {campaign.status === 'open' && (
-                  <Link to={`/campaigns/${id}/applications`}>
-                    <Button className="w-full justify-center" variant="outline">
-                      View {campaign.applicantCount} applicant{campaign.applicantCount === 1 ? '' : 's'}
-                    </Button>
-                  </Link>
-                )}
-
-                {campaign.status === 'open' && campaign.assignedCreator && (
-                  <Button className="w-full justify-center" disabled={funding} onClick={handleFundEscrow}>
-                    {funding ? <Loader2 size={18} className="animate-spin" /> : `Fund escrow — ${formatRupees(campaign.budget)}`}
+            {/* Brand owner: view applicants (still relevant regardless of milestones) */}
+            {isBrandOwner && campaign.status === 'open' && (
+              <div className="border-t border-white/10 pt-5">
+                <Link to={`/campaigns/${id}/applications`}>
+                  <Button className="w-full justify-center" variant="outline">
+                    View {campaign.applicantCount} applicant{campaign.applicantCount === 1 ? '' : 's'}
                   </Button>
-                )}
+                </Link>
+              </div>
+            )}
 
-                {campaign.status === 'submitted' && (
-                  <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4">
-                    <p className="text-sm font-bold text-yellow-200">Work submitted for review</p>
-                    {campaign.submittedWorkUrl && (
-                      <a
-                        href={campaign.submittedWorkUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-orange-300 hover:underline"
-                      >
-                        View submission <ExternalLink size={13} />
-                      </a>
-                    )}
-                    <Button className="mt-4 w-full justify-center" disabled={approving} onClick={handleApprove}>
-                      {approving ? <Loader2 size={18} className="animate-spin" /> : 'Approve & release payment'}
-                    </Button>
+            {/* Point 12: per-milestone payment cards — shown to both the
+                brand owner and the assigned creator once a creator has been
+                accepted on a paid campaign. Barter campaigns have no
+                milestones (no cash budget to split). */}
+            {(isBrandOwner || isAssignedCreator) && campaign.campaignType === 'paid' && campaign.assignedCreator && (
+              <div className="border-t border-white/10 pt-5">
+                <h3 className="mb-3 text-sm font-bold text-white">Payment Milestones</h3>
+                {milestonesLoading ? (
+                  <div className="flex justify-center py-6">
+                    <Loader2 size={20} className="animate-spin text-white/40" />
+                  </div>
+                ) : milestones.length === 0 ? (
+                  <p className="text-sm text-white/50">Milestones will appear here once set up.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {milestones.map((m) => (
+                      <MilestoneCard
+                        key={m._id}
+                        milestone={m}
+                        isBrandOwner={Boolean(isBrandOwner)}
+                        isAssignedCreator={Boolean(isAssignedCreator)}
+                        brandName={campaign.brand.companyName}
+                        onChanged={handleMilestoneChanged}
+                      />
+                    ))}
                   </div>
                 )}
-
-                {campaign.status === 'completed' && (
-                  <div className="flex items-center justify-center gap-2 rounded-2xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
-                    <Check size={16} /> Completed — payment released to the creator.
-                  </div>
-                )}
               </div>
             )}
 
-            {/* Assigned creator actions */}
-            {isAssignedCreator && campaign.status === 'in_progress' && (
-              <div className="space-y-3 border-t border-white/10 pt-5">
-                <h3 className="text-sm font-bold text-white">Submit your work</h3>
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-semibold text-white/70">Link to your deliverable (Drive, Dropbox, etc.)</span>
-                  <input
-                    type="text"
-                    value={workUrl}
-                    onChange={(e) => setWorkUrl(e.target.value)}
-                    placeholder="https://drive.google.com/..."
-                    className="w-full rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
-                  />
-                </label>
-                <Button className="w-full justify-center" disabled={submitting || !workUrl.trim()} onClick={handleSubmitWork}>
-                  {submitting ? <Loader2 size={18} className="animate-spin" /> : 'Submit work'}
-                </Button>
-              </div>
-            )}
-
-            {isAssignedCreator && campaign.status === 'submitted' && (
-              <div className="rounded-2xl bg-yellow-400/10 py-3.5 text-center text-sm font-bold text-yellow-200">
-                Waiting for the brand to review your submission.
-              </div>
-            )}
-
-            {isAssignedCreator && campaign.status === 'completed' && (
+            {campaign.status === 'completed' && (
               <div className="flex items-center justify-center gap-2 rounded-2xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
-                <Check size={16} /> Paid — this campaign is complete.
+                <Check size={16} /> Completed — payment released to the creator.
               </div>
             )}
           </div>

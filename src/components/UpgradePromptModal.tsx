@@ -8,14 +8,14 @@ import { useAppSelector } from '@/store/hooks';
 const CREATOR_COPY = {
   eyebrow: 'Unlock Your Full Potential',
   title: 'Level Up Your Creator Game',
-  subtitle: 'You\'re on the Lite plan. Go Pro and get 3x the reach for less than a coffee a day.',
+  subtitle: "You're on the Lite plan. Go Pro and get 3x the reach.",
   perks: [
     { icon: Zap, text: '90 proposals/month instead of 30' },
     { icon: TrendingUp, text: 'Only 5% platform fee, not 9%' },
     { icon: Crown, text: 'Access to exclusive brand campaigns' },
     { icon: Sparkles, text: '6-hour early access before Lite creators' },
   ],
-  ctaLabel: 'Upgrade to Pro — ₹600/mo',
+  ctaLabel: 'Upgrade to Pro',
 };
 
 const BRAND_COPY = {
@@ -50,7 +50,10 @@ function markShownToday(userId: string) {
  * (Lite) plan — rendered inside DashboardShell so it appears the moment
  * they land on any dashboard page, mobile or desktop. Dismissing or
  * upgrading both mark it seen for today; it reappears tomorrow if they're
- * still on the free plan. */
+ * still on the free plan.
+ *
+ * Deliberately benefit-led, no price anywhere in this modal — actual
+ * pricing only shows up once they land on /pricing itself. */
 export function UpgradePromptModal() {
   const navigate = useNavigate();
   const user = useAppSelector((s) => s.auth.user);
