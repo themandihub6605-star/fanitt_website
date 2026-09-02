@@ -12,6 +12,7 @@ export interface ApiSubscriptionPlan {
   billingCycle: BillingCycle;
   billingGroupSlug: string; // links monthly/yearly variants of the same tier — see backend model comment
   isDefault: boolean;
+  sortOrder: number;
   proposalLimit: number | null;
   extraProposalCost: number;
   platformFeePercent: number;
