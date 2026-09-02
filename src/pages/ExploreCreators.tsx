@@ -1,24 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, AlertCircle, Search, Star, Sparkles, MapPin, Bookmark, Grid3x3, List, LocateFixed, SlidersHorizontal } from 'lucide-react';
+import { Loader2, AlertCircle, Search, Star, Sparkles, MapPin, Grid3x3, List, LocateFixed, SlidersHorizontal } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { CreatorPosterCard } from '@/components/CreatorPosterCard';
 import { creatorApi, type ApiCreator } from '@/services/creatorApi';
 import { categoryApi, type ApiCategory } from '@/services/categoryApi';
 import { getApiErrorMessage } from '@/services/apiClient';
+import { subscriptionApi } from '@/services/subscriptionApi';
+import { ProfileLockedModal } from '@/components/ProfileLockedModal';
 import { resolveIcon } from '@/utils/icons';
+import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/utils/cn';
-
-const SAVED_KEY = 'fanitt:savedCreators';
-
-function getSavedIds(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(SAVED_KEY) || '[]');
-  } catch {
-    return [];
-  }
-}
 
 type SortOption = 'relevance' | 'rating' | 'followers';
 
@@ -35,13 +28,36 @@ export default function ExploreCreators() {
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
   const [view, setView] = useState<'list' | 'grid'>('list');
   const [filtersOpen, setFiltersOpen] = useState(true);
-  const [savedIds, setSavedIds] = useState<string[]>(getSavedIds());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     categoryApi.list().then(setCategories).catch(() => setCategories([]));
   }, []);
+
+  const authUser = useAppSelector((s) => s.auth.user);
+  const [viewerIsLite, setViewerIsLite] = useState(false);
+  const [profileLockedOpen, setProfileLockedOpen] = useState(false);
+
+  // Only creators/brands have a plan to check — a Lite one gets gated
+  // from opening a Pro creator's profile (see handleCardClick below).
+  useEffect(() => {
+    if (!authUser || (authUser.role !== 'creator' && authUser.role !== 'brand')) {
+      setViewerIsLite(false);
+      return;
+    }
+    subscriptionApi
+      .getMySubscription()
+      .then((sub) => setViewerIsLite(sub.plan.price === 0))
+      .catch(() => setViewerIsLite(false));
+  }, [authUser]);
+
+  const handleCardClick = (e: React.MouseEvent, creator: ApiCreator) => {
+    if (viewerIsLite && creator.isProPlan) {
+      e.preventDefault();
+      setProfileLockedOpen(true);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -65,14 +81,6 @@ export default function ExploreCreators() {
       clearTimeout(t);
     };
   }, [categoryFilter, search, location]);
-
-  const toggleSaved = (id: string) => {
-    setSavedIds((prev) => {
-      const next = prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id];
-      localStorage.setItem(SAVED_KEY, JSON.stringify(next));
-      return next;
-    });
-  };
 
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) return;
@@ -317,19 +325,10 @@ export default function ExploreCreators() {
                   transition={{ duration: 0.35, delay: (i % 10) * 0.04 }}
                   className="relative"
                 >
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      toggleSaved(creator._id);
-                    }}
-                    aria-label="Save creator"
-                    className="absolute right-3.5 top-3.5 z-10 text-white/40 hover:text-orange-400 sm:right-4 sm:top-4"
-                  >
-                    <Bookmark size={17} fill={savedIds.includes(creator._id) ? 'currentColor' : 'none'} className={savedIds.includes(creator._id) ? 'text-orange-400' : ''} />
-                  </button>
                   <Link
                     to={`/creator/${creator.slug}`}
-                    className="relative flex items-start gap-3 rounded-2xl border border-white/10 bg-navy-800/60 p-3.5 pr-[92px] transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-500/30 hover:shadow-lifted sm:gap-4 sm:p-4 sm:pr-[104px]"
+                    onClick={(e) => handleCardClick(e, creator)}
+                    className="relative flex items-start gap-3 rounded-2xl border border-white/10 bg-navy-800/60 p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-500/30 hover:shadow-lifted sm:gap-4 sm:p-4"
                   >
                     <div className="relative shrink-0">
                       <img
@@ -343,7 +342,7 @@ export default function ExploreCreators() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <p className="truncate text-[15px] font-bold text-white sm:text-base">{creator.user.name}</p>
+                        <p className="min-w-0 flex-1 truncate text-[15px] font-bold text-white sm:text-base">{creator.user.name}</p>
                         <span
                           className={cn(
                             'flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold',
@@ -352,6 +351,9 @@ export default function ExploreCreators() {
                         >
                           {creator.isProPlan && <Sparkles size={10} />}
                           {creator.planName || 'Lite'}
+                        </span>
+                        <span className="shrink-0 whitespace-nowrap rounded-full border border-orange-400/40 px-3 py-1 text-[11px] font-bold text-orange-300">
+                          View
                         </span>
                       </div>
                       {(creator.title || creator.category?.label) && (
@@ -391,9 +393,6 @@ export default function ExploreCreators() {
                         </div>
                       )}
                     </div>
-                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 shrink-0 whitespace-nowrap rounded-full border border-orange-400/40 px-3 py-1.5 text-[11px] font-bold text-orange-300 sm:right-4 sm:px-4 sm:text-xs">
-                      View Profile
-                    </span>
                   </Link>
                 </motion.div>
               );
@@ -401,6 +400,8 @@ export default function ExploreCreators() {
           </div>
         )}
       </Container>
+
+      <ProfileLockedModal open={profileLockedOpen} onClose={() => setProfileLockedOpen(false)} kind="creator" />
     </div>
   );
 }

@@ -224,11 +224,18 @@ export default function CreatorProfilePage() {
           <div className="flex-1 pb-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold text-white sm:text-3xl">{creator.user.name}</h1>
-              {isOwnProfile && mySubscription && (
-                <span className="flex items-center gap-1 rounded-full bg-orange-500/15 px-2.5 py-1 text-xs font-bold text-orange-300">
-                  <Sparkles size={12} /> {mySubscription.plan.name} Plan
-                </span>
-              )}
+              {/* Public plan badge — visible to every viewer, not just the
+                  profile owner, so anyone can see at a glance which tier
+                  this creator is on. */}
+              <span
+                className={cn(
+                  'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold',
+                  creator.isProPlan ? 'bg-orange-500/15 text-orange-300' : 'bg-white/10 text-white/60'
+                )}
+              >
+                {creator.isProPlan && <Sparkles size={12} />}
+                {creator.planName || 'Lite'} Plan
+              </span>
               {isOwnProfile && isOnFreePlan && (
                 <Link
                   to="/pricing"

@@ -41,6 +41,10 @@ export interface ApiCampaign {
   deliverables: { reel: number; story: number; post: number };
   status: 'draft' | 'open' | 'in_progress' | 'submitted' | 'approved' | 'completed' | 'disputed' | 'cancelled';
   publishedAt?: string | null;
+  // Set automatically at publish time from the posting brand's plan —
+  // 'exclusive' means only Pro/Exclusive creators can apply. Used to show
+  // a plan badge on campaign cards, matching the brand's own plan badge.
+  visibilityTier?: 'lite' | 'exclusive';
   brand: {
     _id: string;
     companyName: string;

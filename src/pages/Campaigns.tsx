@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, Users2, Plus, Loader2, AlertCircle, Instagram, Search, SlidersHorizontal, X, Building2 } from 'lucide-react';
+import { Briefcase, Users2, Plus, Loader2, AlertCircle, Instagram, Search, SlidersHorizontal, X, Building2, Sparkles } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { campaignApi, type ApiCampaign, type CampaignType, type GenderTarget, type LocationType } from '@/services/campaignApi';
 import { categoryApi, type ApiCategory } from '@/services/categoryApi';
+import { subscriptionApi } from '@/services/subscriptionApi';
+import { ProfileLockedModal } from '@/components/ProfileLockedModal';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/utils/cn';
@@ -266,11 +268,37 @@ export default function Campaigns() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const isBrand = useAppSelector((s) => s.auth.user?.role === 'brand');
+  const authUser = useAppSelector((s) => s.auth.user);
+  const isBrand = authUser?.role === 'brand';
 
   const [filterOpen, setFilterOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [draftFilters, setDraftFilters] = useState<FilterState>(EMPTY_FILTERS);
+
+  const [viewerIsLite, setViewerIsLite] = useState(false);
+  const [campaignLockedOpen, setCampaignLockedOpen] = useState(false);
+
+  // Only creators/brands have a plan to check — used to gate opening an
+  // exclusive (Pro-only) campaign's detail page from this listing (see
+  // handleCardClick below). Everyone still sees every campaign card here.
+  useEffect(() => {
+    if (!authUser || (authUser.role !== 'creator' && authUser.role !== 'brand')) {
+      setViewerIsLite(false);
+      return;
+    }
+    subscriptionApi
+      .getMySubscription()
+      .then((sub) => setViewerIsLite(sub.plan.price === 0))
+      .catch(() => setViewerIsLite(false));
+  }, [authUser]);
+
+  const handleCardClick = (campaign: ApiCampaign) => {
+    if (viewerIsLite && campaign.visibilityTier === 'exclusive') {
+      setCampaignLockedOpen(true);
+      return;
+    }
+    navigate(`/campaigns/${campaign._id}`);
+  };
 
   const activeFilterCount =
     appliedFilters.categories.length +
@@ -420,13 +448,14 @@ export default function Campaigns() {
                   {/* Card is a clickable div (goes to campaign detail) — the
                       brand name inside is its own Link to the brand profile,
                       with stopPropagation so it doesn't also trigger the
-                      card's navigation. */}
+                      card's navigation. handleCardClick also gates opening
+                      an exclusive campaign if the viewer is on a Lite plan. */}
                   <div
-                    onClick={() => navigate(`/campaigns/${campaign._id}`)}
+                    onClick={() => handleCardClick(campaign)}
                     role="link"
                     tabIndex={0}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') navigate(`/campaigns/${campaign._id}`);
+                      if (e.key === 'Enter') handleCardClick(campaign);
                     }}
                     className="flex cursor-pointer gap-4 rounded-2xl border border-white/10 bg-navy-800/60 p-4 backdrop-blur-xl transition-colors hover:border-orange-400/40"
                   >
@@ -450,7 +479,20 @@ export default function Campaigns() {
 
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-bold text-white">{campaign.title}</p>
-                                          <p className="mt-0.5 truncate text-xs text-orange-300">By {campaign.brand.companyName}</p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        <p className="truncate text-xs text-orange-300">By {campaign.brand.companyName}</p>
+                        {campaign.visibilityTier && (
+                          <span
+                            className={cn(
+                              'flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold',
+                              campaign.visibilityTier === 'exclusive' ? 'bg-orange-500/15 text-orange-300' : 'bg-white/10 text-white/50'
+                            )}
+                          >
+                            {campaign.visibilityTier === 'exclusive' && <Sparkles size={9} />}
+                            {campaign.visibilityTier === 'exclusive' ? 'Pro' : 'Lite'}
+                          </span>
+                        )}
+                      </div>
                       <p className="mt-1.5 flex items-center gap-1.5 text-sm font-semibold text-white/80">
                         <Briefcase size={13} className="text-orange-400" />
                         {campaign.campaignType === 'paid' ? formatRupees(campaign.budget) : `${campaign.products.length} product(s)`}
@@ -501,6 +543,8 @@ export default function Campaigns() {
         onApply={handleApplyFilters}
         onClear={handleClearFilters}
       />
+
+      <ProfileLockedModal open={campaignLockedOpen} onClose={() => setCampaignLockedOpen(false)} kind="campaign" />
     </div>
   );
 }

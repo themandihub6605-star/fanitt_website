@@ -100,6 +100,7 @@ function ApplyModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const [exclusiveLocked, setExclusiveLocked] = useState(false);
 
   const [mySubscription, setMySubscription] = useState<ApiUserSubscription | null>(null);
   const [subLoading, setSubLoading] = useState(true);
@@ -135,6 +136,7 @@ function ApplyModal({
     setSubmitting(true);
     setError('');
     setQuotaExceeded(false);
+    setExclusiveLocked(false);
     try {
       const parsedQuote = quotedAmount.trim() ? Math.round(parseFloat(quotedAmount) * 100) : NaN;
       await campaignApi.apply(campaign._id, {
@@ -145,8 +147,11 @@ function ApplyModal({
       });
       onSubmitted();
     } catch (err) {
-      if (getApiErrorCode(err) === 'PROPOSAL_QUOTA_EXCEEDED') {
+      const errorCode = getApiErrorCode(err);
+      if (errorCode === 'PROPOSAL_QUOTA_EXCEEDED') {
         setQuotaExceeded(true);
+      } else if (errorCode === 'EXCLUSIVE_CAMPAIGN_LOCKED') {
+        setExclusiveLocked(true);
       } else {
         setError(getApiErrorMessage(err));
       }
@@ -174,7 +179,7 @@ function ApplyModal({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl border border-white/10 bg-navy-900 p-6 sm:max-w-md sm:rounded-3xl"
+            className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl border border-white/10 bg-navy-900 p-6 sm:max-w-md sm:rounded-2xl"
           >
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-white">Apply to this opportunity</h2>
@@ -191,7 +196,7 @@ function ApplyModal({
             )}
 
             {quotaExceeded && (
-              <div className="mt-4 rounded-2xl border border-orange-400/30 bg-orange-500/10 p-4">
+              <div className="mt-4 rounded-xl border border-orange-400/30 bg-orange-500/10 p-4">
                 <p className="flex items-center gap-1.5 text-sm font-bold text-orange-300">
                   <Sparkles size={14} /> You're out of proposals for this cycle
                 </p>
@@ -207,13 +212,30 @@ function ApplyModal({
               </div>
             )}
 
+            {exclusiveLocked && (
+              <div className="mt-4 rounded-xl border border-orange-400/30 bg-orange-500/10 p-4">
+                <p className="flex items-center gap-1.5 text-sm font-bold text-orange-300">
+                  <Sparkles size={14} /> This is an exclusive campaign for Pro creators
+                </p>
+                <p className="mt-1.5 text-sm text-white/60">
+                  Upgrade to Pro to apply to exclusive campaigns from Pro and Elite brands.
+                </p>
+                <Link
+                  to="/pricing"
+                  className="mt-3 inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-orange-600"
+                >
+                  Upgrade to Pro
+                </Link>
+              </div>
+            )}
+
             {error && (
               <div className="mt-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
                 <AlertCircle size={16} className="shrink-0" /> {error}
               </div>
             )}
 
-            {!quotaExceeded && (
+            {!quotaExceeded && !exclusiveLocked && (
               <div className="mt-5 space-y-4">
                 <label className="block">
                   <span className="mb-1.5 block text-xs font-semibold text-white/70">
@@ -393,7 +415,7 @@ function MilestoneCard({
   };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-navy-800/50 p-4">
+    <div className="rounded-xl border border-white/10 bg-navy-800/50 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="flex items-center gap-1.5 text-sm font-bold text-white">
@@ -582,16 +604,16 @@ export default function CampaignDetail() {
           transition={{ duration: 0.5 }}
           className="mt-4 space-y-4"
         >
-          {/* Hero card — image + brand/price/applied count side-by-side, purple accent card, matching reference layout */}
-          <div className="rounded-3xl border border-purple-400/20 bg-gradient-to-br from-purple-500/10 via-navy-800/60 to-navy-800/60 p-4 sm:p-5">
+          {/* Hero card — image + brand/price/applied count side-by-side, plain dark card, matching reference layout */}
+          <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-4 sm:p-5">
             <div className="flex gap-4">
               {campaign.campaignImageUrl ? (
-                <div className="relative w-28 shrink-0 sm:w-36">
+                <div className="relative aspect-square w-28 shrink-0 overflow-hidden rounded-xl sm:w-36">
                   <ExpandableImage
                     src={campaign.campaignImageUrl}
-                    className="aspect-square w-full rounded-2xl object-cover"
+                    className="h-full w-full object-cover"
                     onExpand={setLightboxUrl}
-                    roundedClassName="rounded-2xl"
+                    roundedClassName="h-full w-full rounded-xl"
                   />
                   {campaign.campaignType && (
                     <span
@@ -605,7 +627,7 @@ export default function CampaignDetail() {
                   )}
                 </div>
               ) : (
-                <div className="flex aspect-square w-28 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white/30 sm:w-36">
+                <div className="flex aspect-square w-28 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white/30 sm:w-36">
                   <ImagePlus size={22} />
                 </div>
               )}
@@ -613,16 +635,29 @@ export default function CampaignDetail() {
               <div className="min-w-0 flex-1">
                 <h1 className="line-clamp-2 text-lg font-bold leading-tight text-white sm:text-xl">{campaign.title}</h1>
 
-                {campaign.brand.slug ? (
-                  <Link
-                    to={`/brand/${campaign.brand.slug}`}
-                    className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-purple-300 hover:opacity-80"
-                  >
-                    By {campaign.brand.companyName} <ExternalLink size={11} className="shrink-0" />
-                  </Link>
-                ) : (
-                  <p className="mt-1 text-sm font-semibold text-white/70">By {campaign.brand.companyName}</p>
-                )}
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  {campaign.brand.slug ? (
+                    <Link
+                      to={`/brand/${campaign.brand.slug}`}
+                      className="inline-flex items-center gap-1 text-sm font-semibold text-orange-300 hover:opacity-80"
+                    >
+                      By {campaign.brand.companyName} <ExternalLink size={11} className="shrink-0" />
+                    </Link>
+                  ) : (
+                    <p className="text-sm font-semibold text-white/70">By {campaign.brand.companyName}</p>
+                  )}
+                  {campaign.visibilityTier && (
+                    <span
+                      className={cn(
+                        'flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold',
+                        campaign.visibilityTier === 'exclusive' ? 'bg-orange-500/15 text-orange-300' : 'bg-white/10 text-white/50'
+                      )}
+                    >
+                      {campaign.visibilityTier === 'exclusive' && <Sparkles size={10} />}
+                      {campaign.visibilityTier === 'exclusive' ? 'Pro' : 'Lite'}
+                    </span>
+                  )}
+                </div>
 
                 <div className="mt-2.5 flex items-center gap-1.5 text-lg font-bold text-white">
                   <Briefcase size={16} className="text-emerald-400" />
@@ -637,20 +672,20 @@ export default function CampaignDetail() {
               </div>
             </div>
 
-            {/* Deliverables row — purple divided bar, matching reference */}
+            {/* Deliverables row — neutral bordered box, matching reference */}
             {hasDeliverables && (
-              <div className="mt-4 grid grid-cols-3 divide-x divide-purple-300/20 rounded-2xl bg-purple-500/15 py-3.5 text-center">
+              <div className="mt-4 grid grid-cols-3 divide-x divide-white/10 rounded-xl border border-white/10 bg-navy-900/40 py-3.5 text-center">
                 <div>
                   <p className="text-lg font-bold text-white">{campaign.deliverables.reel}</p>
-                  <p className="text-[11px] text-purple-200/70">Reel</p>
+                  <p className="text-[11px] text-white/50">Reel</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-white">{campaign.deliverables.story}</p>
-                  <p className="text-[11px] text-purple-200/70">Story</p>
+                  <p className="text-[11px] text-white/50">Story</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-white">{campaign.deliverables.post}</p>
-                  <p className="text-[11px] text-purple-200/70">Post</p>
+                  <p className="text-[11px] text-white/50">Post</p>
                 </div>
               </div>
             )}
@@ -666,7 +701,7 @@ export default function CampaignDetail() {
           )}
 
           {/* About Campaign — light accent card with left bar, matching reference */}
-          <div className="rounded-2xl border-l-4 border-purple-400 bg-navy-800/60 p-5">
+          <div className="rounded-xl border-l-4 border-purple-400 bg-navy-800/60 p-5">
             <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-white">About Campaign</p>
             {campaign.location && (
               <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-white/60">
@@ -689,7 +724,7 @@ export default function CampaignDetail() {
 
           {/* Duration — kept as its own small stat row so nothing from the original page is lost */}
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-navy-800/45 px-4 py-3.5">
+            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-navy-800/45 px-4 py-3.5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-500/15 text-teal-400">
                 <Clock size={16} />
               </span>
@@ -698,7 +733,7 @@ export default function CampaignDetail() {
                 <p className="text-[11px] text-white/50">Duration</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-navy-800/45 px-4 py-3.5">
+            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-navy-800/45 px-4 py-3.5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-yellow-500/15 text-yellow-400">
                 <MapPin size={16} />
               </span>
@@ -711,7 +746,7 @@ export default function CampaignDetail() {
 
           {/* Creator Requirement — light accent card, matching reference */}
           {(campaign.minFollowers || campaign.ageRange || campaign.genderTarget?.length > 0) && (
-            <div className="rounded-2xl border-l-4 border-purple-400 bg-navy-800/60 p-5">
+            <div className="rounded-xl border-l-4 border-purple-400 bg-navy-800/60 p-5">
               <p className="mb-3 flex items-center gap-1.5 text-sm font-bold text-white">
                 <Users2 size={14} className="text-white/50" /> Creator Requirement
               </p>
@@ -737,7 +772,7 @@ export default function CampaignDetail() {
           )}
 
           {/* Everything below stays inside the same rounded card shell as before */}
-          <div className="space-y-6 rounded-3xl border border-white/10 bg-navy-800/70 p-5 text-left backdrop-blur-xl sm:p-6">
+          <div className="space-y-6 rounded-2xl border border-white/10 bg-navy-800/70 p-5 text-left backdrop-blur-xl sm:p-6">
             {/* Influencer categories */}
             {campaign.influencerCategories?.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -753,7 +788,7 @@ export default function CampaignDetail() {
             {(campaign.dos?.length > 0 || campaign.donts?.length > 0) && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {campaign.dos?.length > 0 && (
-                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
                     <p className="mb-2 text-xs font-bold uppercase tracking-wide text-emerald-300">Do's</p>
                     <ul className="space-y-1.5 text-xs text-white/60">
                       {campaign.dos.map((d, i) => (
@@ -763,7 +798,7 @@ export default function CampaignDetail() {
                   </div>
                 )}
                 {campaign.donts?.length > 0 && (
-                  <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
+                  <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
                     <p className="mb-2 text-xs font-bold uppercase tracking-wide text-red-300">Dont's</p>
                     <ul className="space-y-1.5 text-xs text-white/60">
                       {campaign.donts.map((d, i) => (
@@ -781,7 +816,7 @@ export default function CampaignDetail() {
                 <p className="mb-3 text-sm font-bold text-white">{campaign.campaignType === 'barter' ? 'Barter Products' : 'Free Products'}</p>
                 <div className="flex flex-wrap gap-3">
                   {campaign.products.map((p) => (
-                    <div key={p._id} className="w-24 rounded-2xl border border-white/10 bg-navy-800/45 p-2 text-center">
+                    <div key={p._id} className="w-24 rounded-xl border border-white/10 bg-navy-800/45 p-2 text-center">
                       {p.imageUrl ? (
                         <ExpandableImage src={p.imageUrl} className="h-16 w-full rounded-xl object-cover" onExpand={setLightboxUrl} roundedClassName="rounded-xl" />
                       ) : (
@@ -819,7 +854,7 @@ export default function CampaignDetail() {
 
             {/* Escrow note — updated for Point 12's milestone-based flow */}
             {campaign.campaignType === 'paid' && (
-              <div className="flex items-start gap-3 rounded-2xl border border-teal-500/20 bg-teal-500/10 p-4">
+              <div className="flex items-start gap-3 rounded-xl border border-teal-500/20 bg-teal-500/10 p-4">
                 <ShieldCheck size={16} className="mt-0.5 shrink-0 text-teal-400" />
                 <p className="text-sm text-teal-200">
                   This budget is held in Fanitt escrow in stages — an advance once a creator is accepted, and the remainder on
@@ -835,7 +870,7 @@ export default function CampaignDetail() {
 
             {/* Error */}
             {error && (
-              <div className="flex items-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
                 <AlertCircle size={16} className="shrink-0" /> {error}
               </div>
             )}
@@ -850,7 +885,7 @@ export default function CampaignDetail() {
             )}
 
             {applied && (
-              <div className="flex items-center justify-center gap-2 rounded-2xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
+              <div className="flex items-center justify-center gap-2 rounded-xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
                 <Check size={16} /> Proposal sent — track it under "My Proposals".
               </div>
             )}
@@ -897,7 +932,7 @@ export default function CampaignDetail() {
             )}
 
             {campaign.status === 'completed' && (
-              <div className="flex items-center justify-center gap-2 rounded-2xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
+              <div className="flex items-center justify-center gap-2 rounded-xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
                 <Check size={16} /> Completed — payment released to the creator.
               </div>
             )}

@@ -198,11 +198,18 @@ export default function BrandProfilePage() {
 
           <div className="mt-3 flex items-center justify-center gap-1.5">
             <h1 className="text-xl font-bold text-white sm:text-2xl">{brand.companyName}</h1>
-            {isOwnProfile && mySubscription && (
-              <span className="flex items-center gap-1 rounded-full bg-orange-500/15 px-2.5 py-1 text-xs font-bold text-orange-300">
-                <Sparkles size={12} /> {mySubscription.plan.name} Plan
-              </span>
-            )}
+            {/* Public plan badge — visible to every viewer, not just the
+                profile owner, so anyone can see at a glance which tier
+                this brand is on. */}
+            <span
+              className={cn(
+                'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold',
+                brand.isProPlan ? 'bg-orange-500/15 text-orange-300' : 'bg-white/10 text-white/60'
+              )}
+            >
+              {brand.isProPlan && <Sparkles size={12} />}
+              {brand.planName || 'Lite'} Plan
+            </span>
             {isOwnProfile && isOnFreePlan && (
               <Link
                 to="/pricing"
