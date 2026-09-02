@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, AlertCircle, Search, Star, BadgeCheck, MapPin, Bookmark, Grid3x3, List, LocateFixed, SlidersHorizontal } from 'lucide-react';
+import { Loader2, AlertCircle, Search, Star, Sparkles, MapPin, Bookmark, Grid3x3, List, LocateFixed, SlidersHorizontal } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { CreatorPosterCard } from '@/components/CreatorPosterCard';
 import { creatorApi, type ApiCreator } from '@/services/creatorApi';
@@ -344,7 +344,15 @@ export default function ExploreCreators() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <p className="truncate text-[15px] font-bold text-white sm:text-base">{creator.user.name}</p>
-                        <BadgeCheck size={15} className="shrink-0 fill-sky-500 text-white" strokeWidth={2.5} />
+                        <span
+                          className={cn(
+                            'flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold',
+                            creator.isProPlan ? 'bg-orange-500/15 text-orange-300' : 'bg-white/10 text-white/50'
+                          )}
+                        >
+                          {creator.isProPlan && <Sparkles size={10} />}
+                          {creator.planName || 'Lite'}
+                        </span>
                       </div>
                       {(creator.title || creator.category?.label) && (
                         <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-white/50 sm:text-sm">

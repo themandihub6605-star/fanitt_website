@@ -36,6 +36,8 @@ import { postApi, type ApiPost } from '@/services/postApi';
 import type { ApiSession } from '@/services/sessionApi';
 import type { ApiReview } from '@/services/reviewApi';
 import { subscriptionApi, type ApiUserSubscription } from '@/services/subscriptionApi';
+import { MessagingLockedModal } from '@/components/MessagingLockedModal';
+import { ProProfileUpgradeModal } from '@/components/ProProfileUpgradeModal';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
 import { useAuth } from '@/hooks/useAuth';
@@ -59,6 +61,8 @@ export default function CreatorProfilePage() {
   const [tab, setTab] = useState<Tab>('Overview');
   const [bioExpanded, setBioExpanded] = useState(false);
   const [mySubscription, setMySubscription] = useState<ApiUserSubscription | null>(null);
+  const [messagingLockedOpen, setMessagingLockedOpen] = useState(false);
+  const [proProfileModalOpen, setProProfileModalOpen] = useState(false);
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
   const authUser = useAppSelector((s) => s.auth.user);
   const { logout } = useAuth();
@@ -94,11 +98,12 @@ export default function CreatorProfilePage() {
     };
   }, [slug]);
 
-  // Only fetch subscription info once we know this is the logged-in
-  // user's own profile — a visitor has no business seeing (or upgrading)
-  // someone else's plan.
+  // Fetch the viewer's own subscription whenever they're a logged-in
+  // creator/brand — used to show the plan badge on their own profile, AND
+  // to gate the "Message" button when viewing someone else's profile
+  // (messaging is Pro-only, see handleMessageClick below).
   useEffect(() => {
-    if (!isOwnProfile) {
+    if (!authUser || (authUser.role !== 'creator' && authUser.role !== 'brand')) {
       setMySubscription(null);
       return;
     }
@@ -106,7 +111,30 @@ export default function CreatorProfilePage() {
       .getMySubscription()
       .then(setMySubscription)
       .catch(() => setMySubscription(null));
-  }, [isOwnProfile]);
+  }, [authUser]);
+
+  // Point: a Lite creator/brand viewing a Pro creator's profile gets an
+  // upgrade nudge the moment the profile opens — dismissible, doesn't
+  // block the profile content underneath. Re-checks whenever either the
+  // creator or the viewer's own subscription finishes loading (whichever
+  // resolves second is what actually triggers the popup).
+  useEffect(() => {
+    if (!creator || isOwnProfile) return;
+    const viewerIsLite = (authUser?.role === 'creator' || authUser?.role === 'brand') && mySubscription?.plan.price === 0;
+    if (viewerIsLite && creator.isProPlan) {
+      setProProfileModalOpen(true);
+    }
+  }, [creator, mySubscription, isOwnProfile, authUser]);
+
+  const handleMessageClick = () => {
+    if (!creator) return;
+    const isRestrictedRole = authUser?.role === 'creator' || authUser?.role === 'brand';
+    if (isRestrictedRole && mySubscription?.plan.price === 0) {
+      setMessagingLockedOpen(true);
+      return;
+    }
+    navigate(`/messages?with=${creator.user._id}`);
+  };
 
   const handleFollow = async () => {
     if (!isAuthenticated || !creator) return;
@@ -254,7 +282,7 @@ export default function CreatorProfilePage() {
                 <Button className="w-full sm:w-auto" onClick={handleFollow}>
                   {following ? 'Following' : 'Follow'}
                 </Button>
-                <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate(`/messages?with=${creator.user._id}`)}>
+                <Button variant="outline" className="w-full sm:w-auto" onClick={handleMessageClick}>
                   <MessageCircle size={15} /> Message
                 </Button>
                 <button
@@ -516,6 +544,11 @@ export default function CreatorProfilePage() {
 
       {creator && (
         <SendGiftModal creatorId={creator._id} creatorName={creator.user.name} open={giftOpen} onClose={() => setGiftOpen(false)} />
+      )}
+
+      <MessagingLockedModal open={messagingLockedOpen} onClose={() => setMessagingLockedOpen(false)} />
+      {creator && (
+        <ProProfileUpgradeModal open={proProfileModalOpen} onClose={() => setProProfileModalOpen(false)} name={creator.user.name} />
       )}
     </div>
   );

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, AlertCircle, Search, BadgeCheck, MapPin, Building2 } from 'lucide-react';
+import { Loader2, AlertCircle, Search, Sparkles, MapPin, Building2 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { brandApi, type ApiBrand } from '@/services/brandApi';
 import { getApiErrorMessage } from '@/services/apiClient';
+import { cn } from '@/utils/cn';
 
 export default function ExploreBrands() {
   const [brands, setBrands] = useState<ApiBrand[]>([]);
@@ -80,7 +81,15 @@ export default function ExploreBrands() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <p className="truncate font-bold text-white">{brand.companyName}</p>
-                      {brand.isTopBrand && <BadgeCheck size={15} className="shrink-0 text-sky-400" />}
+                      <span
+                        className={cn(
+                          'flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold',
+                          brand.isProPlan ? 'bg-orange-500/15 text-orange-300' : 'bg-white/10 text-white/50'
+                        )}
+                      >
+                        {brand.isProPlan && <Sparkles size={10} />}
+                        {brand.planName || 'Lite'}
+                      </span>
                     </div>
                     {brand.tagline && <p className="mt-0.5 truncate text-xs text-white/50">{brand.tagline}</p>}
                     {brand.location && (

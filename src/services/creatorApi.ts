@@ -25,6 +25,11 @@ export interface ApiCreator {
   portfolioImages: string[];
   createdAt?: string;
   projectsCompletedCount?: number;
+  // Plan badge shown on listing cards in place of the old blue verified-
+  // tick — 'Lite' when no UserSubscription row exists yet (implicit free
+  // tier), populated by creator.controller.js's listCreators.
+  planName?: string;
+  isProPlan?: boolean;
 }
 
 export interface CreatorDashboardData {

@@ -29,6 +29,11 @@ export interface ApiBrand {
   averageRating: number;
   reviewCount: number;
   createdAt?: string;
+  // Plan badge shown on listing cards in place of the old blue verified-
+  // tick — 'Lite' when no UserSubscription row exists yet (implicit free
+  // tier), populated by brand.controller.js's listBrands.
+  planName?: string;
+  isProPlan?: boolean;
 }
 
 export interface BrandDashboardData {

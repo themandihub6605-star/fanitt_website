@@ -28,6 +28,8 @@ import { brandApi, type ApiBrand } from '@/services/brandApi';
 import type { ApiCampaign } from '@/services/campaignApi';
 import { reviewApi, type ApiReview } from '@/services/reviewApi';
 import { subscriptionApi, type ApiUserSubscription } from '@/services/subscriptionApi';
+import { MessagingLockedModal } from '@/components/MessagingLockedModal';
+import { ProProfileUpgradeModal } from '@/components/ProProfileUpgradeModal';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/utils/cn';
@@ -55,6 +57,8 @@ export default function BrandProfilePage() {
   const [following, setFollowing] = useState(false);
   const [tab, setTab] = useState<Tab>('Reviews');
   const [mySubscription, setMySubscription] = useState<ApiUserSubscription | null>(null);
+  const [messagingLockedOpen, setMessagingLockedOpen] = useState(false);
+  const [proProfileModalOpen, setProProfileModalOpen] = useState(false);
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
   const authUser = useAppSelector((s) => s.auth.user);
   const isOwnProfile = Boolean(isAuthenticated && authUser && brand && authUser._id === brand.user._id);
@@ -92,11 +96,12 @@ export default function BrandProfilePage() {
     };
   }, [brand?.user._id, tab]);
 
-  // Only fetch subscription info once we know this is the logged-in
-  // user's own brand profile — a visitor has no business seeing (or
-  // upgrading) someone else's plan.
+  // Fetch the viewer's own subscription whenever they're a logged-in
+  // creator/brand — used to show the plan badge on their own profile, AND
+  // to gate the "Message" button when viewing someone else's profile
+  // (messaging is Pro-only, see handleMessageClick below).
   useEffect(() => {
-    if (!isOwnProfile) {
+    if (!authUser || (authUser.role !== 'creator' && authUser.role !== 'brand')) {
       setMySubscription(null);
       return;
     }
@@ -104,7 +109,28 @@ export default function BrandProfilePage() {
       .getMySubscription()
       .then(setMySubscription)
       .catch(() => setMySubscription(null));
-  }, [isOwnProfile]);
+  }, [authUser]);
+
+  // Point: a Lite creator/brand viewing a Pro brand's profile gets an
+  // upgrade nudge the moment the profile opens — dismissible, doesn't
+  // block the profile content underneath.
+  useEffect(() => {
+    if (!brand || isOwnProfile) return;
+    const viewerIsLite = (authUser?.role === 'creator' || authUser?.role === 'brand') && mySubscription?.plan.price === 0;
+    if (viewerIsLite && brand.isProPlan) {
+      setProProfileModalOpen(true);
+    }
+  }, [brand, mySubscription, isOwnProfile, authUser]);
+
+  const handleMessageClick = () => {
+    if (!brand) return;
+    const isRestrictedRole = authUser?.role === 'creator' || authUser?.role === 'brand';
+    if (isRestrictedRole && mySubscription?.plan.price === 0) {
+      setMessagingLockedOpen(true);
+      return;
+    }
+    navigate(`/messages?with=${brand.user._id}`);
+  };
 
   const handleFollow = async () => {
     if (!isAuthenticated || !brand) return;
@@ -190,7 +216,7 @@ export default function BrandProfilePage() {
 
           <div className="mt-4 flex items-center justify-center gap-3">
             <Button onClick={handleFollow}>{following ? 'Following' : 'Follow'}</Button>
-            <Button variant="outline" onClick={() => navigate(`/messages?with=${brand.user._id}`)}>
+            <Button variant="outline" onClick={handleMessageClick}>
               <MessageCircle size={15} /> Message
             </Button>
           </div>
@@ -401,6 +427,11 @@ export default function BrandProfilePage() {
           )}
         </div>
       </Container>
+
+      <MessagingLockedModal open={messagingLockedOpen} onClose={() => setMessagingLockedOpen(false)} />
+      {brand && (
+        <ProProfileUpgradeModal open={proProfileModalOpen} onClose={() => setProProfileModalOpen(false)} name={brand.companyName} />
+      )}
     </div>
   );
 }
