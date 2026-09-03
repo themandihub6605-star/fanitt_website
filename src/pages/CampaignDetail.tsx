@@ -329,7 +329,7 @@ function ApplyModal({
 
 const MILESTONE_STATUS_LABEL: Record<string, string> = {
   pending: 'Awaiting funding',
-  funded: 'Funded — in progress',
+  funded: 'Held in Escrow',
   submitted: 'Submitted — awaiting review',
   changes_requested: 'Changes requested',
   disputed: 'Disputed — under review',
@@ -578,9 +578,15 @@ function MilestoneCard({
 
       {/* PENDING */}
       {isBrandOwner && milestone.status === 'pending' && (
-        <Button className="mt-3 w-full justify-center" disabled={funding} onClick={handleFund}>
-          {funding ? <Loader2 size={16} className="animate-spin" /> : `Fund ${formatRupees(milestone.amount)}`}
-        </Button>
+        <div className="mt-3">
+          <Button className="w-full justify-center" disabled={funding} onClick={handleFund}>
+            {funding ? <Loader2 size={16} className="animate-spin" /> : `Fund ${formatRupees(milestone.amount)}`}
+          </Button>
+          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-white/40">
+            <ShieldCheck size={12} className="shrink-0 text-teal-400" />
+            This amount is held securely in Fanitt escrow — released to the creator only once you approve their work.
+          </p>
+        </div>
       )}
       {isAssignedCreator && milestone.status === 'pending' && (
         <p className="mt-3 text-xs text-white/50">Waiting for the brand to fund this milestone.</p>
@@ -984,7 +990,6 @@ export default function CampaignDetail() {
             )}
           </div>
 
-          {/* Duration — kept as its own small stat row so nothing from the original page is lost */}
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-navy-800/45 px-4 py-3.5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-500/15 text-teal-400">
@@ -1030,6 +1035,45 @@ export default function CampaignDetail() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Milestone Overview — static preview computed from the
+              campaign's milestoneCount/milestoneTitles/budget, visible to
+              every viewer (even before a creator is assigned) so creators
+              know the payment structure before applying. This is separate
+              from the interactive "Payment Milestones" cards further down,
+              which only exist once real Milestone documents are created
+              (i.e. after a creator is accepted). */}
+          {campaign.campaignType === 'paid' && campaign.milestoneCount && campaign.milestoneCount > 0 && (
+            <div className="rounded-xl border border-white/10 bg-navy-800/60 p-5">
+              <p className="mb-3 text-sm font-bold text-white">Milestone Overview</p>
+              <div className="divide-y divide-white/5">
+                {Array.from({ length: campaign.milestoneCount }).map((_, i) => {
+                  const count = campaign.milestoneCount!;
+                  const perMilestone = Math.floor(campaign.budget / count);
+                  const remainder = campaign.budget - perMilestone * count;
+                  const amount = perMilestone + (i === count - 1 ? remainder : 0);
+                  const percent = Math.round((amount / campaign.budget) * 100);
+                  const title = campaign.milestoneTitles?.[i]?.trim() || (count === 1 ? 'Full payment' : `Milestone ${i + 1}`);
+                  return (
+                    <div key={i} className="flex items-center justify-between py-2.5 text-sm">
+                      <div>
+                        <p className="font-semibold text-white">{title}</p>
+                        <p className="text-xs text-white/40">{percent}%</p>
+                      </div>
+                      <p className="font-bold text-orange-300">{formatRupees(amount)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-2 flex items-center justify-between border-t border-white/10 pt-2.5 text-sm">
+                <p className="font-bold text-white">Total</p>
+                <p className="font-bold text-white">100% — {formatRupees(campaign.budget)}</p>
+              </div>
+              <p className="mt-3 text-xs text-white/40">
+                The next milestone unlocks as soon as the current one is approved and released.
+              </p>
             </div>
           )}
 
@@ -1114,13 +1158,14 @@ export default function CampaignDetail() {
               </div>
             )}
 
-            {/* Escrow note — updated for Point 12's milestone-based flow */}
+            {/* Escrow note — general info visible to everyone, matches the
+                per-milestone note shown to the brand near the Fund button */}
             {campaign.campaignType === 'paid' && (
               <div className="flex items-start gap-3 rounded-xl border border-teal-500/20 bg-teal-500/10 p-4">
                 <ShieldCheck size={16} className="mt-0.5 shrink-0 text-teal-400" />
                 <p className="text-sm text-teal-200">
-                  This budget is held in Fanitt escrow in stages — an advance once a creator is accepted, and the remainder on
-                  final delivery — released as each milestone is approved.
+                  This budget is held securely in Fanitt escrow, one milestone at a time — released to the creator only as
+                  each milestone is approved.
                 </p>
               </div>
             )}

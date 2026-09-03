@@ -217,6 +217,14 @@ export default function PostCampaign() {
   const [costPerInfluencer, setCostPerInfluencer] = useState('');
   const [dailyApplicantLimit, setDailyApplicantLimit] = useState('');
   const [milestoneCount, setMilestoneCount] = useState(2);
+  const [milestoneTitles, setMilestoneTitles] = useState<string[]>(['', '']);
+
+  // Resize the titles array to match the chosen count — keeps whatever
+  // the brand already typed for slots that still exist, drops the rest.
+  const handleMilestoneCountChange = (n: number) => {
+    setMilestoneCount(n);
+    setMilestoneTitles((prev) => Array.from({ length: n }, (_, i) => prev[i] || ''));
+  };
   const [products, setProducts] = useState<LocalProduct[]>([]);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [productDraft, setProductDraft] = useState<LocalProduct>({
@@ -361,7 +369,7 @@ export default function PostCampaign() {
         deliverables: { reel: reelCount, story: storyCount, post: postCount },
         // Only meaningful for paid campaigns — barter has no cash budget
         // to split into milestones.
-        ...(campaignType === 'paid' ? { milestoneCount } : {}),
+        ...(campaignType === 'paid' ? { milestoneCount, milestoneTitles } : {}),
         // Silently ignored server-side if the brand's plan doesn't allow
         // it (canSetApplicantLimit) — only sent when the field is shown.
         ...(canSetApplicantLimit && dailyApplicantLimit.trim()
@@ -626,7 +634,7 @@ export default function PostCampaign() {
                             <button
                               key={n}
                               type="button"
-                              onClick={() => setMilestoneCount(n)}
+                              onClick={() => handleMilestoneCountChange(n)}
                               className={cn(
                                 'flex-1 rounded-xl border py-2.5 text-sm font-bold transition-colors',
                                 milestoneCount === n ? 'border-orange-400/60 bg-orange-500/15 text-orange-300' : 'border-white/10 text-white/60 hover:border-white/20'
@@ -639,6 +647,32 @@ export default function PostCampaign() {
                         <p className="mt-1.5 text-xs text-white/40">
                           Budget splits into {milestoneCount} equal payment{milestoneCount === 1 ? '' : 's'} — released one at a time as work is delivered and approved.
                         </p>
+
+                        {/* Optional per-milestone naming — e.g. "Concept & Script",
+                            "First 2 Reels" — so creators see what each payment is
+                            actually for instead of just "Milestone 1". Blank
+                            stays as the generic "Milestone N" label. */}
+                        <div className="mt-3 space-y-2">
+                          {Array.from({ length: milestoneCount }).map((_, i) => {
+                            const perMilestone = Math.floor(totalBudgetPreview / milestoneCount);
+                            const remainder = totalBudgetPreview - perMilestone * milestoneCount;
+                            const amount = perMilestone + (i === milestoneCount - 1 ? remainder : 0);
+                            return (
+                              <div key={i} className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={milestoneTitles[i] || ''}
+                                  onChange={(e) =>
+                                    setMilestoneTitles((prev) => prev.map((t, idx) => (idx === i ? e.target.value : t)))
+                                  }
+                                  placeholder={`Milestone ${i + 1} name (optional) — e.g. Concept & Script`}
+                                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-orange-400"
+                                />
+                                <span className="shrink-0 text-xs font-semibold text-white/50">{formatRupees(amount)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
 
@@ -919,6 +953,38 @@ export default function PostCampaign() {
                         <div><p className="font-bold text-white">{previewCampaign.genderTarget.map((g) => g[0].toUpperCase()).join('/') || 'Any'}</p><p className="text-[10px] text-white/40">Gender</p></div>
                       </div>
                     </div>
+
+                    {previewCampaign.campaignType === 'paid' && previewCampaign.milestoneCount != null && previewCampaign.milestoneCount > 0 && (
+                      <div className="rounded-2xl border border-white/10 bg-navy-800/50 p-4">
+                        <p className="text-sm font-bold text-white">Milestone Overview</p>
+                        <div className="mt-2 divide-y divide-white/5">
+                          {Array.from({ length: previewCampaign.milestoneCount }).map((_, i) => {
+                            const count = previewCampaign.milestoneCount!;
+                            const perMilestone = Math.floor(previewCampaign.budget / count);
+                            const remainder = previewCampaign.budget - perMilestone * count;
+                            const amount = perMilestone + (i === count - 1 ? remainder : 0);
+                            const percent = Math.round((amount / previewCampaign.budget) * 100);
+                            const title = previewCampaign.milestoneTitles?.[i]?.trim() || (count === 1 ? 'Full payment' : `Milestone ${i + 1}`);
+                            return (
+                              <div key={i} className="flex items-center justify-between py-2 text-sm">
+                                <div>
+                                  <p className="font-semibold text-white">{title}</p>
+                                  <p className="text-xs text-white/40">{percent}%</p>
+                                </div>
+                                <p className="font-bold text-orange-300">{formatRupees(amount)}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-1 flex items-center justify-between border-t border-white/10 pt-2 text-sm">
+                          <p className="font-bold text-white">Total</p>
+                          <p className="font-bold text-white">100% — {formatRupees(previewCampaign.budget)}</p>
+                        </div>
+                        <p className="mt-2 text-xs text-white/40">
+                          The next milestone unlocks as soon as the current one is approved and released.
+                        </p>
+                      </div>
+                    )}
 
                     {campaignLimit != null && !quotaExceeded && (
                       <p className="text-center text-xs font-semibold text-white/50">

@@ -238,6 +238,13 @@ export default function Pricing() {
             <div className={cn('mt-12 grid grid-cols-1 gap-6', visiblePlans.length === 2 ? 'sm:grid-cols-2 sm:max-w-2xl sm:mx-auto' : 'sm:grid-cols-2 lg:grid-cols-3')}>
               {visiblePlans.map((plan, i) => {
                 const isCurrent = plan._id === currentPlanId;
+                // A plan cheaper than what they already have isn't an
+                // "upgrade" — it's a downgrade, which this flow doesn't
+                // support. Free (price 0) plans are already handled by
+                // their own branch below, so this only matters for e.g.
+                // Pro showing up while the user is already on Elite.
+                const currentPlanPrice = mySubscription?.plan.price;
+                const isLowerTier = !isCurrent && plan.price > 0 && currentPlanPrice != null && plan.price < currentPlanPrice;
                 const isHighlighted = plan.price > 0 && !plan.isDefault && (visiblePlans.length < 3 || i === Math.floor(visiblePlans.length / 2));
 
                 return (
@@ -278,12 +285,12 @@ export default function Pricing() {
 
                     <button
                       onClick={() => handleUpgrade(plan)}
-                      disabled={isCurrent || upgradingId === plan._id || plan.price === 0}
+                      disabled={isCurrent || isLowerTier || upgradingId === plan._id || plan.price === 0}
                       className={cn(
                         'mt-6 flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold transition-colors disabled:cursor-default',
                         isCurrent
                           ? 'bg-emerald-500/15 text-emerald-300'
-                          : plan.price === 0
+                          : isLowerTier || plan.price === 0
                           ? 'bg-white/10 text-white/50'
                           : 'bg-orange-500 text-white hover:bg-orange-600'
                       )}
@@ -292,6 +299,8 @@ export default function Pricing() {
                         <Loader2 size={16} className="animate-spin" />
                       ) : isCurrent ? (
                         'Current Plan'
+                      ) : isLowerTier ? (
+                        'Included in Your Plan'
                       ) : plan.price === 0 ? (
                         'Free Plan'
                       ) : (

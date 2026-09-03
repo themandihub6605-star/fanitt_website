@@ -59,6 +59,9 @@ export interface ApiCampaign {
   // Upwork-style flow: how many equal milestones the budget splits into
   // (1-4) once a creator is accepted. Brand's choice at creation time.
   milestoneCount?: number;
+  // Brand-provided per-milestone names (index i = milestone order i+1);
+  // empty entries fall back to "Milestone N" server-side.
+  milestoneTitles?: string[];
   isEscrowFunded: boolean;
   isEscrowReleased: boolean;
   submittedWorkUrl?: string;
@@ -133,6 +136,7 @@ export interface UpdateDraftPayload {
   applicantLimit?: number;
   dailyApplicantLimit?: number;
   milestoneCount?: number;
+  milestoneTitles?: string[];
 }
 
 export interface ApplyPayload {
