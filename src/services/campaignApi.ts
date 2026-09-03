@@ -56,6 +56,9 @@ export interface ApiCampaign {
   applicantCount: number;
   applicantLimit?: number | null;
   dailyApplicantLimit?: number | null;
+  // Upwork-style flow: how many equal milestones the budget splits into
+  // (1-4) once a creator is accepted. Brand's choice at creation time.
+  milestoneCount?: number;
   isEscrowFunded: boolean;
   isEscrowReleased: boolean;
   submittedWorkUrl?: string;
@@ -129,6 +132,7 @@ export interface UpdateDraftPayload {
   deliverables?: { reel?: number; story?: number; post?: number };
   applicantLimit?: number;
   dailyApplicantLimit?: number;
+  milestoneCount?: number;
 }
 
 export interface ApplyPayload {

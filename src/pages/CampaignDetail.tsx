@@ -24,11 +24,14 @@ import {
   Plus,
   Sparkles,
   Wallet,
+  Lock,
+  Paperclip,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { campaignApi, type ApiCampaign } from '@/services/campaignApi';
 import { milestoneApi, type ApiMilestone } from '@/services/milestoneApi';
+import { ReviewModal } from '@/components/ReviewModal';
 import { subscriptionApi, type ApiUserSubscription } from '@/services/subscriptionApi';
 import { getApiErrorMessage, getApiErrorCode } from '@/services/apiClient';
 import { openRazorpayCheckout } from '@/utils/razorpay';
@@ -328,6 +331,8 @@ const MILESTONE_STATUS_LABEL: Record<string, string> = {
   pending: 'Awaiting funding',
   funded: 'Funded — in progress',
   submitted: 'Submitted — awaiting review',
+  changes_requested: 'Changes requested',
+  disputed: 'Disputed — under review',
   released: 'Released',
 };
 
@@ -335,32 +340,118 @@ const MILESTONE_STATUS_STYLES: Record<string, string> = {
   pending: 'bg-white/10 text-white/60',
   funded: 'bg-sky-500/15 text-sky-300',
   submitted: 'bg-yellow-400/15 text-yellow-300',
+  changes_requested: 'bg-orange-400/15 text-orange-300',
+  disputed: 'bg-red-500/15 text-red-300',
   released: 'bg-emerald-500/15 text-emerald-300',
 };
 
-// One milestone's card — renders whichever action (fund / submit / approve /
-// waiting) applies given the viewer's role and the milestone's current
-// status. Point 12: replaces the old single whole-budget escrow flow with
-// per-milestone funding, so the brand only ever commits one chunk (the
-// advance) up front instead of the entire campaign budget.
+// Creator's work-submission form — used both for the first submission
+// (FUNDED -> SUBMITTED) and resubmission after a change request
+// (CHANGES_REQUESTED -> SUBMITTED), same shape either way.
+function SubmissionForm({
+  submitLabel,
+  onSubmit,
+  submitting,
+}: {
+  submitLabel: string;
+  onSubmit: (payload: { description: string; links: string[]; files: File[] }) => void;
+  submitting: boolean;
+}) {
+  const [description, setDescription] = useState('');
+  const [links, setLinks] = useState<string[]>(['']);
+  const [files, setFiles] = useState<File[]>([]);
+
+  const updateLink = (i: number, value: string) => setLinks((prev) => prev.map((l, idx) => (idx === i ? value : l)));
+  const addLink = () => setLinks((prev) => [...prev, '']);
+  const removeLink = (i: number) => setLinks((prev) => prev.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="mt-3 space-y-2.5">
+      <textarea
+        rows={3}
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="Describe what you're submitting..."
+        className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-orange-400"
+      />
+      <div className="space-y-1.5">
+        {links.map((link, i) => (
+          <div key={i} className="flex gap-1.5">
+            <input
+              type="text"
+              value={link}
+              onChange={(e) => updateLink(i, e.target.value)}
+              placeholder="Link (Drive, Figma, etc.)"
+              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-orange-400"
+            />
+            {links.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeLink(i)}
+                className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-white/40 hover:border-red-400/50 hover:text-red-400"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+        ))}
+        <button type="button" onClick={addLink} className="flex items-center gap-1 text-[11px] font-semibold text-orange-400 hover:underline">
+          <Plus size={11} /> Add another link
+        </button>
+      </div>
+      <label className="block">
+        <span className="mb-1 block text-[11px] font-semibold text-white/50">Attachments (optional)</span>
+        <input
+          type="file"
+          multiple
+          onChange={(e) => setFiles(Array.from(e.target.files || []))}
+          className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-3 py-1.5 text-[11px] text-white/70 file:mr-2 file:rounded-lg file:border-0 file:bg-orange-500/20 file:px-2.5 file:py-1 file:text-[10px] file:font-bold file:text-orange-300"
+        />
+      </label>
+      <Button
+        className="w-full justify-center"
+        disabled={submitting || !description.trim()}
+        onClick={() => onSubmit({ description: description.trim(), links, files })}
+      >
+        {submitting ? <Loader2 size={16} className="animate-spin" /> : submitLabel}
+      </Button>
+    </div>
+  );
+}
+
+// One milestone's card — renders whichever UI applies given the viewer's
+// role, the milestone's current status, and whether it's locked (an
+// earlier milestone hasn't been released yet — see the sequential-unlock
+// logic in CampaignDetail below, which computes `locked` per card).
 function MilestoneCard({
   milestone,
+  locked,
   isBrandOwner,
   isAssignedCreator,
   brandName,
   onChanged,
 }: {
   milestone: ApiMilestone;
+  locked: boolean;
   isBrandOwner: boolean;
   isAssignedCreator: boolean;
   brandName: string;
   onChanged: () => void;
 }) {
   const [funding, setFunding] = useState(false);
-  const [approving, setApproving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [workUrl, setWorkUrl] = useState('');
+  const [approving, setApproving] = useState(false);
+  const [requestingChanges, setRequestingChanges] = useState(false);
+  const [disputing, setDisputing] = useState(false);
   const [error, setError] = useState('');
+
+  // Brand's review panel: which of the 3 decisions they're mid-filling-out, if any.
+  const [activeDecision, setActiveDecision] = useState<'none' | 'changes' | 'dispute'>('none');
+  const [changeDescription, setChangeDescription] = useState('');
+  const [changeLinks, setChangeLinks] = useState<string[]>(['']);
+  const [changeFiles, setChangeFiles] = useState<File[]>([]);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeFiles, setDisputeFiles] = useState<File[]>([]);
 
   const handleFund = async () => {
     setFunding(true);
@@ -387,12 +478,11 @@ function MilestoneCard({
     }
   };
 
-  const handleSubmitWork = async () => {
-    if (!workUrl.trim()) return;
+  const handleSubmitWork = async (payload: { description: string; links: string[]; files: File[] }) => {
     setSubmitting(true);
     setError('');
     try {
-      await milestoneApi.submitWork(milestone._id, workUrl.trim());
+      await milestoneApi.submitWork(milestone._id, payload);
       onChanged();
     } catch (err) {
       setError(getApiErrorMessage(err));
@@ -413,6 +503,57 @@ function MilestoneCard({
       setApproving(false);
     }
   };
+
+  const handleSendChangeRequest = async () => {
+    if (!changeDescription.trim()) return;
+    setRequestingChanges(true);
+    setError('');
+    try {
+      await milestoneApi.requestChanges(milestone._id, {
+        changeDescription: changeDescription.trim(),
+        referenceLinks: changeLinks,
+        files: changeFiles,
+      });
+      setActiveDecision('none');
+      onChanged();
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setRequestingChanges(false);
+    }
+  };
+
+  const handleRaiseDispute = async () => {
+    if (!disputeReason.trim()) return;
+    setDisputing(true);
+    setError('');
+    try {
+      await milestoneApi.raiseDispute(milestone._id, { reason: disputeReason.trim(), files: disputeFiles });
+      setActiveDecision('none');
+      onChanged();
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setDisputing(false);
+    }
+  };
+
+  if (locked) {
+    return (
+      <div className="flex items-center justify-between rounded-xl border border-white/5 bg-navy-800/30 p-4 opacity-60">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/30">
+            <Lock size={13} />
+          </span>
+          <div>
+            <p className="text-sm font-bold text-white/50">{milestone.title}</p>
+            <p className="text-xs text-white/30">{formatRupees(milestone.amount)}</p>
+          </div>
+        </div>
+        <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-bold text-white/40">Locked</span>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-white/10 bg-navy-800/50 p-4">
@@ -435,67 +576,174 @@ function MilestoneCard({
         </div>
       )}
 
-      {/* Brand actions */}
+      {/* PENDING */}
       {isBrandOwner && milestone.status === 'pending' && (
         <Button className="mt-3 w-full justify-center" disabled={funding} onClick={handleFund}>
           {funding ? <Loader2 size={16} className="animate-spin" /> : `Fund ${formatRupees(milestone.amount)}`}
         </Button>
       )}
-      {isBrandOwner && milestone.status === 'funded' && (
-        <p className="mt-3 text-xs text-white/50">Waiting for the creator to submit work for this milestone.</p>
-      )}
-      {isBrandOwner && milestone.status === 'submitted' && (
-        <div className="mt-3">
-          {milestone.submittedWorkUrl && (
-            <a
-              href={milestone.submittedWorkUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-300 hover:underline"
-            >
-              View submission <ExternalLink size={12} />
-            </a>
-          )}
-          {milestone.autoReleaseAt && (
-            <p className="mt-1.5 text-[11px] text-white/40">
-              Auto-releases on {formatDate(milestone.autoReleaseAt)} if not reviewed.
-            </p>
-          )}
-          <Button className="mt-2 w-full justify-center" disabled={approving} onClick={handleApprove}>
-            {approving ? <Loader2 size={16} className="animate-spin" /> : 'Approve & release'}
-          </Button>
-        </div>
-      )}
-      {isBrandOwner && milestone.status === 'released' && (
-        <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-emerald-300">
-          <Check size={13} /> Released on {milestone.releasedAt ? formatDate(milestone.releasedAt) : ''}
-        </p>
-      )}
-
-      {/* Creator actions */}
       {isAssignedCreator && milestone.status === 'pending' && (
         <p className="mt-3 text-xs text-white/50">Waiting for the brand to fund this milestone.</p>
       )}
+
+      {/* FUNDED — creator submits */}
+      {isBrandOwner && milestone.status === 'funded' && (
+        <p className="mt-3 text-xs text-white/50">Waiting for the creator to submit work for this milestone.</p>
+      )}
       {isAssignedCreator && milestone.status === 'funded' && (
-        <div className="mt-3 space-y-2">
-          <input
-            type="text"
-            value={workUrl}
-            onChange={(e) => setWorkUrl(e.target.value)}
-            placeholder="Link to your deliverable (Drive, Dropbox, etc.)"
-            className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-orange-400"
-          />
-          <Button className="w-full justify-center" disabled={submitting || !workUrl.trim()} onClick={handleSubmitWork}>
-            {submitting ? <Loader2 size={16} className="animate-spin" /> : 'Submit work'}
-          </Button>
+        <SubmissionForm submitLabel="Submit work" submitting={submitting} onSubmit={handleSubmitWork} />
+      )}
+
+      {/* CHANGES_REQUESTED — creator sees the request + resubmits */}
+      {isAssignedCreator && milestone.status === 'changes_requested' && (
+        <div className="mt-3">
+          <div className="rounded-xl border border-orange-400/20 bg-orange-500/5 p-3">
+            <p className="text-xs font-bold text-orange-300">Changes requested</p>
+            <p className="mt-1 text-xs text-white/70">{milestone.changeDescription}</p>
+            {(milestone.changeReferenceLinks || []).filter(Boolean).map((link, i) => (
+              <a key={i} href={link} target="_blank" rel="noreferrer" className="mt-1 block truncate text-xs text-orange-300 hover:underline">
+                {link}
+              </a>
+            ))}
+            {(milestone.changeAttachments || []).map((a, i) => (
+              <a key={i} href={a.url} target="_blank" rel="noreferrer" className="mt-1 flex items-center gap-1 text-xs text-orange-300 hover:underline">
+                <Paperclip size={11} /> {a.name}
+              </a>
+            ))}
+          </div>
+          <SubmissionForm submitLabel="Resubmit work" submitting={submitting} onSubmit={handleSubmitWork} />
+        </div>
+      )}
+      {isBrandOwner && milestone.status === 'changes_requested' && (
+        <p className="mt-3 text-xs text-orange-300">You requested changes — waiting for the creator to resubmit.</p>
+      )}
+
+      {/* SUBMITTED — brand reviews with 3 options; creator sees their own submission */}
+      {isBrandOwner && milestone.status === 'submitted' && (
+        <div className="mt-3">
+          <div className="rounded-xl border border-white/10 bg-navy-900/40 p-3">
+            <p className="text-xs font-bold text-white/80">Creator's submission</p>
+            {milestone.submissionDescription && <p className="mt-1 text-xs text-white/70">{milestone.submissionDescription}</p>}
+            {(milestone.submissionLinks || []).filter(Boolean).map((link, i) => (
+              <a key={i} href={link} target="_blank" rel="noreferrer" className="mt-1 block truncate text-xs text-orange-300 hover:underline">
+                {link}
+              </a>
+            ))}
+            {(milestone.submissionAttachments || []).map((a, i) => (
+              <a key={i} href={a.url} target="_blank" rel="noreferrer" className="mt-1 flex items-center gap-1 text-xs text-orange-300 hover:underline">
+                <Paperclip size={11} /> {a.name}
+              </a>
+            ))}
+          </div>
+
+          {milestone.autoReleaseAt && (
+            <p className="mt-2 text-[11px] text-white/40">Auto-releases on {formatDate(milestone.autoReleaseAt)} if not reviewed.</p>
+          )}
+
+          {activeDecision === 'none' && (
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <Button disabled={approving} onClick={handleApprove} className="justify-center">
+                {approving ? <Loader2 size={16} className="animate-spin" /> : 'Accept & Release'}
+              </Button>
+              <button
+                onClick={() => setActiveDecision('changes')}
+                className="rounded-full border border-orange-400/40 py-2.5 text-sm font-bold text-orange-300 hover:bg-orange-500/10"
+              >
+                Request Changes
+              </button>
+              <button
+                onClick={() => setActiveDecision('dispute')}
+                className="rounded-full border border-red-500/40 py-2.5 text-sm font-bold text-red-300 hover:bg-red-500/10"
+              >
+                Raise Dispute
+              </button>
+            </div>
+          )}
+
+          {activeDecision === 'changes' && (
+            <div className="mt-3 space-y-2.5 rounded-xl border border-orange-400/20 bg-orange-500/5 p-3">
+              <textarea
+                rows={2}
+                value={changeDescription}
+                onChange={(e) => setChangeDescription(e.target.value)}
+                placeholder="What needs to change?"
+                className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-orange-400"
+              />
+              <input
+                type="text"
+                value={changeLinks[0]}
+                onChange={(e) => setChangeLinks([e.target.value])}
+                placeholder="Reference link (optional)"
+                className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-orange-400"
+              />
+              <input
+                type="file"
+                multiple
+                onChange={(e) => setChangeFiles(Array.from(e.target.files || []))}
+                className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-3 py-1.5 text-[11px] text-white/70 file:mr-2 file:rounded-lg file:border-0 file:bg-orange-500/20 file:px-2.5 file:py-1 file:text-[10px] file:font-bold file:text-orange-300"
+              />
+              <div className="flex gap-2">
+                <button onClick={() => setActiveDecision('none')} className="flex-1 rounded-full border border-white/15 py-2 text-xs font-semibold text-white/70">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSendChangeRequest}
+                  disabled={requestingChanges || !changeDescription.trim()}
+                  className="flex-1 rounded-full bg-orange-500 py-2 text-xs font-bold text-white hover:bg-orange-600 disabled:opacity-50"
+                >
+                  {requestingChanges ? <Loader2 size={14} className="mx-auto animate-spin" /> : 'Send to Creator'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeDecision === 'dispute' && (
+            <div className="mt-3 space-y-2.5 rounded-xl border border-red-500/20 bg-red-500/5 p-3">
+              <textarea
+                rows={2}
+                value={disputeReason}
+                onChange={(e) => setDisputeReason(e.target.value)}
+                placeholder="Why doesn't this work match the brief?"
+                className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-red-400"
+              />
+              <input
+                type="file"
+                multiple
+                onChange={(e) => setDisputeFiles(Array.from(e.target.files || []))}
+                className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-3 py-1.5 text-[11px] text-white/70 file:mr-2 file:rounded-lg file:border-0 file:bg-red-500/20 file:px-2.5 file:py-1 file:text-[10px] file:font-bold file:text-red-300"
+              />
+              <div className="flex gap-2">
+                <button onClick={() => setActiveDecision('none')} className="flex-1 rounded-full border border-white/15 py-2 text-xs font-semibold text-white/70">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRaiseDispute}
+                  disabled={disputing || !disputeReason.trim()}
+                  className="flex-1 rounded-full bg-red-500 py-2 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-50"
+                >
+                  {disputing ? <Loader2 size={14} className="mx-auto animate-spin" /> : 'Raise Dispute'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
       {isAssignedCreator && milestone.status === 'submitted' && (
         <p className="mt-3 text-xs text-yellow-300">Waiting for the brand to review your submission.</p>
       )}
-      {isAssignedCreator && milestone.status === 'released' && (
+
+      {/* DISPUTED */}
+      {milestone.status === 'disputed' && (
+        <p className="mt-3 text-xs text-red-300">
+          {isBrandOwner ? "You've raised a dispute on this milestone." : 'A dispute has been raised on this milestone.'} The
+          Fanitt team is reviewing — you'll be notified once it's resolved.
+        </p>
+      )}
+
+      {/* RELEASED */}
+      {milestone.status === 'released' && (
         <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-emerald-300">
-          <Check size={13} /> Paid
+          <Check size={13} /> {isAssignedCreator ? 'Paid' : `Released${milestone.releasedAt ? ' on ' + formatDate(milestone.releasedAt) : ''}`}
         </p>
       )}
     </div>
@@ -518,6 +766,8 @@ export default function CampaignDetail() {
 
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewDone, setReviewDone] = useState(false);
 
   const load = () => {
     if (!id) return;
@@ -530,6 +780,18 @@ export default function CampaignDetail() {
   };
 
   useEffect(load, [id]);
+
+  useEffect(() => {
+    if (!id || !user) return;
+    const key = `fanitt_reviewed_${id}_${user._id}`;
+    if (localStorage.getItem(key) === 'true') setReviewDone(true);
+  }, [id, user]);
+
+  const markReviewed = () => {
+    if (id && user) localStorage.setItem(`fanitt_reviewed_${id}_${user._id}`, 'true');
+    setReviewDone(true);
+    setReviewModalOpen(false);
+  };
 
   const isBrandOwner = campaign && user?.role === 'brand' && campaign.brand.user._id === user._id;
   const isAssignedCreator = campaign?.assignedCreator?.user._id === user?._id;
@@ -916,24 +1178,44 @@ export default function CampaignDetail() {
                   <p className="text-sm text-white/50">Milestones will appear here once set up.</p>
                 ) : (
                   <div className="space-y-3">
-                    {milestones.map((m) => (
-                      <MilestoneCard
-                        key={m._id}
-                        milestone={m}
-                        isBrandOwner={Boolean(isBrandOwner)}
-                        isAssignedCreator={Boolean(isAssignedCreator)}
-                        brandName={campaign.brand.companyName}
-                        onChanged={handleMilestoneChanged}
-                      />
-                    ))}
+                    {/* Sequential unlock: the first non-released milestone
+                        (by order) is the only interactive one — everything
+                        after it renders as "Locked" until it clears. */}
+                    {(() => {
+                      const firstUnreleasedIndex = milestones.findIndex((m) => m.status !== 'released');
+                      return milestones.map((m, i) => (
+                        <MilestoneCard
+                          key={m._id}
+                          milestone={m}
+                          locked={firstUnreleasedIndex !== -1 && i > firstUnreleasedIndex}
+                          isBrandOwner={Boolean(isBrandOwner)}
+                          isAssignedCreator={Boolean(isAssignedCreator)}
+                          brandName={campaign.brand.companyName}
+                          onChanged={handleMilestoneChanged}
+                        />
+                      ));
+                    })()}
                   </div>
                 )}
               </div>
             )}
 
             {campaign.status === 'completed' && (
-              <div className="flex items-center justify-center gap-2 rounded-xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
-                <Check size={16} /> Completed — payment released to the creator.
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2 rounded-xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
+                  <Check size={16} /> Completed — payment released to the creator.
+                </div>
+                {(isBrandOwner || isAssignedCreator) && !reviewDone && (
+                  <button
+                    onClick={() => setReviewModalOpen(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-full border border-orange-400/40 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/10"
+                  >
+                    Leave a review for {isBrandOwner ? campaign.assignedCreator?.user.name : campaign.brand.companyName}
+                  </button>
+                )}
+                {reviewDone && (
+                  <p className="text-center text-xs text-white/40">Thanks for your review.</p>
+                )}
               </div>
             )}
           </div>
@@ -989,6 +1271,21 @@ export default function CampaignDetail() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {campaign && (isBrandOwner || isAssignedCreator) && (
+        <ReviewModal
+          open={reviewModalOpen}
+          onClose={() => setReviewModalOpen(false)}
+          revieweeName={isBrandOwner ? campaign.assignedCreator?.user.name || 'the creator' : campaign.brand.companyName}
+          payload={{
+            toUser: isBrandOwner ? campaign.assignedCreator?.user._id || '' : campaign.brand.user._id,
+            relatedModel: 'Campaign',
+            relatedId: campaign._id,
+          }}
+          onSubmitted={markReviewed}
+          onAlreadyReviewed={markReviewed}
+        />
+      )}
     </div>
   );
 }

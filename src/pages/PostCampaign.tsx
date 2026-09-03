@@ -216,6 +216,7 @@ export default function PostCampaign() {
   const [minFollowersK, setMinFollowersK] = useState(1);
   const [costPerInfluencer, setCostPerInfluencer] = useState('');
   const [dailyApplicantLimit, setDailyApplicantLimit] = useState('');
+  const [milestoneCount, setMilestoneCount] = useState(2);
   const [products, setProducts] = useState<LocalProduct[]>([]);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [productDraft, setProductDraft] = useState<LocalProduct>({
@@ -358,6 +359,9 @@ export default function PostCampaign() {
         maxInfluencers,
         minFollowers: minFollowersK * 1000,
         deliverables: { reel: reelCount, story: storyCount, post: postCount },
+        // Only meaningful for paid campaigns — barter has no cash budget
+        // to split into milestones.
+        ...(campaignType === 'paid' ? { milestoneCount } : {}),
         // Silently ignored server-side if the brand's plan doesn't allow
         // it (canSetApplicantLimit) — only sent when the field is shown.
         ...(canSetApplicantLimit && dailyApplicantLimit.trim()
@@ -611,6 +615,30 @@ export default function PostCampaign() {
                       <div>
                         <TextField label="Cost Per Influencer (₹)" type="number" value={costPerInfluencer} onChange={setCostPerInfluencer} placeholder="e.g. 5000" required />
                         <p className="mt-1.5 text-xs text-white/40">Total Budget: {formatRupees(totalBudgetPreview)}</p>
+                      </div>
+                    )}
+
+                    {campaignType === 'paid' && (
+                      <div>
+                        <span className="mb-1.5 block text-sm font-semibold text-white/80">Payment Milestones</span>
+                        <div className="flex gap-2">
+                          {[1, 2, 3, 4].map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => setMilestoneCount(n)}
+                              className={cn(
+                                'flex-1 rounded-xl border py-2.5 text-sm font-bold transition-colors',
+                                milestoneCount === n ? 'border-orange-400/60 bg-orange-500/15 text-orange-300' : 'border-white/10 text-white/60 hover:border-white/20'
+                              )}
+                            >
+                              {n}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="mt-1.5 text-xs text-white/40">
+                          Budget splits into {milestoneCount} equal payment{milestoneCount === 1 ? '' : 's'} — released one at a time as work is delivered and approved.
+                        </p>
                       </div>
                     )}
 
