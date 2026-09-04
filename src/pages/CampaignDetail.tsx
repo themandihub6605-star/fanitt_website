@@ -1275,6 +1275,10 @@ export default function CampaignDetail() {
           onSubmitted={() => {
             setApplyModalOpen(false);
             setApplied(true);
+            // Brief pause so the "Proposal sent" confirmation is still
+            // visible for a moment before jumping to My Proposals —
+            // same pattern as PostCampaign's post-publish redirect.
+            setTimeout(() => navigate('/proposals'), 1200);
           }}
         />
       )}

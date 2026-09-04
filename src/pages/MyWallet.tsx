@@ -132,7 +132,7 @@ function WithdrawModal({
     setSubmitting(true);
     try {
       const result = await walletApi.requestWithdrawal({ amount: amountPaise, payoutMethod: method, payoutDetails });
-      onRequested(result.message || 'Withdrawal requested — funds will be sent within 72 hours.');
+      onRequested(result.message || 'Withdrawal requested — funds will be sent within 48 hours.');
       resetForm();
       onClose();
     } catch (err) {
@@ -317,7 +317,7 @@ function WithdrawModal({
 
               <p className="flex items-start gap-1.5 text-[11px] text-white/40">
                 <Info size={13} className="mt-0.5 shrink-0" />
-                Withdrawals are processed manually and typically take up to 72 hours after the platform fee shown above.
+                Withdrawals are processed manually and typically take up to 48 hours after the platform fee shown above.
               </p>
 
               <button
@@ -452,6 +452,13 @@ export default function MyWallet() {
                         <p className="font-semibold text-emerald-300">{formatRupees(w.netPayoutAmount)}</p>
                       </div>
                     </div>
+
+                    {(w.status === 'initiated' || w.status === 'processing' || w.status === 'pending') && (
+                      <p className="ml-12 mt-2 flex items-center gap-1.5 text-[11px] text-white/40">
+                        <Info size={12} className="shrink-0" />
+                        Processed manually — takes up to 48 hours.
+                      </p>
+                    )}
 
                     {w.status === 'rejected' && w.adminNote && (
                       <p className="ml-12 mt-2 text-xs text-red-300">Reason: {w.adminNote}</p>
