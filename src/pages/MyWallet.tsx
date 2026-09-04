@@ -453,7 +453,7 @@ export default function MyWallet() {
                       </div>
                     </div>
 
-                    {(w.status === 'initiated' || w.status === 'processing' || w.status === 'pending') && (
+                    {w.status !== 'completed' && w.status !== 'rejected' && (
                       <p className="ml-12 mt-2 flex items-center gap-1.5 text-[11px] text-white/40">
                         <Info size={12} className="shrink-0" />
                         Processed manually — takes up to 48 hours.
