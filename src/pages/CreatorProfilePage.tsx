@@ -9,7 +9,7 @@ import {
   CalendarCheck,
   Loader2,
   AlertCircle,
-  Gift,
+  Gift as GiftIcon,
   MessageCircle,
   Sparkles,
   ShieldCheck,
@@ -33,18 +33,22 @@ import { SocialLinks } from '@/components/SocialLinks';
 import { getCoverPhoto } from '@/utils/coverPhoto';
 import { creatorApi, type ApiCreator } from '@/services/creatorApi';
 import { postApi, type ApiPost } from '@/services/postApi';
+import { giftApi, type ApiGift } from '@/services/giftApi';
 import type { ApiSession } from '@/services/sessionApi';
 import type { ApiReview } from '@/services/reviewApi';
 import { subscriptionApi, type ApiUserSubscription } from '@/services/subscriptionApi';
-import { MessagingLockedModal } from '@/components/MessagingLockedModal';
 import { ProProfileUpgradeModal } from '@/components/ProProfileUpgradeModal';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/utils/cn';
 
-const TABS = ['Overview', 'Portfolio', 'Live Sessions', 'Community', 'Reviews'] as const;
+const TABS = ['Overview', 'Portfolio', 'Live Sessions', 'Community', 'Gifts', 'Reviews'] as const;
 type Tab = (typeof TABS)[number];
+
+function formatRupees(paise: number) {
+  return `₹${(paise / 100).toLocaleString('en-IN')}`;
+}
 
 export default function CreatorProfilePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -53,6 +57,7 @@ export default function CreatorProfilePage() {
   const [sessions, setSessions] = useState<ApiSession[]>([]);
   const [reviews, setReviews] = useState<ApiReview[]>([]);
   const [posts, setPosts] = useState<ApiPost[]>([]);
+  const [gifts, setGifts] = useState<ApiGift[]>([]);
   const [projectsCompleted, setProjectsCompleted] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -61,7 +66,6 @@ export default function CreatorProfilePage() {
   const [tab, setTab] = useState<Tab>('Overview');
   const [bioExpanded, setBioExpanded] = useState(false);
   const [mySubscription, setMySubscription] = useState<ApiUserSubscription | null>(null);
-  const [messagingLockedOpen, setMessagingLockedOpen] = useState(false);
   const [proProfileModalOpen, setProProfileModalOpen] = useState(false);
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
   const authUser = useAppSelector((s) => s.auth.user);
@@ -85,6 +89,10 @@ export default function CreatorProfilePage() {
         }
         const creatorPosts = await postApi.getByCreator(data.creator._id);
         if (!cancelled) setPosts(creatorPosts);
+        // Gifts feed is public (same as reviews) — loaded alongside
+        // posts so the Gifts tab has data ready the moment it's opened.
+        const creatorGifts = await giftApi.getByCreator(data.creator._id);
+        if (!cancelled) setGifts(creatorGifts);
       } catch (err) {
         if (!cancelled) setError(getApiErrorMessage(err));
       } finally {
@@ -126,13 +134,13 @@ export default function CreatorProfilePage() {
     }
   }, [creator, mySubscription, isOwnProfile, authUser]);
 
+  // Point-Fix: no more Pro-gate — creator<->brand messaging is now
+  // blocked entirely on this button (see the conditional render around
+  // it below), not gated by plan. If a brand somehow reaches this
+  // handler anyway, the backend's startConversation still rejects a
+  // creator<->brand pair with errorCode PROPOSAL_ONLY_MESSAGING.
   const handleMessageClick = () => {
     if (!creator) return;
-    const isRestrictedRole = authUser?.role === 'creator' || authUser?.role === 'brand';
-    if (isRestrictedRole && mySubscription?.plan.price === 0) {
-      setMessagingLockedOpen(true);
-      return;
-    }
     navigate(`/messages?with=${creator.user._id}`);
   };
 
@@ -180,7 +188,6 @@ export default function CreatorProfilePage() {
       <div className="relative h-56 w-full overflow-hidden sm:h-72">
         <img src={getCoverPhoto(categoryLabel, 1200, 400)} alt="" className="absolute inset-0 h-full w-full object-cover opacity-60" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/40 to-black/30" />
-
         <div className="absolute inset-x-4 top-4 flex items-start justify-between sm:inset-x-6">
           <Link to="/explore" className="flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-white/80 backdrop-blur-sm hover:text-white">
             <ArrowLeft size={14} /> Back
@@ -220,7 +227,6 @@ export default function CreatorProfilePage() {
               <span className="absolute bottom-1.5 right-1.5 h-4 w-4 rounded-full border-2 border-[#0A0A0A] bg-emerald-400" />
             )}
           </div>
-
           <div className="flex-1 pb-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold text-white sm:text-3xl">{creator.user.name}</h1>
@@ -255,7 +261,6 @@ export default function CreatorProfilePage() {
               )}
             </div>
           </div>
-
           <div className="flex w-full flex-col gap-2 pb-1 sm:w-auto">
             {isOwnProfile ? (
               <>
@@ -289,14 +294,20 @@ export default function CreatorProfilePage() {
                 <Button className="w-full sm:w-auto" onClick={handleFollow}>
                   {following ? 'Following' : 'Follow'}
                 </Button>
-                <Button variant="outline" className="w-full sm:w-auto" onClick={handleMessageClick}>
-                  <MessageCircle size={15} /> Message
-                </Button>
+                {/* Point-Fix: hidden entirely when a brand is viewing —
+                    creator<->brand messaging is proposal-scoped now (see
+                    chat.controller.js). Fans and everyone else still see
+                    this exactly as before. */}
+                {authUser?.role !== 'brand' && (
+                  <Button variant="outline" className="w-full sm:w-auto" onClick={handleMessageClick}>
+                    <MessageCircle size={15} /> Message
+                  </Button>
+                )}
                 <button
                   onClick={() => setGiftOpen(true)}
                   className="flex w-full items-center justify-center gap-1.5 rounded-full border border-fuchsia-500/40 px-6 py-3 text-sm font-semibold text-fuchsia-300 hover:bg-fuchsia-500/10 sm:w-auto"
                 >
-                  <Gift size={15} /> Send FanBox
+                  <GiftIcon size={15} /> Send FanBox
                 </button>
               </>
             )}
@@ -347,6 +358,11 @@ export default function CreatorProfilePage() {
               )}
             >
               {t}
+              {t === 'Gifts' && gifts.length > 0 && (
+                <span className="ml-1.5 rounded-full bg-fuchsia-500/15 px-1.5 py-0.5 text-[10px] font-bold text-fuchsia-300">
+                  {gifts.length}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -368,7 +384,6 @@ export default function CreatorProfilePage() {
                       </button>
                     </>
                   )}
-
                   {visibleSkills.length > 0 && (
                     <div className="mt-5 flex flex-wrap gap-2">
                       {visibleSkills.map((skill) => (
@@ -383,7 +398,6 @@ export default function CreatorProfilePage() {
                       )}
                     </div>
                   )}
-
                   {/* Trust tiles */}
                   <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {isTopRated && (
@@ -410,7 +424,6 @@ export default function CreatorProfilePage() {
                     </div>
                   </div>
                 </div>
-
                 <div className="h-fit rounded-2xl border border-white/10 bg-navy-800/50 p-5">
                   {memberSince && (
                     <div className="flex items-center justify-between border-b border-white/5 py-2.5 text-sm">
@@ -438,7 +451,6 @@ export default function CreatorProfilePage() {
                   )}
                 </div>
               </div>
-
               {creator.portfolioImages?.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between">
@@ -454,7 +466,6 @@ export default function CreatorProfilePage() {
                   </div>
                 </div>
               )}
-
               {sessions.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between">
@@ -518,6 +529,40 @@ export default function CreatorProfilePage() {
             </div>
           )}
 
+          {tab === 'Gifts' && (
+            <div>
+              {gifts.length > 0 ? (
+                <div className="space-y-3">
+                  {gifts.map((g) => (
+                    <div key={g._id} className="flex items-start gap-3 rounded-2xl border border-fuchsia-500/15 bg-navy-800/50 p-4">
+                      {g.fromUser.avatarUrl ? (
+                        <img src={g.fromUser.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+                      ) : (
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-fuchsia-500/15 text-xs font-bold text-fuchsia-300">
+                          {g.fromUser.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-white">{g.fromUser.name}</p>
+                          <span className="flex items-center gap-1 text-sm font-bold text-fuchsia-300">
+                            <GiftIcon size={13} /> {formatRupees(g.amount)}
+                          </span>
+                        </div>
+                        {g.message && <p className="mt-1 text-sm text-white/70">{g.message}</p>}
+                        <p className="mt-1 text-[11px] text-white/30">
+                          {new Date(g.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-white/50">No FanBox gifts received yet.</p>
+              )}
+            </div>
+          )}
+
           {tab === 'Reviews' && (
             <div className="space-y-4">
               {reviews.length > 0 ? (
@@ -550,10 +595,13 @@ export default function CreatorProfilePage() {
       </Container>
 
       {creator && (
-        <SendGiftModal creatorId={creator._id} creatorName={creator.user.name} open={giftOpen} onClose={() => setGiftOpen(false)} />
+        <SendGiftModal
+          creatorId={creator._id}
+          creatorName={creator.user.name}
+          open={giftOpen}
+          onClose={() => setGiftOpen(false)}
+        />
       )}
-
-      <MessagingLockedModal open={messagingLockedOpen} onClose={() => setMessagingLockedOpen(false)} />
       {creator && (
         <ProProfileUpgradeModal open={proProfileModalOpen} onClose={() => setProProfileModalOpen(false)} name={creator.user.name} />
       )}

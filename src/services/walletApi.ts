@@ -40,8 +40,44 @@ export interface Withdrawal {
   createdAt: string;
 }
 
+// Full transaction record — every type (session_payment, donation, gift,
+// campaign_escrow_deposit, campaign_payout, subscription_payment,
+// extra_proposal_fee, refund, agency_commission, referral_commission,
+// platform_commission) and every status (pending, in_escrow, released,
+// success, refunded, failed), not just the 5-item SUCCESS/RELEASED
+// preview WalletData.recentTransactions shows.
+export interface FullTransaction {
+  _id: string;
+  type: string;
+  status: string;
+  amount: number;
+  netAmount?: number;
+  platformCommission?: number;
+  agencyCommission?: number;
+  referralCommission?: number;
+  from?: { _id: string; name: string; email: string } | null;
+  to?: { _id: string; name: string; email: string } | null;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpayPayoutId?: string;
+  escrowReleasedAt?: string | null;
+  failureReason?: string;
+  notes?: string;
+  // 'credit' = money coming to this user, 'debit' = money going out —
+  // computed server-side (see wallet.controller.js's getMyTransactions)
+  // so the frontend never has to compare user IDs itself.
+  direction: 'credit' | 'debit';
+  relatedModel?: string | null;
+  createdAt: string;
+}
+
 export const walletApi = {
   getMy: () => apiClient.get<ApiEnvelope<WalletData>>('/wallet/me').then((r) => r.data.data),
+
+  getMyTransactions: (params?: { page?: number; limit?: number; type?: string; status?: string }) =>
+    apiClient
+      .get<ApiEnvelope<{ transactions: FullTransaction[]; total: number; page: number; pages: number }>>('/wallet/transactions', { params })
+      .then((r) => r.data.data),
 
   // Live "you'll receive ₹X after fee" preview, before committing to a
   // withdrawal request — uses the same fee calculation the backend will

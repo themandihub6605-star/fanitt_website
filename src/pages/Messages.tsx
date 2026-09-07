@@ -41,6 +41,11 @@ function Avatar({
 export default function Messages() {
   const [searchParams] = useSearchParams();
   const startWithUserId = searchParams.get('with');
+  // Set by CampaignApplications.tsx (brand replying to a proposal) and
+  // MyProposals.tsx (creator opening an existing proposal thread) — a
+  // conversation ID that already exists, so we just open it directly
+  // instead of trying to start a new one.
+  const openConversationId = searchParams.get('conversationId');
 
   const [conversations, setConversations] = useState<ApiConversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -72,13 +77,29 @@ export default function Messages() {
   }, []);
 
   useEffect(() => {
+    // A specific conversation was already created upstream (proposal
+    // reply flow) — just open it, no need to start anything.
+    if (openConversationId) {
+      setActiveId(openConversationId);
+      return;
+    }
     if (!startWithUserId) return;
-    chatApi.startConversation(startWithUserId).then((conv) => {
-      setActiveId(conv._id);
-      loadConversations();
-    });
+    // Generic start — rejected by the backend with
+    // 'PROPOSAL_ONLY_MESSAGING' if this would be a creator<->brand pair;
+    // for any other pair (fan<->creator etc.) this works as before.
+    chatApi
+      .startConversation(startWithUserId)
+      .then((conv) => {
+        setActiveId(conv._id);
+        loadConversations();
+      })
+      .catch(() => {
+        // Creator<->brand direct start rejected — nothing to open here.
+        // CampaignApplications.tsx / MyProposals.tsx are the only entry
+        // points for that pair now.
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startWithUserId]);
+  }, [startWithUserId, openConversationId]);
 
   useEffect(() => {
     const socket = getSocket();

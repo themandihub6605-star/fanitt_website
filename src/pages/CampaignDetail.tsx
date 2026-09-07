@@ -934,8 +934,8 @@ export default function CampaignDetail() {
                     : `${campaign.products.length} item${campaign.products.length === 1 ? '' : 's'}`}
                 </div>
 
-                <div className="mt-2.5 flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 w-fit">
-                  <Instagram size={13} /> Creators Applied · {campaign.applicantCount}
+                <div className="mt-2.5 flex w-fit items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1.5 text-[10px] font-semibold text-emerald-300">
+                  <Instagram size={11} /> Creators Applied · {campaign.applicantCount}
                 </div>
               </div>
             </div>
@@ -960,7 +960,7 @@ export default function CampaignDetail() {
           </div>
 
           {/* Category tag, if any */}
-          {campaign.category && (
+          {campaign.category?.label && (
             <div className="px-1">
               <span className="inline-block rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white/70">
                 {campaign.category.label}

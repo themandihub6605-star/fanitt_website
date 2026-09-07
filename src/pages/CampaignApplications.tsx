@@ -62,7 +62,7 @@ function RejectModal({
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="e.g. Follower count doesn't match our requirement, or timeline doesn't work for our launch date..."
-                className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-red-400"
+                className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
               />
             </label>
             <Button
@@ -139,19 +139,22 @@ export default function CampaignApplications() {
     }
   };
 
-  // Opens (or starts) a DM with the applicant and drops an auto context
-  // message so neither side has to explain which campaign this is about.
+  // Opens (or starts) the ONE conversation tied to this proposal — the
+  // brand is always the one who starts it (creator<->brand messaging is
+  // proposal-scoped now, see chat.controller.js). Drops an auto context
+  // message the first time so neither side has to explain which
+  // campaign this is about.
   const handleMessage = async (app: ApiApplication) => {
     if (!campaign) return;
     setMessagingId(app._id);
     try {
-      const conversation = await chatApi.startConversation(app.creator.user._id);
+      const conversation = await chatApi.startConversationForApplication(app._id);
       // Only seed the context line the first time this thread has no messages yet.
       const existing = await chatApi.getMessages(conversation._id);
       if (existing.length === 0) {
         await chatApi.sendMessage(conversation._id, `Hi! Regarding your proposal for "${campaign.title}".`);
       }
-      navigate(`/messages?with=${app.creator.user._id}`);
+      navigate(`/messages?conversationId=${conversation._id}`);
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
@@ -215,14 +218,20 @@ export default function CampaignApplications() {
                   className="rounded-2xl border border-white/10 bg-navy-800/60 p-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                    {/* NEW: name + avatar now link through to the creator's
+                        public profile, so the brand can check their work,
+                        followers, and reviews before deciding. */}
+                    <Link
+                      to={`/creator/${app.creator.slug}`}
+                      className="flex items-center gap-3 transition-opacity hover:opacity-80"
+                    >
                       <img
                         src={app.creator.user.avatarUrl || `https://i.pravatar.cc/80?u=${app.creator._id}`}
                         alt=""
                         className="h-11 w-11 rounded-full object-cover"
                       />
                       <div>
-                        <p className="font-bold text-white">{app.creator.user.name}</p>
+                        <p className="font-bold text-white hover:underline">{app.creator.user.name}</p>
                         {app.quotedAmount ? (
                           <p className="flex items-center gap-1 text-xs text-teal-300">
                             <Briefcase size={11} /> Quoted {formatRupees(app.quotedAmount)}
@@ -231,7 +240,7 @@ export default function CampaignApplications() {
                           <p className="text-xs text-white/50">Accepts posted budget</p>
                         )}
                       </div>
-                    </div>
+                    </Link>
 
                     <div className="flex flex-wrap items-center gap-2">
                       <button

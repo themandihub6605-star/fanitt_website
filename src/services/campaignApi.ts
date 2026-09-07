@@ -71,7 +71,12 @@ export interface ApiCampaign {
 export interface ApiApplication {
   _id: string;
   campaign: string;
-  creator: { _id: string; user: { _id: string; name: string; avatarUrl?: string } };
+  // slug added — backend's getApplications populates the whole
+  // CreatorProfile document (no field restriction), so slug was already
+  // coming through in the response; this type just hadn't declared it,
+  // which is why CampaignApplications.tsx couldn't link to the
+  // creator's profile before.
+  creator: { _id: string; slug: string; user: { _id: string; name: string; avatarUrl?: string } };
   pitch: string;
   quotedAmount?: number | null;
   portfolioLinks?: string[];

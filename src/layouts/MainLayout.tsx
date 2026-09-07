@@ -27,14 +27,27 @@ export function MainLayout({ children }: PropsWithChildren) {
   }
 
   return (
-    <div id="top" className="relative min-h-screen overflow-x-hidden pb-16 lg:pb-0">
-      <ScrollProgress />
-      {showNavbar && <Navbar />}
-      <main>{children}</main>
-      <div className="hidden lg:block">
-        <Footer />
+    <>
+      <div id="top" className="relative min-h-screen overflow-x-hidden pb-16 lg:pb-0">
+        <ScrollProgress />
+        {showNavbar && <Navbar />}
+        <main>{children}</main>
+        <div className="hidden lg:block">
+          <Footer />
+        </div>
       </div>
+      {/* MobileTabBar (position: fixed) lives OUTSIDE the overflow-x-hidden
+          wrapper above, not inside it. iOS Safari has a long-standing
+          WebKit bug where any `overflow: hidden` on an ANCESTOR of a
+          `position: fixed` element breaks that fixed positioning — the
+          element starts scrolling with the page content instead of
+          staying pinned to the viewport. Android Chrome doesn't have this
+          bug, which is why it only showed up on iPhone. Moving the tab
+          bar to be a sibling of the overflow-x-hidden div (rather than a
+          child) sidesteps the bug entirely while keeping overflow-x-hidden
+          for the rest of the page (still needed to stop stray horizontal
+          scroll from some of the wide decorative animations). */}
       <MobileTabBar />
-    </div>
+    </>
   );
 }

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, AlertCircle, Briefcase, Clock } from 'lucide-react';
+import { Loader2, AlertCircle, Briefcase, Clock, MessageCircle } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { StatusBadge } from '@/components/StatusBadge';
 import { campaignApi, type ApiProposal, type ProposalCounts } from '@/services/campaignApi';
+import { chatApi } from '@/services/chatApi';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { cn } from '@/utils/cn';
 
@@ -22,11 +23,14 @@ function formatRupees(paise: number) {
 }
 
 export default function MyProposals() {
+  const navigate = useNavigate();
   const [proposals, setProposals] = useState<ApiProposal[]>([]);
   const [counts, setCounts] = useState<ProposalCounts | null>(null);
   const [tab, setTab] = useState<TabKey>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [noReplyYetId, setNoReplyYetId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +48,30 @@ export default function MyProposals() {
       cancelled = true;
     };
   }, [tab]);
+
+  // Creator<->brand messaging is proposal-scoped and brand-initiated
+  // (see chat.controller.js) — the creator can never START a
+  // conversation, only open one that already exists once the brand has
+  // replied. This checks for that, rather than trying to create anything.
+  const handleOpenChat = async (e: React.MouseEvent, proposalId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCheckingId(proposalId);
+    setNoReplyYetId(null);
+    try {
+      const conversation = await chatApi.getConversationForApplication(proposalId);
+      if (conversation) {
+        navigate(`/messages?conversationId=${conversation._id}`);
+      } else {
+        setNoReplyYetId(proposalId);
+        setTimeout(() => setNoReplyYetId((cur) => (cur === proposalId ? null : cur)), 3500);
+      }
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setCheckingId(null);
+    }
+  };
 
   return (
     <div className="pt-28 pb-24">
@@ -128,6 +156,25 @@ export default function MyProposals() {
                   {p.status === 'rejected' && p.feedback && (
                     <p className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-300">{p.feedback}</p>
                   )}
+
+                  {/* Creator can only OPEN a conversation the brand has
+                      already started by replying to this proposal — never
+                      start one themselves. */}
+                  <div className="mt-3 border-t border-white/10 pt-3">
+                    <button
+                      onClick={(e) => handleOpenChat(e, p._id)}
+                      disabled={checkingId === p._id}
+                      className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-white/80 hover:border-orange-400/50 hover:text-orange-300 disabled:opacity-50"
+                    >
+                      {checkingId === p._id ? <Loader2 size={13} className="animate-spin" /> : <MessageCircle size={13} />}
+                      Message
+                    </button>
+                    {noReplyYetId === p._id && (
+                      <p className="mt-2 text-xs text-white/40">
+                        The brand hasn't replied to this proposal yet — you'll be able to chat once they do.
+                      </p>
+                    )}
+                  </div>
                 </div>
               );
 

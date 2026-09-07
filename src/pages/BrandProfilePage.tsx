@@ -28,7 +28,6 @@ import { brandApi, type ApiBrand } from '@/services/brandApi';
 import type { ApiCampaign } from '@/services/campaignApi';
 import { reviewApi, type ApiReview } from '@/services/reviewApi';
 import { subscriptionApi, type ApiUserSubscription } from '@/services/subscriptionApi';
-import { MessagingLockedModal } from '@/components/MessagingLockedModal';
 import { ProProfileUpgradeModal } from '@/components/ProProfileUpgradeModal';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
@@ -57,7 +56,6 @@ export default function BrandProfilePage() {
   const [following, setFollowing] = useState(false);
   const [tab, setTab] = useState<Tab>('Reviews');
   const [mySubscription, setMySubscription] = useState<ApiUserSubscription | null>(null);
-  const [messagingLockedOpen, setMessagingLockedOpen] = useState(false);
   const [proProfileModalOpen, setProProfileModalOpen] = useState(false);
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
   const authUser = useAppSelector((s) => s.auth.user);
@@ -122,13 +120,11 @@ export default function BrandProfilePage() {
     }
   }, [brand, mySubscription, isOwnProfile, authUser]);
 
+  // Point-Fix: no more Pro-gate — creator<->brand messaging is now
+  // blocked entirely on this button (see the conditional render around
+  // it below), not gated by plan.
   const handleMessageClick = () => {
     if (!brand) return;
-    const isRestrictedRole = authUser?.role === 'creator' || authUser?.role === 'brand';
-    if (isRestrictedRole && mySubscription?.plan.price === 0) {
-      setMessagingLockedOpen(true);
-      return;
-    }
     navigate(`/messages?with=${brand.user._id}`);
   };
 
@@ -223,9 +219,15 @@ export default function BrandProfilePage() {
 
           <div className="mt-4 flex items-center justify-center gap-3">
             <Button onClick={handleFollow}>{following ? 'Following' : 'Follow'}</Button>
-            <Button variant="outline" onClick={handleMessageClick}>
-              <MessageCircle size={15} /> Message
-            </Button>
+            {/* Point-Fix: hidden entirely when a creator is viewing —
+                creator<->brand messaging is proposal-scoped now (see
+                chat.controller.js). Fans and everyone else still see
+                this exactly as before. */}
+            {authUser?.role !== 'creator' && (
+              <Button variant="outline" onClick={handleMessageClick}>
+                <MessageCircle size={15} /> Message
+              </Button>
+            )}
           </div>
         </motion.div>
 
@@ -391,7 +393,7 @@ export default function BrandProfilePage() {
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          {c.category && (
+                          {c.category?.label && (
                             <span className="rounded-full bg-orange-500/15 px-2.5 py-1 text-[11px] font-bold uppercase text-orange-300">
                               {c.category.label}
                             </span>
@@ -435,7 +437,6 @@ export default function BrandProfilePage() {
         </div>
       </Container>
 
-      <MessagingLockedModal open={messagingLockedOpen} onClose={() => setMessagingLockedOpen(false)} />
       {brand && (
         <ProProfileUpgradeModal open={proProfileModalOpen} onClose={() => setProProfileModalOpen(false)} name={brand.companyName} />
       )}

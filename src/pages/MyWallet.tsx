@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, Send, X, Loader2, AlertCircle, CheckCircle2, Clock, Truck, XCircle, Info } from 'lucide-react';
+import { Wallet, Send, X, Loader2, AlertCircle, CheckCircle2, Clock, Truck, XCircle, Info, Gift, Calendar, Sparkles, Briefcase, ShieldCheck, RotateCcw, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
-import { walletApi, type WalletData, type Withdrawal, type WithdrawalPreview } from '@/services/walletApi';
+import { walletApi, type WalletData, type Withdrawal, type WithdrawalPreview, type FullTransaction } from '@/services/walletApi';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { cn } from '@/utils/cn';
 
@@ -18,6 +18,231 @@ function formatDate(iso: string) {
 // documents created before the initiated/processing/completed/rejected
 // rename — which still have status: 'pending' or 'paid' in the DB —
 // don't crash the lookup below.
+// Human-readable label + icon per Transaction.type (every value from
+// TRANSACTION_TYPE in constants/enums.js) — anything not in this map
+// (shouldn't happen, but just in case) falls back to a generic label
+// via the `?? ` in TransactionHistory below.
+const TX_TYPE_CONFIG: Record<string, { label: string; icon: typeof Wallet }> = {
+  session_payment: { label: 'Session Payment', icon: Calendar },
+  donation: { label: 'Donation', icon: Sparkles },
+  gift: { label: 'FanBox Gift', icon: Gift },
+  campaign_escrow_deposit: { label: 'Escrow Funded', icon: ShieldCheck },
+  campaign_payout: { label: 'Campaign Payout', icon: Briefcase },
+  campaign_posting_fee: { label: 'Campaign Posting Fee', icon: Briefcase },
+  agency_commission: { label: 'Agency Commission', icon: Briefcase },
+  referral_commission: { label: 'Referral Commission', icon: Sparkles },
+  platform_commission: { label: 'Platform Fee', icon: Info },
+  subscription_payment: { label: 'Subscription', icon: Sparkles },
+  extra_proposal_fee: { label: 'Extra Proposal Fee', icon: Briefcase },
+  refund: { label: 'Refund', icon: RotateCcw },
+};
+
+const TX_STATUS_STYLE: Record<string, string> = {
+  pending: 'bg-white/10 text-white/50',
+  in_escrow: 'bg-sky-500/15 text-sky-300',
+  released: 'bg-emerald-500/15 text-emerald-300',
+  success: 'bg-emerald-500/15 text-emerald-300',
+  refunded: 'bg-orange-400/15 text-orange-300',
+  failed: 'bg-red-500/15 text-red-300',
+};
+
+// Full, paginated transaction history — every type and status, not just
+// the 5-item SUCCESS/RELEASED preview the balance card shows. Own
+// fetch/pagination state so it works independently of the wallet summary.
+// Tap-to-expand detail view for one transaction — everything the list
+// row doesn't have room for: full commission breakdown, counterparty,
+// Razorpay references, notes/failure reason, escrow release time.
+function TransactionDetailModal({ tx, onClose }: { tx: FullTransaction | null; onClose: () => void }) {
+  if (!tx) return null;
+  const typeConfig = TX_TYPE_CONFIG[tx.type] ?? { label: tx.type.replace(/_/g, ' '), icon: Wallet };
+  const TypeIcon = typeConfig.icon;
+  const isCredit = tx.direction === 'credit';
+
+  const rows: { label: string; value: string }[] = [
+    { label: 'Transaction ID', value: tx._id },
+    { label: 'Gross amount', value: formatRupees(tx.amount) },
+  ];
+  if (tx.platformCommission) rows.push({ label: 'Platform fee', value: `− ${formatRupees(tx.platformCommission)}` });
+  if (tx.agencyCommission) rows.push({ label: 'Agency commission', value: `− ${formatRupees(tx.agencyCommission)}` });
+  if (tx.referralCommission) rows.push({ label: 'Referral commission', value: `− ${formatRupees(tx.referralCommission)}` });
+  if (tx.netAmount != null) rows.push({ label: 'Net amount', value: formatRupees(tx.netAmount) });
+  if (tx.from?.name) rows.push({ label: 'From', value: `${tx.from.name} (${tx.from.email})` });
+  if (tx.to?.name) rows.push({ label: 'To', value: `${tx.to.name} (${tx.to.email})` });
+  if (tx.razorpayOrderId) rows.push({ label: 'Razorpay Order ID', value: tx.razorpayOrderId });
+  if (tx.razorpayPaymentId) rows.push({ label: 'Razorpay Payment ID', value: tx.razorpayPaymentId });
+  if (tx.razorpayPayoutId) rows.push({ label: 'Razorpay Payout ID', value: tx.razorpayPayoutId });
+  if (tx.escrowReleasedAt) rows.push({ label: 'Escrow released', value: formatDate(tx.escrowReleasedAt) });
+  rows.push({ label: 'Date', value: new Date(tx.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) });
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center sm:p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 40, opacity: 0 }}
+          onClick={(e) => e.stopPropagation()}
+          className="max-h-[85vh] w-full overflow-y-auto rounded-t-2xl border border-white/10 bg-navy-900 p-6 sm:max-w-md sm:rounded-2xl"
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-lg font-bold text-white">
+              <TypeIcon size={18} className="text-orange-300" /> {typeConfig.label}
+            </h2>
+            <button onClick={onClose} className="text-white/50 hover:text-white">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between rounded-xl bg-navy-800/50 px-4 py-3.5">
+            <span className={cn('rounded-full px-2.5 py-1 text-xs font-bold capitalize', TX_STATUS_STYLE[tx.status] || 'bg-white/10 text-white/50')}>
+              {tx.status.replace(/_/g, ' ')}
+            </span>
+            <span className={cn('text-lg font-bold', isCredit ? 'text-emerald-300' : 'text-white')}>
+              {isCredit ? '+' : '−'}{formatRupees(tx.netAmount ?? tx.amount)}
+            </span>
+          </div>
+
+          {tx.failureReason && (
+            <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              <AlertCircle size={16} className="shrink-0" /> {tx.failureReason}
+            </div>
+          )}
+
+          <div className="mt-4 divide-y divide-white/5">
+            {rows.map((r) => (
+              <div key={r.label} className="flex items-start justify-between gap-4 py-2.5 text-sm">
+                <span className="shrink-0 text-white/40">{r.label}</span>
+                <span className="break-all text-right font-semibold text-white">{r.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {tx.notes && (
+            <div className="mt-3 rounded-xl bg-navy-800/50 p-3 text-sm text-white/60">
+              <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-white/30">Note</p>
+              {tx.notes}
+            </div>
+          )}
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+function TransactionHistory() {
+  const [transactions, setTransactions] = useState<FullTransaction[]>([]);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState('');
+  const [selectedTx, setSelectedTx] = useState<FullTransaction | null>(null);
+
+  const load = (p: number, append: boolean) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
+    setError('');
+    walletApi
+      .getMyTransactions({ page: p, limit: 20 })
+      .then((data) => {
+        setTransactions((prev) => (append ? [...prev, ...data.transactions] : data.transactions));
+        setPage(data.page);
+        setPages(data.pages);
+      })
+      .catch((err) => setError(getApiErrorMessage(err)))
+      .finally(() => {
+        setLoading(false);
+        setLoadingMore(false);
+      });
+  };
+
+  useEffect(() => load(1, false), []);
+
+  return (
+    <>
+    <div className="mt-6 rounded-2xl border border-white/10 bg-navy-800/60 p-5">
+      <h2 className="text-sm font-bold text-white">Transaction History</h2>
+      <p className="mt-0.5 text-xs text-white/40">Every payment in or out of your account — sessions, gifts, campaigns, subscriptions, refunds.</p>
+
+      {error && (
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <AlertCircle size={16} className="shrink-0" /> {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="mt-6 flex justify-center">
+          <Loader2 size={22} className="animate-spin text-white/40" />
+        </div>
+      ) : transactions.length === 0 ? (
+        <p className="mt-3 text-sm text-white/40">No transactions yet.</p>
+      ) : (
+        <>
+          <div className="mt-3 divide-y divide-white/5">
+            {transactions.map((tx) => {
+              const typeConfig = TX_TYPE_CONFIG[tx.type] ?? { label: tx.type.replace(/_/g, ' '), icon: Wallet };
+              const TypeIcon = typeConfig.icon;
+              const isCredit = tx.direction === 'credit';
+              const displayAmount = tx.netAmount ?? tx.amount;
+              return (
+                <button
+                  key={tx._id}
+                  onClick={() => setSelectedTx(tx)}
+                  className="flex w-full items-center justify-between gap-3 py-3 text-left transition-colors hover:bg-white/[0.03]"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      className={cn(
+                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+                        isCredit ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/10 text-white/60'
+                      )}
+                    >
+                      {isCredit ? <ArrowDownLeft size={15} /> : <ArrowUpRight size={15} />}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-1.5 text-sm font-bold text-white">
+                        <TypeIcon size={12} className="shrink-0 text-white/40" />
+                        <span className="truncate">{typeConfig.label}</span>
+                      </p>
+                      <div className="mt-0.5 flex items-center gap-1.5">
+                        <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold capitalize', TX_STATUS_STYLE[tx.status] || 'bg-white/10 text-white/50')}>
+                          {tx.status.replace(/_/g, ' ')}
+                        </span>
+                        <span className="text-xs text-white/40">{formatDate(tx.createdAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className={cn('shrink-0 text-sm font-bold', isCredit ? 'text-emerald-300' : 'text-white/70')}>
+                    {isCredit ? '+' : '−'}{formatRupees(displayAmount)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {page < pages && (
+            <button
+              onClick={() => load(page + 1, true)}
+              disabled={loadingMore}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-white/10 py-2.5 text-xs font-bold text-white/70 hover:border-white/20 disabled:opacity-50"
+            >
+              {loadingMore ? <Loader2 size={14} className="animate-spin" /> : 'Load more'}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+    <TransactionDetailModal tx={selectedTx} onClose={() => setSelectedTx(null)} />
+    </>
+  );
+}
+
 const STATUS_CONFIG: Record<string, { label: string; icon: typeof Clock; className: string }> = {
   initiated: { label: 'Initiated', icon: Clock, className: 'bg-sky-500/15 text-sky-300' },
   processing: { label: 'Processing', icon: Truck, className: 'bg-yellow-400/15 text-yellow-300' },
@@ -317,7 +542,7 @@ function WithdrawModal({
 
               <p className="flex items-start gap-1.5 text-[11px] text-white/40">
                 <Info size={13} className="mt-0.5 shrink-0" />
-                Withdrawals are processed manually and typically take up to 48 hours after the platform fee shown above.
+                Takes up to 48 hours after the platform fee shown above.
               </p>
 
               <button
@@ -456,7 +681,7 @@ export default function MyWallet() {
                     {w.status !== 'completed' && w.status !== 'rejected' && (
                       <p className="ml-12 mt-2 flex items-center gap-1.5 text-[11px] text-white/40">
                         <Info size={12} className="shrink-0" />
-                        Processed manually — takes up to 48 hours.
+                        Takes up to 48 hours.
                       </p>
                     )}
 
@@ -470,30 +695,7 @@ export default function MyWallet() {
           )}
         </div>
 
-        {/* Recent activity */}
-        <div className="mt-6 rounded-2xl border border-white/10 bg-navy-800/60 p-5">
-          <h2 className="text-sm font-bold text-white">Recent activity</h2>
-          {!wallet || wallet.recentTransactions.length === 0 ? (
-            <p className="mt-3 text-sm text-white/40">No transactions yet.</p>
-          ) : (
-            <div className="mt-3 divide-y divide-white/5">
-              {wallet.recentTransactions.map((tx) => (
-                <div key={tx._id} className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
-                      <Wallet size={15} />
-                    </span>
-                    <div>
-                      <p className="text-sm font-bold capitalize text-white">{tx.type.replace(/_/g, ' ')}</p>
-                      <p className="text-xs text-white/40">{formatDate(tx.createdAt)}</p>
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold text-emerald-300">+{formatRupees(tx.netAmount || tx.amount)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <TransactionHistory />
       </Container>
 
       {wallet && (

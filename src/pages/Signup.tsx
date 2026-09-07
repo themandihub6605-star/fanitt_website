@@ -49,7 +49,12 @@ import type { Role } from '@/types/api';
 type SignupRole = 'fan' | 'creator' | 'brand' | 'agency';
 
 const ROLES = [
-  { key: 'fan' as SignupRole, label: 'Fan', icon: User, tagline: 'Follow creators, join live sessions, support who you love.' },
+  // Fan hidden from signup for now — commented out, not deleted, so it
+  // can be restored later by uncommenting this one line. Everything else
+  // ('fan' still a valid SignupRole, ROLE_CONTENT/ROLE_IMAGES entries,
+  // the `role !== 'fan'` branches throughout this file) is left exactly
+  // as-is so re-enabling needs nothing beyond uncommenting this.
+  // { key: 'fan' as SignupRole, label: 'Fan', icon: User, tagline: 'Follow creators, join live sessions, support who you love.' },
   { key: 'creator' as SignupRole, label: 'Creator', icon: Sparkles, tagline: 'Turn your content and skills into income.' },
   { key: 'brand' as SignupRole, label: 'Brand', icon: Building2, tagline: 'Find creators and run campaigns, escrow-protected.' },
   { key: 'agency' as SignupRole, label: 'Agency', icon: Users2, tagline: 'Refer creators & brands, earn commission.' },
