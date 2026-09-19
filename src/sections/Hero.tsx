@@ -65,7 +65,7 @@ export function Hero() {
   const goToSecondary = () => navigate(secondaryHref);
 
   return (
-    <section className="relative isolate overflow-hidden pt-28 pb-20 md:pt-36 md:pb-28">
+    <section className="relative isolate overflow-hidden pt-28 pb-8 md:pt-36 md:pb-10">
       <HeroBackdrop />
 
       <Container className="relative">
@@ -79,9 +79,9 @@ export function Hero() {
               variants={fadeUp}
               className="text-4xl font-bold leading-[1.1] tracking-tight text-cream drop-shadow-[0_2px_12px_rgba(16,17,32,0.5)] sm:text-5xl lg:text-6xl"
             >
-              Fanitt<span className="text-orange-400">.</span> Where creators, brands
+              Fanitt<span className="text-orange-400">.</span> Where creators
               <span className="relative inline-block px-2">
-                <span className="relative z-10">& fans</span>
+                <span className="relative z-10">& brands</span>
                 <span className="absolute inset-x-1 bottom-1 -z-0 h-3 rounded-full bg-pink-400/40" />
               </span>
               collaborate.
@@ -94,8 +94,8 @@ export function Hero() {
               variants={fadeUp}
               className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-cream/90 drop-shadow-[0_1px_8px_rgba(16,17,32,0.5)] xl:mx-0"
             >
-              Book live sessions with real creators, support them directly, or launch a brand
-              campaign — with every payment protected until the work is done.
+              Connect with real creators or launch a brand campaign — with every payment
+              protected until the work is done.
             </motion.p>
 
             <motion.div

@@ -177,8 +177,8 @@ export function Navbar() {
             <Search size={20} />
           </Link>
           {!isAuthenticated && (
-            <Link to="/get-started">
-              <Button size="sm" className="!px-3 !py-1.5 !text-xs !bg-orange-500 hover:!bg-orange-400 !bg-none">Get Started</Button>
+            <Link to="/feed">
+              <Button size="sm" className="!px-3 !py-1.5 !text-xs !bg-orange-500 hover:!bg-orange-400 !bg-none">Feed</Button>
             </Link>
           )}
           {isAuthenticated && <NotificationBellLink />}

@@ -387,15 +387,15 @@ export const ONE_TO_ONE_CREATORS = CREATORS;
 
 export const FOR_CREATORS_POINTS = [
   'Build a public portfolio with reels, photos & featured work',
-  'Host free public sessions, paid sessions, or 1-to-1s — you set the price',
+  'Apply to brand campaigns that match your niche and audience',
   'Get paid safely — funds only release once a brand approves your work',
-  'Earn from live donations, paid sessions and brand collaborations, all in one payout',
-  'Track bookings, earnings and reviews from a single creator dashboard',
+  'Earn from brand collaborations, all tracked in one payout',
+  'Track campaigns, earnings and reviews from a single creator dashboard',
   'Running an agency? Onboard your roster with a referral code and earn ongoing commission',
 ];
 
 export const FOR_BRANDS_POINTS = [
-  'Search & filter creators by category, location, followers and availability',
+  'Search & filter creators by category, location, followers and niche',
   'Launch a campaign in minutes and invite the right creators directly',
   'Every rupee is held in escrow — released only after you approve the work',
   'Track budgets, active collaborations and payments from one dashboard',
@@ -452,12 +452,12 @@ export const FAQ_ITEMS: FAQItem[] = [
   {
     question: 'What is Fanitt?',
     answer:
-      "Fanitt is a platform where creators, brands and fans collaborate directly. Fans discover creators and join live sessions, creators build a public portfolio and earn through sessions and brand deals, and brands find and pay creators safely — all in one place.",
+      'Fanitt is a platform where creators and brands collaborate directly. Creators build a public portfolio and earn through brand deals, and brands find and pay creators safely — all in one place, with every payment protected in escrow.',
   },
   {
-    question: 'How do I book a live session?',
+    question: 'How do I apply to a brand campaign?',
     answer:
-      'Browse a creator profile or the live sessions list, pick a free or paid slot, and confirm — you\'ll get a reminder before the session goes live on web or the Fanitt app.',
+      "Browse open campaigns or a creator's profile, check the budget and deliverables, and apply or accept a direct invite — you'll be notified the moment the brand responds.",
   },
   {
     question: 'Is my payment protected when I work with a brand?',

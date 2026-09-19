@@ -32,7 +32,7 @@ export function LiveSessionsRail() {
   }, []);
 
   return (
-    <section id="live-sessions" ref={parallaxRef} className="py-section-mobile md:py-section">
+    <section id="live-sessions" ref={parallaxRef} className="pt-8 pb-section-mobile md:pt-10 md:pb-section">
       <Container>
         <motion.div
           initial={{ opacity: 0, y: 28 }}

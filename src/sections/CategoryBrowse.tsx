@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { SectionTitle } from '@/components/ui/SectionTitle';
@@ -22,41 +23,56 @@ export function CategoryBrowse() {
         <SectionTitle eyebrow="Categories" title="Pick a category. Start collaborating." align="center" className="mx-auto" />
 
         <div className="mt-8 flex items-center gap-2">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
             onClick={() => scrollByAmount(-1)}
             aria-label="Scroll categories left"
-            className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/70 transition-colors hover:border-orange-300 hover:text-orange-500 sm:flex"
+            className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/70 shadow-soft transition-colors duration-200 hover:border-orange-400/50 hover:bg-orange-500/10 hover:text-orange-400 sm:flex"
           >
             <ChevronLeft size={16} />
-          </button>
+          </motion.button>
 
-          <div
-            ref={scrollerRef}
-            className="flex flex-1 gap-2.5 overflow-x-auto scroll-smooth px-1 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            {['All', ...CATEGORIES.map((c) => c.label)].map((label) => (
-              <button
-                key={label}
-                onClick={() => setFilter(label)}
-                className={cn(
-                  'shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition-colors',
-                  filter === label
-                    ? 'border-orange-500 bg-orange-500 text-white'
-                    : 'border-white/15 bg-white/10 text-white/70 hover:border-orange-300 hover:text-orange-500'
-                )}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="relative min-w-0 flex-1">
+            {/* edge fades so the scroll affordance reads clearly instead of a hard cut */}
+            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-[#0A0A0A] to-transparent" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-[#0A0A0A] to-transparent" />
+
+            <div
+              ref={scrollerRef}
+              className="flex gap-2.5 overflow-x-auto scroll-smooth px-1 py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {['All', ...CATEGORIES.map((c) => c.label)].map((label) => {
+                const active = filter === label;
+                return (
+                  <motion.button
+                    key={label}
+                    onClick={() => setFilter(label)}
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={cn(
+                      'relative shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-200 ease-out',
+                      active
+                        ? 'border-orange-500 bg-orange-500 text-white shadow-glow'
+                        : 'border-white/15 bg-white/5 text-white/70 hover:border-orange-300/50 hover:bg-white/10 hover:text-orange-300'
+                    )}
+                  >
+                    {label}
+                  </motion.button>
+                );
+              })}
+            </div>
           </div>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
             onClick={() => scrollByAmount(1)}
             aria-label="Scroll categories right"
-            className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/70 transition-colors hover:border-orange-300 hover:text-orange-500 sm:flex"
+            className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/70 shadow-soft transition-colors duration-200 hover:border-orange-400/50 hover:bg-orange-500/10 hover:text-orange-400 sm:flex"
           >
             <ChevronRight size={16} />
-          </button>
+          </motion.button>
         </div>
 
         <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">

@@ -18,11 +18,15 @@ export default function Home() {
   return (
     <>
       <Hero />
-      <TrustBar />
+      {/* Temporarily hidden — stats look empty pre-launch (0+ sessions etc).
+          Re-enable once there's real traction to show. */}
+      {/* <TrustBar /> */}
       <ProductShowcase />
-      <CreatorGrid />
-      <TopCreators />
-      <LatestPosts />
+      {/* Temporarily hidden — too few real creators/posts yet to look full.
+          Re-enable once there's enough content/creators live. */}
+      {/* <CreatorGrid /> */}
+      {/* <TopCreators /> */}
+      {/* <LatestPosts /> */}
       <LiveSessionsRail />
       <LiveSessionsShowcase />
       <CategoryBrowse />

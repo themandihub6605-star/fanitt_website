@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search, CalendarCheck, Video, ShieldCheck, Check, Radio, MessageCircle, Heart } from 'lucide-react';
+import { Search, FileText, Handshake, ShieldCheck, Check, Megaphone } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Badge } from '@/components/ui/Badge';
 import { IconTile } from '@/components/ui/IconTile';
@@ -13,19 +13,19 @@ const STEPS = [
     icon: Search,
     tone: 'orange' as const,
     title: 'Discover the right creator',
-    description: 'Filter by category, location, followers and availability to find exactly who you need.',
+    description: 'Filter by category, location, followers and niche to find exactly who your brand needs.',
   },
   {
-    icon: CalendarCheck,
+    icon: FileText,
     tone: 'teal' as const,
-    title: 'Book in one click',
-    description: 'Pick a free or paid slot. Confirmations and reminders go out automatically, on web and mobile.',
+    title: 'Apply or get invited',
+    description: 'Creators pitch on open campaigns, or brands invite them directly — budget and deliverables are clear upfront.',
   },
   {
-    icon: Video,
+    icon: Handshake,
     tone: 'navy' as const,
-    title: 'Go live, together',
-    description: "HD video, chat, reactions and live donations — powered by Zoom Video SDK under the hood.",
+    title: 'Collaborate & deliver',
+    description: 'Share drafts, get approvals and stay in sync on the campaign — all inside Fanitt.',
   },
   {
     icon: ShieldCheck,
@@ -63,7 +63,7 @@ export function ProductShowcase() {
   const step = STEPS[active];
 
   return (
-    <section className="py-section-mobile md:py-section">
+    <section className="pt-section-mobile pb-8 md:pt-section md:pb-10">
       <Container>
         <div className="mx-auto max-w-2xl text-center">
           <Badge tone="orange">How Fanitt Works</Badge>
@@ -161,8 +161,8 @@ export function ProductShowcase() {
                     className="flex h-full items-center"
                   >
                     {active === 0 && <DiscoverMock />}
-                    {active === 1 && <BookMock />}
-                    {active === 2 && <LiveMock />}
+                    {active === 1 && <ApplyMock />}
+                    {active === 2 && <CollaborateMock />}
                     {active === 3 && <PayMock />}
                   </motion.div>
                 </AnimatePresence>
@@ -216,88 +216,73 @@ function DiscoverMock() {
   );
 }
 
-function BookMock() {
+function ApplyMock() {
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="w-full">
-      <motion.p variants={fadeUpItem} className="text-sm font-bold text-white">
-        Select a time — Wed, 9 Jul
-      </motion.p>
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        {['9:00', '9:30', '10:00', '10:30', '11:00', '11:30'].map((t, i) => (
-          <motion.span
-            key={t}
-            variants={fadeUpItem}
-            className={cn(
-              'rounded-lg py-2 text-center text-xs font-semibold',
-              i === 3 ? 'bg-orange-500 text-white' : 'bg-white/10 text-white/70'
-            )}
-          >
-            {t}
-          </motion.span>
+      <motion.div variants={fadeUpItem} className="flex items-center gap-2 rounded-xl bg-white/10 p-3 shadow-soft">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-orange-500/15 text-orange-400">
+          <Megaphone size={16} />
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-xs font-bold text-white">Summer Skincare Launch</p>
+          <p className="truncate text-[10px] text-white/60">Budget ₹40,000 · 2 Reels + 1 Story</p>
+        </div>
+      </motion.div>
+      <div className="mt-3 space-y-2">
+        {['Rhea Kapoor', 'Devika Rao'].map((name, i) => (
+          <motion.div key={name} variants={fadeUpItem} className="flex items-center gap-2.5 rounded-xl bg-white/10 p-2.5 shadow-soft">
+            <img src={getAvatar(name.toLowerCase().replace(' ', '-'))} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" width={32} height={32} />
+            <span className="flex-1 truncate text-xs font-semibold text-white">{name}</span>
+            <span
+              className={cn(
+                'rounded-full px-2.5 py-1 text-[10px] font-bold',
+                i === 0 ? 'bg-teal-500/20 text-teal-300' : 'bg-white/10 text-white/60'
+              )}
+            >
+              {i === 0 ? 'Invited' : 'Applied'}
+            </span>
+          </motion.div>
         ))}
       </div>
-      <motion.div
-        variants={fadeUpItem}
-        className="mt-4 flex items-center justify-between rounded-xl bg-teal-500/10 p-3"
-      >
-        <span className="text-xs font-semibold text-teal-700">Confirmed for 10:30 AM</span>
-        <motion.span
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 12, delay: 0.6 }}
-        >
-          <Check size={16} className="text-teal-400" />
-        </motion.span>
-      </motion.div>
-      <motion.div variants={fadeUpItem} className="mt-3 flex items-center justify-between rounded-xl bg-white/10 p-3 shadow-soft">
-        <span className="text-xs text-white/60">Duration</span>
-        <span className="text-xs font-bold text-white">20 minutes</span>
-      </motion.div>
-      <motion.div variants={fadeUpItem} className="mt-2 flex items-center justify-between rounded-xl bg-white/10 p-3 shadow-soft">
-        <span className="text-xs text-white/60">Price</span>
-        <span className="text-xs font-bold text-white">₹149</span>
-      </motion.div>
     </motion.div>
   );
 }
 
-function LiveMock() {
+function CollaborateMock() {
+  const items = [
+    { label: 'Content brief shared', done: true },
+    { label: 'Draft reel uploaded', done: true },
+    { label: 'Brand review & feedback', done: false },
+  ];
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="w-full">
-      <motion.div variants={fadeUpItem} className="flex items-center justify-between">
-        <span className="flex items-center gap-1.5 rounded-full bg-danger/10 px-3 py-1 text-xs font-bold text-danger">
-          <motion.span
-            animate={{ opacity: [1, 0.3, 1] }}
-            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+      <motion.p variants={fadeUpItem} className="text-sm font-bold text-white">
+        Campaign checklist
+      </motion.p>
+      <div className="mt-3 space-y-2">
+        {items.map((item) => (
+          <motion.div
+            key={item.label}
+            variants={fadeUpItem}
+            className="flex items-center gap-2.5 rounded-xl bg-white/10 p-3 shadow-soft"
           >
-            <Radio size={11} />
-          </motion.span>
-          LIVE
-        </span>
-        <span className="text-xs text-white/60">32 watching</span>
-      </motion.div>
-
-      <motion.div
-        variants={fadeUpItem}
-        className="mt-4 flex h-28 items-center justify-center rounded-xl bg-navy-800"
-      >
-        <motion.div
-          animate={{ boxShadow: ['0 0 0 0 rgba(45,212,191,0.5)', '0 0 0 10px rgba(45,212,191,0)'] }}
-          transition={{ duration: 1.8, repeat: Infinity, ease: 'easeOut' }}
-          className="rounded-full"
-        >
-          <img src={getAvatar('devika-rao')} alt="" className="h-14 w-14 rounded-full object-cover ring-4 ring-white/10" width={56} height={56} />
-        </motion.div>
-      </motion.div>
-
-      <div className="mt-4 space-y-2">
-        <motion.div variants={fadeUpItem} className="flex items-center gap-2 text-xs text-white/70">
-          <MessageCircle size={13} className="text-orange-500" /> "This is so helpful!"
-        </motion.div>
-        <motion.div variants={fadeUpItem} className="flex items-center gap-2 text-xs text-white/70">
-          <Heart size={13} className="text-orange-500" /> 214 reactions
-        </motion.div>
+            <span
+              className={cn(
+                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
+                item.done ? 'bg-teal-500 text-white' : 'border border-white/20 text-transparent'
+              )}
+            >
+              <Check size={12} />
+            </span>
+            <span className={cn('text-xs font-semibold', item.done ? 'text-white/60 line-through' : 'text-white')}>
+              {item.label}
+            </span>
+          </motion.div>
+        ))}
       </div>
+      <motion.div variants={fadeUpItem} className="mt-3 flex items-center gap-2 rounded-xl bg-orange-500/10 p-3 text-xs text-orange-300">
+        <Handshake size={14} /> Brand and creator both approved the final content.
+      </motion.div>
     </motion.div>
   );
 }

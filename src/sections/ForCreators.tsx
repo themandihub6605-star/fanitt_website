@@ -41,7 +41,7 @@ export function ForCreators() {
               Turn your following into a business
             </h2>
             <p className="mt-3 max-w-md text-white/60">
-              A portfolio, a booking page, and a payout account — all in one profile your fans can find.
+              A portfolio, brand campaigns, and a payout account — all in one profile.
             </p>
 
             <motion.ul
@@ -113,7 +113,7 @@ export function ForCreators() {
                     <Star size={14} fill="currentColor" />
                   </motion.span>
                 ))}
-                <span className="ml-2 text-xs font-semibold text-white/70">4.9 (312 sessions)</span>
+                <span className="ml-2 text-xs font-semibold text-white/70">4.9 (312 collaborations)</span>
               </div>
 
               <div className="mt-5 grid grid-cols-3 gap-3 text-center">
@@ -123,7 +123,7 @@ export function ForCreators() {
                 </div>
                 <div className="rounded-xl bg-navy-800/60 p-3">
                   <p className="font-display text-lg font-bold text-white">{sessions}</p>
-                  <p className="text-[11px] text-white/60">Sessions</p>
+                  <p className="text-[11px] text-white/60">Campaigns</p>
                 </div>
                 <div className="rounded-xl bg-navy-800/60 p-3">
                   <p className="font-display text-lg font-bold text-white">{followers}K</p>
