@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
   allowedRoles?: Role[];
 }
 
-const APPROVAL_GATED_ROLES: Role[] = ['creator', 'brand', 'agency'];
+export const APPROVAL_GATED_ROLES: Role[] = ['creator', 'brand', 'agency'];
 
 export function ProtectedRoute({ allowedRoles, children }: PropsWithChildren<ProtectedRouteProps>) {
   const { isAuthenticated, user, hasHydrated } = useAppSelector((s) => s.auth);
@@ -26,6 +26,7 @@ export function ProtectedRoute({ allowedRoles, children }: PropsWithChildren<Pro
   if (
     APPROVAL_GATED_ROLES.includes(user.role) &&
     location.pathname !== '/pending-approval' &&
+    !location.pathname.endsWith('/edit') && // resubmit flow must stay reachable while unapproved
     user.profileStatus &&
     user.profileStatus !== 'verified'
   ) {

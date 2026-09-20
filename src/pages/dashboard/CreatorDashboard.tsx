@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from 'recharts';
-import { Wallet, Users, Eye, Star, TrendingUp, Loader2, AlertCircle, Plus, Video, Grid3x3, ArrowRight, ChevronRight, FileText, Sparkles } from 'lucide-react';
+import { Wallet, Users, Eye, Star, TrendingUp, Loader2, AlertCircle, Plus, Video, Grid3x3, ArrowRight, ChevronRight, FileText, Sparkles, Calendar, CalendarClock, Megaphone, ShieldAlert, Clock } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
+import { Button } from '@/components/ui/Button';
 // TEMPORARY (Point 4, live marketplace not launched yet): using ComingSoonModal
 // in place of CreateSessionModal below. To REVERT once Go Live is ready:
 //   1. Change this import back to: import { CreateSessionModal } from '@/components/CreateSessionModal';
@@ -186,7 +187,9 @@ function ProfileStrengthCard({ completion }: { completion: number }) {
           Complete Profile <ArrowRight size={14} />
         </Link>
       ) : (
-        <p className="mt-4 text-center text-sm font-semibold text-emerald-300">Your profile is fully set up 🎉</p>
+        <p className="mt-4 flex items-center justify-center gap-1.5 text-sm font-semibold text-emerald-300">
+          🎉 Your profile is fully set up <ChevronRight size={14} />
+        </p>
       )}
     </div>
   );
@@ -243,6 +246,52 @@ function EarningsBreakdownCard({ breakdown, formatRupees }: { breakdown: { _id: 
       )}
     </div>
   );
+}
+
+/** Shown while the creator's profile hasn't been submitted for review yet,
+ * is pending admin approval, or was rejected — mirrors AgencyDashboard's
+ * StatusGate so all three roles behave the same way. */
+function StatusGate({ profile }: { profile: ApiCreator }) {
+  if (profile.verificationStatus === 'unverified') {
+    return (
+      <div className="mx-auto max-w-md text-center">
+        <ShieldAlert size={32} className="mx-auto text-yellow-400" />
+        <h1 className="mt-4 text-xl font-bold text-white">Finish your creator profile</h1>
+        <p className="mt-2 text-sm text-white/60">Your account was created but your details weren't submitted for review yet.</p>
+        <Link to="/dashboard/creator/edit">
+          <Button className="mt-6">Complete Profile</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  if (profile.verificationStatus === 'pending') {
+    return (
+      <div className="mx-auto max-w-md text-center">
+        <Clock size={32} className="mx-auto text-orange-400" />
+        <h1 className="mt-4 text-xl font-bold text-white">Waiting for admin approval</h1>
+        <p className="mt-2 text-sm text-white/60">
+          Your profile is in the review queue. You'll get full dashboard access once an admin approves it.
+        </p>
+      </div>
+    );
+  }
+
+  if (profile.verificationStatus === 'rejected') {
+    return (
+      <div className="mx-auto max-w-md text-center">
+        <AlertCircle size={32} className="mx-auto text-red-400" />
+        <h1 className="mt-4 text-xl font-bold text-white">Application not approved</h1>
+        {profile.rejectionReason && <p className="mt-2 text-sm text-white/60">Reason: {profile.rejectionReason}</p>}
+        <p className="mt-2 text-sm text-white/60">Update your details and resubmit for another review.</p>
+        <Link to="/dashboard/creator/edit">
+          <Button className="mt-6">Edit &amp; Resubmit</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 export default function CreatorDashboard() {
@@ -343,6 +392,16 @@ export default function CreatorDashboard() {
     );
   }
 
+  if (profile && profile.verificationStatus && profile.verificationStatus !== 'verified') {
+    return (
+      <div className="flex min-h-[70vh] items-center pt-8">
+        <Container>
+          <StatusGate profile={profile} />
+        </Container>
+      </div>
+    );
+  }
+
   const STATS = [
     { icon: Users, label: 'Total followers', value: data.stats.followerCount.toLocaleString('en-IN'), tone: 'orange' as const },
     { icon: Eye, label: 'Profile views', value: data.stats.profileViews.toLocaleString('en-IN'), tone: 'red' as const },
@@ -404,7 +463,7 @@ export default function CreatorDashboard() {
               <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10', toneClasses[stat.tone])}>
                 <stat.icon size={18} />
               </span>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 {stat.value === '—' ? (
                   <p className="text-sm font-semibold leading-tight text-white/40">Not yet rated</p>
                 ) : (
@@ -412,6 +471,7 @@ export default function CreatorDashboard() {
                 )}
                 <p className="text-xs text-white/50">{stat.label}</p>
               </div>
+              <ChevronRight size={16} className="shrink-0 text-white/15" />
             </motion.div>
           ))}
         </div>
@@ -434,7 +494,9 @@ export default function CreatorDashboard() {
           <div className="mt-8">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-white">Trending Categories</h2>
-              <Link to="/explore" className="text-xs font-semibold text-orange-400 hover:underline">Explore all</Link>
+              <Link to="/explore" className="flex items-center gap-1 text-xs font-semibold text-orange-400 hover:underline">
+                Explore all <ArrowRight size={12} />
+              </Link>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               {categories.slice(0, 8).map((cat, i) => {
@@ -524,9 +586,12 @@ export default function CreatorDashboard() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4 }}
-              className="rounded-2xl border border-white/10 bg-navy-800/60 p-6 shadow-card transition-all duration-300 ease-out hover:border-white/20"
+              className="relative overflow-hidden rounded-2xl border border-white/10 bg-navy-800/60 p-6 shadow-card transition-all duration-300 ease-out hover:border-white/20"
             >
-              <h2 className="text-lg font-bold text-white">Upcoming bookings</h2>
+              <CalendarClock size={96} className="pointer-events-none absolute -bottom-4 -right-4 text-white/[0.04]" strokeWidth={1} />
+              <h2 className="relative flex items-center gap-2 text-lg font-bold text-white">
+                <Calendar size={17} className="text-orange-400" /> Upcoming bookings
+              </h2>
               {data.upcomingSessions.length === 0 ? (
                 <p className="mt-4 text-sm text-white/50">No upcoming sessions — create one to get started.</p>
               ) : (
@@ -565,7 +630,9 @@ export default function CreatorDashboard() {
               className="rounded-2xl border border-white/10 bg-navy-800/60 p-6 shadow-card transition-all duration-300 ease-out hover:border-white/20"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-white">Applied Campaigns</h2>
+                <h2 className="flex items-center gap-2 text-lg font-bold text-white">
+                  <Megaphone size={17} className="text-orange-400" /> Applied Campaigns
+                </h2>
                 <Link to="/proposals" className="text-xs font-semibold text-orange-400 hover:underline">View all</Link>
               </div>
               {appliedCampaigns.length === 0 ? (
@@ -578,7 +645,8 @@ export default function CreatorDashboard() {
                         <th className="pb-3 pr-4 font-bold">Campaign</th>
                         <th className="pb-3 pr-4 font-bold">Brand</th>
                         <th className="pb-3 pr-4 font-bold">Applied</th>
-                        <th className="pb-3 text-right font-bold">Status</th>
+                        <th className="pb-3 pr-4 text-right font-bold">Status</th>
+                        <th className="w-6 pb-3" />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -588,15 +656,27 @@ export default function CreatorDashboard() {
                           onClick={() => navigate(`/campaigns/${p.campaign._id}`)}
                           className="group cursor-pointer transition-colors duration-200 hover:bg-white/[0.04]"
                         >
-                          <td className="max-w-[180px] truncate py-3 pr-4 font-semibold text-white transition-colors group-hover:text-orange-300">
-                            {p.campaign.title}
+                          <td className="max-w-[180px] py-3 pr-4">
+                            <span className="flex items-center gap-3">
+                              <img
+                                src={p.campaign.campaignImageUrl}
+                                alt=""
+                                className="h-9 w-9 shrink-0 rounded-lg object-cover ring-1 ring-inset ring-white/10"
+                              />
+                              <span className="truncate font-semibold text-white transition-colors group-hover:text-orange-300">
+                                {p.campaign.title}
+                              </span>
+                            </span>
                           </td>
                           <td className="truncate py-3 pr-4 text-white/60">{p.campaign.brand.companyName}</td>
                           <td className="whitespace-nowrap py-3 pr-4 text-white/50">{formatDate(p.createdAt)}</td>
-                          <td className="py-3 text-right">
+                          <td className="py-3 pr-4 text-right">
                             <span className={cn('inline-block shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold capitalize', PROPOSAL_STATUS_STYLES[p.status] || 'bg-white/10 text-white/60')}>
                               {p.status}
                             </span>
+                          </td>
+                          <td className="py-3">
+                            <ChevronRight size={16} className="text-white/20 transition-colors group-hover:text-orange-400" />
                           </td>
                         </tr>
                       ))}

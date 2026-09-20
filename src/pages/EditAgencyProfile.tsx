@@ -53,9 +53,14 @@ export default function EditAgencyProfile() {
         gstNumber,
         submitForApproval: true,
       });
+      const wasUnapproved = status === 'unverified' || status === 'rejected';
       setSaved(true);
-      setStatus((s) => (s === 'unverified' ? 'pending' : s));
-      setTimeout(() => navigate('/dashboard/agency'), 1200);
+      setStatus((s) => (s === 'unverified' || s === 'rejected' ? 'pending' : s));
+      if (wasUnapproved) {
+        setTimeout(() => navigate('/pending-approval'), 1000);
+      } else {
+        setTimeout(() => setSaved(false), 3000);
+      }
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {

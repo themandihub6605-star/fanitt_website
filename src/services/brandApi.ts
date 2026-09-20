@@ -24,7 +24,8 @@ export interface ApiBrand {
   profileViews?: number;
   isTopBrand?: boolean;
   onTimePaymentsPercent?: number;
-  verificationStatus?: string;
+  verificationStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
+  rejectionReason?: string;
   totalCampaigns: number;
   averageRating: number;
   reviewCount: number;
@@ -57,7 +58,7 @@ export const brandApi = {
 
   getMyProfile: () => apiClient.get<ApiEnvelope<ApiBrand>>('/brands/me').then((r) => r.data.data),
 
-  updateMyProfile: (payload: Partial<ApiBrand>) =>
+  updateMyProfile: (payload: Partial<ApiBrand> & { submitForApproval?: boolean }) =>
     apiClient.patch<ApiEnvelope<ApiBrand>>('/brands/me', payload).then((r) => r.data.data),
 
   uploadLogo: (file: File) => {

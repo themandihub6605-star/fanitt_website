@@ -19,6 +19,7 @@ import {
   Bell,
   Settings,
   Globe,
+  ChevronRight,
 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { NotificationBellLink } from '@/components/NotificationBellLink';
@@ -159,10 +160,11 @@ export function DashboardShell({ children }: PropsWithChildren) {
                 {user.name.charAt(0).toUpperCase()}
               </span>
             )}
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-white">{user.name}</p>
               <p className="truncate text-xs text-white/40">@{user.name.toLowerCase().replace(/\s+/g, '')}</p>
             </div>
+            <ChevronRight size={16} className="shrink-0 text-white/20" />
           </div>
         )}
       </aside>

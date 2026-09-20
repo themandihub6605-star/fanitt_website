@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Volume2, VolumeX, Play, Pause, MoreHorizontal, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { postApi, type ApiPost } from '@/services/postApi';
@@ -234,10 +234,12 @@ export function FeedPostCard({
   isFollowing?: boolean;
   onFollowChange?: (creatorId: string, following: boolean) => void;
 }) {
+  const navigate = useNavigate();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [muted, setMuted] = useState(true);
   const [justLiked, setJustLiked] = useState(false);
+  const [justFollowed, setJustFollowed] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   const { isAuthenticated, user } = useAppSelector((s) => s.auth);
@@ -258,7 +260,12 @@ export function FeedPostCard({
   };
 
   const handleLike = async () => {
-    if (!isAuthenticated) return;
+    // Was silently doing nothing when logged out — send them to log in
+    // instead, same as every other interactive action on the site.
+    if (!isAuthenticated) {
+      navigate('/get-started');
+      return;
+    }
     try {
       const result = await postApi.toggleLike(post._id);
       setLiked(result.liked);
@@ -273,10 +280,18 @@ export function FeedPostCard({
   };
 
   const handleFollow = async () => {
-    if (!isAuthenticated || !creator) return;
+    if (!isAuthenticated) {
+      navigate('/get-started');
+      return;
+    }
+    if (!creator) return;
     try {
       const result = await creatorApi.follow(creator._id);
       onFollowChange?.(creator._id, result.following);
+      if (result.following) {
+        setJustFollowed(true);
+        setTimeout(() => setJustFollowed(false), 500);
+      }
     } catch {
       // non-critical
     }
@@ -304,9 +319,15 @@ export function FeedPostCard({
             </Link>
             <div className="flex shrink-0 items-center gap-2">
               {creator && !isFollowing && (
-                <button onClick={handleFollow} className="text-xs font-bold text-orange-400 hover:text-orange-300">
+                <motion.button
+                  onClick={handleFollow}
+                  whileTap={{ scale: 0.9 }}
+                  animate={justFollowed ? { scale: [1, 1.15, 1] } : {}}
+                  transition={{ duration: 0.35 }}
+                  className="rounded-full bg-orange-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-soft transition-colors hover:bg-orange-400"
+                >
                   Follow
-                </button>
+                </motion.button>
               )}
               <button className="text-white/30 hover:text-white/60">
                 <MoreHorizontal size={16} />
@@ -371,9 +392,15 @@ export function FeedPostCard({
           )}
 
           <div className="mt-2 flex items-center gap-4">
-            <button onClick={handleLike} className="flex items-center gap-1.5 text-white/70 hover:text-white">
+            <motion.button
+              onClick={handleLike}
+              whileTap={{ scale: 0.8 }}
+              animate={justLiked ? { scale: [1, 1.3, 1] } : {}}
+              transition={{ duration: 0.35 }}
+              className="flex items-center gap-1.5 text-white/70 hover:text-white"
+            >
               <Heart size={22} className={cn('transition-transform', liked && 'fill-red-500 text-red-500 scale-110')} />
-            </button>
+            </motion.button>
           </div>
 
           {likeCount > 0 && <p className="mt-1 text-xs font-semibold text-white/50">{likeCount} like{likeCount === 1 ? '' : 's'}</p>}

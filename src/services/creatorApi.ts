@@ -30,6 +30,10 @@ export interface ApiCreator {
   // tier), populated by creator.controller.js's listCreators.
   planName?: string;
   isProPlan?: boolean;
+  // Admin approval status — gates full dashboard access (see
+  // pages/dashboard/CreatorDashboard.tsx's StatusGate).
+  verificationStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
+  rejectionReason?: string;
 }
 
 export interface CreatorDashboardData {
@@ -60,7 +64,7 @@ export const creatorApi = {
       .get<ApiEnvelope<{ creator: ApiCreator; sessions: ApiSession[]; reviews: unknown[]; stats: { projectsCompletedCount: number } }>>(`/creators/${slug}`)
       .then((r) => r.data.data),
 
-  updateMyProfile: (payload: Partial<ApiCreator>) =>
+  updateMyProfile: (payload: Partial<ApiCreator> & { submitForApproval?: boolean }) =>
     apiClient.patch<ApiEnvelope<ApiCreator>>('/creators/me', payload).then((r) => r.data.data),
 
   getMyDashboard: () => apiClient.get<ApiEnvelope<CreatorDashboardData>>('/creators/me/dashboard').then((r) => r.data.data),

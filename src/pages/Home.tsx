@@ -29,7 +29,8 @@ export default function Home() {
       {/* <LatestPosts /> */}
       <LiveSessionsRail />
       <LiveSessionsShowcase />
-      <CategoryBrowse />
+      {/* Temporarily hidden per request. */}
+      {/* <CategoryBrowse /> */}
       <FreeSessions />
       <ForCreators />
       <ForBrands />

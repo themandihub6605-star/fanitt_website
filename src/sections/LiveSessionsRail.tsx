@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, Zap, Check, Star, IndianRupee } from 'lucide-react';
+import { ArrowUpRight, Zap, Check, Star, Megaphone } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Badge } from '@/components/ui/Badge';
 import { useParallax } from '@/hooks/useParallax';
@@ -9,9 +9,9 @@ import { creatorApi, type ApiCreator } from '@/services/creatorApi';
 const TAG_COLORS = ['bg-navy-700', 'bg-teal-500', 'bg-yellow-400', 'bg-navy-300'];
 
 const NOTIFICATIONS = [
-  { icon: IndianRupee, text: 'New session booked · ₹149', tone: 'teal' as const },
+  { icon: Megaphone, text: 'New campaign invite', tone: 'teal' as const },
   { icon: Star, text: 'New 5-star review', tone: 'yellow' as const },
-  { icon: Check, text: 'Payment released · ₹12,000', tone: 'navy' as const },
+  { icon: Check, text: 'Payment released', tone: 'navy' as const },
 ];
 
 const notifToneClasses = {
@@ -58,8 +58,8 @@ export function LiveSessionsRail() {
                 Create your Fanitt page in a flash
               </h2>
               <p className="mt-2 max-w-md text-sm text-white/60 sm:mt-3 sm:text-base">
-                Start earning by the time you finish reading this page — a portfolio, a booking
-                calendar, and a payout account, live in minutes.
+                Start earning by the time you finish reading this page — a portfolio, brand
+                campaigns, and a payout account, live in minutes.
               </p>
 
               <motion.a

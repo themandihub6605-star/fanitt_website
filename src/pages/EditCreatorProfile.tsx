@@ -49,6 +49,11 @@ export default function EditCreatorProfile() {
   const [youtube, setYoutube] = useState('');
   const [behance, setBehance] = useState('');
   const [website, setWebsite] = useState('');
+  // Captured on load so we know, at save time, whether this save is a
+  // resubmission (was rejected/unverified) or just a normal edit by an
+  // already-verified creator — only the former should route back to the
+  // pending-approval screen afterward.
+  const wasUnapprovedRef = useRef(false);
 
   useEffect(() => {
     categoryApi.list().then(setCategories).catch(() => setCategories([]));
@@ -56,6 +61,7 @@ export default function EditCreatorProfile() {
     creatorApi
       .getMyProfile()
       .then((c: ApiCreator) => {
+        wasUnapprovedRef.current = c.verificationStatus === 'rejected' || c.verificationStatus === 'unverified';
         setTitle(c.title || '');
         setBio(c.bio || '');
         setCategory(c.category?._id || '');
@@ -111,10 +117,19 @@ export default function EditCreatorProfile() {
           ...(behance && { behance: behance.startsWith('http') ? behance : `https://behance.net/${behance}` }),
           ...(website && { website: website.startsWith('http') ? website : `https://${website}` }),
         },
+        submitForApproval: true,
       });
 
       setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      if (wasUnapprovedRef.current) {
+        // Resubmitting after rejection (or first-time submit) — the backend
+        // just flipped verificationStatus back to 'pending', so route back
+        // to the pending-approval screen instead of leaving them on the
+        // edit form as if nothing changed.
+        setTimeout(() => navigate('/pending-approval'), 1000);
+      } else {
+        setTimeout(() => setSaved(false), 3000);
+      }
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {

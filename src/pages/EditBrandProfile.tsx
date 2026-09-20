@@ -43,11 +43,15 @@ export default function EditBrandProfile() {
   const [instagram, setInstagram] = useState('');
   const [youtube, setYoutube] = useState('');
   const [linkedin, setLinkedin] = useState('');
+  // Same purpose as CreatorDashboard's equivalent — only route back to
+  // pending-approval if this save is an actual resubmission.
+  const wasUnapprovedRef = useRef(false);
 
   useEffect(() => {
     brandApi
       .getMyProfile()
       .then((b: ApiBrand) => {
+        wasUnapprovedRef.current = b.verificationStatus === 'rejected' || b.verificationStatus === 'unverified';
         setCompanyName(b.companyName || '');
         setTagline(b.tagline || '');
         setAbout(b.about || '');
@@ -102,10 +106,15 @@ export default function EditBrandProfile() {
           ...(youtube && { youtube: youtube.startsWith('http') ? youtube : `https://youtube.com/@${youtube}` }),
           ...(linkedin && { linkedin: linkedin.startsWith('http') ? linkedin : `https://linkedin.com/company/${linkedin}` }),
         },
+        submitForApproval: true,
       });
 
       setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      if (wasUnapprovedRef.current) {
+        setTimeout(() => navigate('/pending-approval'), 1000);
+      } else {
+        setTimeout(() => setSaved(false), 3000);
+      }
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {

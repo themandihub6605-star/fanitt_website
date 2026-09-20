@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Loader2,
   Instagram,
+  Facebook,
   Youtube,
   Globe,
   Camera,
@@ -33,6 +34,7 @@ import { Container } from '@/components/ui/Container';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { GoogleIcon } from '@/components/GoogleIcon';
 import { Logo } from '@/components/Logo';
+import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import { useAuth } from '@/hooks/useAuth';
 import { updateUser } from '@/store/slices/authSlice';
 import { getApiErrorMessage } from '@/services/apiClient';
@@ -177,7 +179,7 @@ export default function Signup() {
 
   const [instagram, setInstagram] = useState('');
   const [youtube, setYoutube] = useState('');
-  const [behance, setBehance] = useState('');
+  const [facebook, setFacebook] = useState('');
   const [linkedin, setLinkedin] = useState('');
   const [website, setWebsite] = useState('');
 
@@ -235,7 +237,6 @@ export default function Signup() {
         if (!languages.trim()) return setError('Languages are required');
         if (!responseTime.trim()) return setError('Response time is required');
         if (!yearsOfExperience.trim()) return setError('Years of experience is required');
-        if (!portfolioLink.trim()) return setError('Portfolio link is required');
       }
       if (role === 'brand') {
         if (!companyName.trim()) return setError('Company name is required');
@@ -267,12 +268,12 @@ export default function Signup() {
   // mandatory too, so this step gets its own Continue handler.
   const handleSocialNext = () => {
     setError('');
-    if (!photoFile && !googleAvatarUrl) return setError(`${photoLabel} is required`);
+    if (!photoFile) return setError(`Please upload a ${photoLabel.toLowerCase()} — it's required to create an account`);
 
     if (role === 'creator' || role === 'brand') {
       if (!instagram.trim()) return setError('Instagram handle is required');
       if (!youtube.trim()) return setError('YouTube handle is required');
-      if (role === 'creator' && !behance.trim()) return setError('Behance username is required');
+      if (role === 'creator' && !facebook.trim()) return setError('Facebook username is required');
       if (role === 'brand' && !linkedin.trim()) return setError('LinkedIn company page is required');
       if (!website.trim()) return setError('Website is required');
     }
@@ -421,7 +422,7 @@ export default function Signup() {
           socials: {
             ...(instagram && { instagram: instagram.startsWith('http') ? instagram : `https://instagram.com/${instagram}` }),
             ...(youtube && { youtube: youtube.startsWith('http') ? youtube : `https://youtube.com/@${youtube}` }),
-            ...(behance && { behance: behance.startsWith('http') ? behance : `https://behance.net/${behance}` }),
+            ...(facebook && { facebook: facebook.startsWith('http') ? facebook : `https://facebook.com/${facebook}` }),
             ...(website && { website: website.startsWith('http') ? website : `https://${website}` }),
           },
           submitForApproval: true,
@@ -799,7 +800,14 @@ export default function Signup() {
                     maxLength={10}
                     required
                   />
-                  <TextField icon={MapPin} value={location} onChange={setLocation} placeholder="Location (city, country)" required />
+                  <LocationAutocomplete
+                    icon={MapPin}
+                    mode="api"
+                    value={location}
+                    onChange={setLocation}
+                    placeholder="Location (city, country)"
+                    required
+                  />
 
                   <StepNav onBack={goBack} onNext={handleStepNext} loading={loading} />
                 </motion.div>
@@ -837,7 +845,6 @@ export default function Signup() {
                         <TextField icon={Clock} value={responseTime} onChange={setResponseTime} placeholder="Response time" required />
                         <TextField icon={Briefcase} value={yearsOfExperience} onChange={setYearsOfExperience} placeholder="Years experience" type="number" required />
                       </div>
-                      <TextField icon={Link2} value={portfolioLink} onChange={setPortfolioLink} placeholder="Portfolio link" required />
                       <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3.5">
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-white/80">Available for work</p>
@@ -963,7 +970,7 @@ export default function Signup() {
                       )}
                     </button>
                     <span className="text-xs font-semibold text-white/60">
-                      {googleAvatarUrl && !photoFile ? `Using your Google photo — tap to change` : `${photoLabel} (required)`}
+                      {photoFile ? photoLabel : googleAvatarUrl ? `Tap to upload your own ${photoLabel.toLowerCase()} (required)` : `${photoLabel} (required)`}
                     </span>
                   </div>
 
@@ -971,7 +978,7 @@ export default function Signup() {
                     <>
                       <TextField icon={Instagram} value={instagram} onChange={setInstagram} placeholder="Instagram handle" required />
                       <TextField icon={Youtube} value={youtube} onChange={setYoutube} placeholder="YouTube handle" required />
-                      {role === 'creator' && <TextField value={behance} onChange={setBehance} placeholder="Behance username" required />}
+                      {role === 'creator' && <TextField icon={Facebook} value={facebook} onChange={setFacebook} placeholder="Facebook username" required />}
                       {role === 'brand' && <TextField value={linkedin} onChange={setLinkedin} placeholder="LinkedIn company page" required />}
                       <TextField icon={Globe} value={website} onChange={setWebsite} placeholder="Website" required />
                     </>

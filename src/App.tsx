@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MainLayout } from '@/layouts/MainLayout';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { ProtectedRoute, APPROVAL_GATED_ROLES } from '@/components/ProtectedRoute';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setCredentials, setHydrated } from '@/store/slices/authSlice';
 import { authApi } from '@/services/authApi';
@@ -255,6 +255,7 @@ const LAYOUT_ROUTES: { path: string; element: ReactNode }[] = [
 export default function App() {
   const location = useLocation();
   useAuthHydration();
+  const { isAuthenticated, user, hasHydrated } = useAppSelector((s) => s.auth);
 
   if (location.pathname.startsWith('/sessions/') && location.pathname.endsWith('/live')) {
     return (
@@ -271,11 +272,29 @@ export default function App() {
     );
   }
 
-  if (location.pathname === '/pending-approval') {
+  // Global approval gate: applies to EVERY route, not just ones wrapped in
+  // <ProtectedRoute> — previously an unapproved creator/brand/agency user
+  // could open the public homepage (or any other public page) directly and
+  // browse freely, since those routes never checked profileStatus at all.
+  // This intercepts before the normal route match happens.
+  const isUnapprovedGatedUser =
+    hasHydrated &&
+    isAuthenticated &&
+    !!user &&
+    APPROVAL_GATED_ROLES.includes(user.role) &&
+    !!user.profileStatus &&
+    user.profileStatus !== 'verified';
+
+  // Paths an unapproved user must still be able to reach — the resubmit
+  // flow depends on getting to their own edit page, and logging out/into
+  // a different account shouldn't be blocked either.
+  const GATE_EXEMPT_PATHS = ['/get-started', '/login', '/signup', '/dashboard/creator/edit', '/dashboard/brand/edit', '/dashboard/agency/edit'];
+
+  if ((location.pathname === '/pending-approval' || isUnapprovedGatedUser) && !GATE_EXEMPT_PATHS.includes(location.pathname)) {
     return (
       <Routes location={location}>
         <Route
-          path="/pending-approval"
+          path="*"
           element={
             <ProtectedRoute>
               <PendingApproval />
