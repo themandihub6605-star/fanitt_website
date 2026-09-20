@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, AlertCircle, Search, Star, Sparkles, MapPin, Grid3x3, List, LocateFixed, SlidersHorizontal } from 'lucide-react';
+import { Loader2, AlertCircle, Search, Star, Sparkles, MapPin, Grid3x3, List, SlidersHorizontal, Crown, Wand2, Calendar as CalendarIcon, ArrowUpDown, Users, Briefcase, Clock, CheckCircle2, Languages as LanguagesIcon } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
-import { CreatorPosterCard } from '@/components/CreatorPosterCard';
 import { creatorApi, type ApiCreator } from '@/services/creatorApi';
 import { categoryApi, type ApiCategory } from '@/services/categoryApi';
 import { getApiErrorMessage } from '@/services/apiClient';
@@ -14,6 +13,117 @@ import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/utils/cn';
 
 type SortOption = 'relevance' | 'rating' | 'followers';
+
+// Cover-photo style card for the Grid view — big photo across the top
+// (like a poster), everything else stacked below it. Only 3 skills shown
+// here; the rest are visible on the full profile page (View Profile).
+function CreatorGridCard({ creator, onCardClick }: { creator: ApiCreator; onCardClick: (e: React.MouseEvent, creator: ApiCreator) => void }) {
+  const CategoryIcon = creator.category?.icon ? resolveIcon(creator.category.icon) : null;
+
+  return (
+    <Link
+      to={`/creator/${creator.slug}`}
+      onClick={(e) => onCardClick(e, creator)}
+      className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-navy-800/60 shadow-card transition-all duration-300 ease-out hover:-translate-y-1 hover:border-orange-500/30 hover:shadow-lifted"
+    >
+      {/* Big cover photo */}
+      <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden">
+        <img
+          src={creator.user.avatarUrl || `https://i.pravatar.cc/500?u=${creator._id}`}
+          alt={creator.user.name}
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-navy-900/95 via-navy-900/20 to-transparent" />
+
+        {(creator.isTopCreator || creator.isProPlan) && (
+          <span
+            className={cn(
+              'absolute right-3 top-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold backdrop-blur-sm',
+              creator.isTopCreator ? 'bg-yellow-400/20 text-yellow-300' : 'bg-orange-500/20 text-orange-300'
+            )}
+          >
+            {creator.isTopCreator ? 'Top Creator' : <><Crown size={10} /> Pro</>}
+          </span>
+        )}
+        <span
+          className={cn(
+            'absolute left-3 top-3 h-3 w-3 rounded-full border-2 border-white/80',
+            creator.isAvailableForWork !== false ? 'bg-emerald-400' : 'bg-white/30'
+          )}
+        />
+
+        <div className="absolute inset-x-0 bottom-0 p-3.5">
+          <p className="line-clamp-1 text-base font-bold text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)]">{creator.user.name}</p>
+          {(creator.title || creator.category?.label) && (
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-white/80 drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)]">
+              {CategoryIcon && <CategoryIcon size={11} className="shrink-0" />}
+              <span className="line-clamp-1">{creator.title || creator.category?.label}</span>
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Details below the photo */}
+      <div className="flex flex-1 flex-col p-3.5">
+        {creator.location && (
+          <p className="flex items-center gap-1 text-xs text-white/40">
+            <MapPin size={11} className="shrink-0" /> <span className="truncate">{creator.location}</span>
+          </p>
+        )}
+
+        {/* Stat pills — fixed 2-column grid so they stay aligned in tidy
+            rows; only fields the creator actually has render. */}
+        <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+          {creator.averageRating > 0 && (
+            <span className="flex items-center gap-1 rounded-lg bg-yellow-400/10 px-2 py-1 text-[11px] font-bold leading-tight text-yellow-300">
+              <Star size={11} className="shrink-0" fill="currentColor" /> {creator.averageRating} <span className="font-normal text-yellow-300/60">({creator.reviewCount})</span>
+            </span>
+          )}
+          {creator.followerCount > 0 && (
+            <span className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] leading-tight text-white/60">
+              <Users size={11} className="shrink-0 text-white/40" /> {creator.followerCount.toLocaleString('en-IN')}
+            </span>
+          )}
+          {creator.yearsOfExperience != null && creator.yearsOfExperience > 0 && (
+            <span className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] leading-tight text-white/60">
+              <Briefcase size={11} className="shrink-0 text-white/40" /> {creator.yearsOfExperience}+ yrs exp
+            </span>
+          )}
+          {creator.responseTime && (
+            <span className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] leading-tight text-white/60">
+              <Clock size={11} className="shrink-0 text-white/40" /> {creator.responseTime}
+            </span>
+          )}
+          {creator.onTimeDeliveryPercent != null && (
+            <span className="flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold leading-tight text-emerald-300">
+              <CheckCircle2 size={11} className="shrink-0" /> {creator.onTimeDeliveryPercent}% on-time
+            </span>
+          )}
+          {creator.languages && creator.languages.length > 0 && (
+            <span className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] leading-tight text-white/60">
+              <LanguagesIcon size={11} className="shrink-0 text-white/40" /> {creator.languages.join(', ')}
+            </span>
+          )}
+        </div>
+
+        {/* Only 3 skills here — the rest are on the full profile page. */}
+        {creator.skills && creator.skills.length > 0 && (
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {creator.skills.slice(0, 3).map((skill) => (
+              <span key={skill} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/60">{skill}</span>
+            ))}
+          </div>
+        )}
+
+        {(creator.projectsCompletedCount ?? 0) > 0 && (
+          <p className="mt-auto pt-3.5 text-xs text-white/40">
+            <span className="font-bold text-white/70">{creator.projectsCompletedCount}+</span> Total Projects
+          </p>
+        )}
+      </div>
+    </Link>
+  );
+}
 
 export default function ExploreCreators() {
   const [creators, setCreators] = useState<ApiCreator[]>([]);
@@ -26,7 +136,7 @@ export default function ExploreCreators() {
   const [availability, setAvailability] = useState<'any' | 'available'>('any');
   const [skillFilter, setSkillFilter] = useState('All');
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
-  const [view, setView] = useState<'list' | 'grid'>('list');
+  const [view, setView] = useState<'list' | 'grid'>('grid');
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -165,7 +275,7 @@ export default function ExploreCreators() {
         <div className="absolute right-1/4 top-0 h-72 w-72 rounded-full bg-pink-500/10 blur-[110px]" />
       </div>
       <Container>
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-white/40">Home &gt; Creators</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-4xl">
@@ -173,14 +283,39 @@ export default function ExploreCreators() {
             </h1>
             <p className="mt-1.5 text-sm text-white/60 sm:mt-2 sm:text-base">Find creators that match your style, skills and project needs.</p>
           </div>
-          <button
-            onClick={handleUseMyLocation}
-            disabled={locating}
-            className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-3.5 py-2 text-xs font-semibold text-white/70 hover:border-orange-400/40 hover:text-white disabled:opacity-50 sm:px-4 sm:py-2.5 sm:text-sm"
-          >
-            {locating ? <Loader2 size={14} className="animate-spin" /> : <LocateFixed size={14} />}
-            Use My Location
-          </button>
+
+          <div className="flex shrink-0 items-center gap-4">
+            <p className="hidden -rotate-3 font-display text-sm italic leading-tight text-orange-400/70 lg:block">
+              Real People
+              <br />
+              Real Content
+              <br />
+              Real Impact
+            </p>
+            <button
+              onClick={() => (location ? setLocation('') : handleUseMyLocation())}
+              disabled={locating}
+              className="flex items-center gap-3 rounded-2xl border border-white/10 bg-navy-800/60 px-4 py-3 text-left shadow-card transition-all duration-200 ease-out hover:border-orange-400/40 disabled:opacity-60"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-500/15 text-orange-300">
+                {locating ? <Loader2 size={16} className="animate-spin" /> : <Crown size={16} />}
+              </span>
+              <span>
+                <span className="block text-sm font-bold text-white">Use My Location</span>
+                <span className="flex items-center gap-1 text-xs text-white/40">
+                  <MapPin size={10} /> {location ? `Showing near ${location}` : 'Get local creators near you'}
+                </span>
+              </span>
+              <span
+                className={cn(
+                  'ml-1 flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200',
+                  location ? 'bg-orange-500' : 'bg-white/15'
+                )}
+              >
+                <span className={cn('h-5 w-5 rounded-full bg-white shadow-soft transition-transform duration-200', location && 'translate-x-5')} />
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Search + Filters toggle */}
@@ -234,7 +369,7 @@ export default function ExploreCreators() {
         {/* Filter bar — collapsed by default on mobile behind the Filters button, always visible from sm up */}
         <div className={cn('mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5', filtersOpen ? 'grid' : 'hidden sm:grid')}>
           <label className="block">
-            <span className="mb-1 block text-[11px] font-semibold uppercase text-white/40">Location</span>
+            <span className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase text-white/40"><MapPin size={11} /> Location</span>
             <input
               value={location}
               onChange={(e) => setLocation(e.target.value)}
@@ -243,7 +378,7 @@ export default function ExploreCreators() {
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11px] font-semibold uppercase text-white/40">Category</span>
+            <span className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase text-white/40"><Grid3x3 size={11} /> Category</span>
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
@@ -256,7 +391,7 @@ export default function ExploreCreators() {
             </select>
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11px] font-semibold uppercase text-white/40">Skills</span>
+            <span className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase text-white/40"><Wand2 size={11} /> Skills</span>
             <select
               value={skillFilter}
               onChange={(e) => setSkillFilter(e.target.value)}
@@ -269,7 +404,7 @@ export default function ExploreCreators() {
             </select>
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11px] font-semibold uppercase text-white/40">Availability</span>
+            <span className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase text-white/40"><CalendarIcon size={11} /> Availability</span>
             <select
               value={availability}
               onChange={(e) => setAvailability(e.target.value as 'any' | 'available')}
@@ -280,7 +415,7 @@ export default function ExploreCreators() {
             </select>
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11px] font-semibold uppercase text-white/40">Sort By</span>
+            <span className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase text-white/40"><ArrowUpDown size={11} /> Sort By</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
@@ -332,7 +467,7 @@ export default function ExploreCreators() {
         )}
 
         {!loading && !error && visibleCreators.length > 0 && view === 'grid' && (
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {visibleCreators.map((creator, i) => (
               <motion.div
                 key={creator._id}
@@ -340,8 +475,9 @@ export default function ExploreCreators() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
                 transition={{ duration: 0.4, delay: (i % 12) * 0.05 }}
+                className="h-full"
               >
-                <CreatorPosterCard creator={creator} />
+                <CreatorGridCard creator={creator} onCardClick={handleCardClick} />
               </motion.div>
             ))}
           </div>

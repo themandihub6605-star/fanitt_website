@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Loader2, AlertCircle, Sparkles, Calendar, TrendingUp } from 'lucide-react';
+import { Check, Loader2, AlertCircle, Sparkles, Calendar, TrendingUp, Crown, Leaf, Rocket, ArrowRight, Zap, Flame } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { subscriptionApi, type ApiSubscriptionPlan, type ApiUserSubscription, type BillingCycle } from '@/services/subscriptionApi';
 import { openRazorpaySubscriptionCheckout } from '@/utils/razorpay';
@@ -33,12 +33,12 @@ function CurrentUsageCard({ subscription, isBrand }: { subscription: ApiUserSubs
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="mx-auto mt-8 max-w-2xl rounded-3xl border border-white/10 bg-navy-800/60 p-5 sm:p-6"
+      className="mx-auto mt-8 max-w-2xl rounded-3xl border border-white/10 bg-navy-800/60 p-5 shadow-card sm:p-6"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/15 text-orange-300">
-            <Sparkles size={16} />
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-orange-500/15 text-orange-300 ring-1 ring-inset ring-orange-500/20">
+            <Crown size={18} />
           </span>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-white/40">Your current plan</p>
@@ -204,13 +204,37 @@ export default function Pricing() {
   const currentPlanId = mySubscription?.plan._id;
 
   return (
-    <div className="pt-28 pb-24">
+    <div className="relative overflow-hidden pt-28 pb-24">
+      {/* Decorative flourishes matching the reference — purely visual, hidden
+          on small screens since there's no room for them there. */}
+      <div className="pointer-events-none absolute left-4 top-36 hidden -rotate-6 flex-col text-orange-400/70 lg:flex xl:left-10">
+        <span className="font-display text-lg italic leading-tight">More</span>
+        <span className="font-display text-lg italic leading-tight">Creators</span>
+        <span className="font-display text-lg italic leading-tight">More Growth</span>
+        <svg width="90" height="50" viewBox="0 0 90 50" fill="none" className="mt-1 text-orange-400/60">
+          <path d="M2 4C30 4 60 20 84 40" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="1 5" />
+          <path d="M70 34L86 41L78 26" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        </svg>
+      </div>
+      <div className="pointer-events-none absolute right-4 top-36 hidden rotate-3 rounded-2xl border border-orange-500/25 bg-orange-500/5 px-4 py-2.5 lg:block xl:right-10">
+        <p className="flex items-center gap-1.5 text-xs font-bold text-orange-300"><Zap size={12} /> Powering 10K+</p>
+        <p className="text-[11px] text-white/50">creators &amp; brands</p>
+      </div>
+      <div className="pointer-events-none absolute left-6 top-[26rem] hidden h-14 w-14 -rotate-6 items-center justify-center rounded-2xl border border-orange-500/20 bg-navy-800/60 text-orange-400/70 shadow-card lg:flex">
+        <Leaf size={22} />
+      </div>
+      <div className="pointer-events-none absolute right-6 top-[24rem] hidden h-14 w-14 rotate-6 items-center justify-center rounded-2xl border border-orange-500/20 bg-navy-800/60 text-orange-400/70 shadow-card lg:flex">
+        <Rocket size={22} />
+      </div>
+
       <Container>
-        <div className="text-center">
-          <span className="rounded-full border border-orange-500/30 bg-orange-500/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-orange-300">
+        <div className="relative text-center">
+          <span className="rounded-full border border-orange-500/30 bg-orange-500/15 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide text-orange-300">
             {isBrand ? 'For Brands' : 'For Creators'}
           </span>
-          <h1 className="mt-4 text-3xl font-bold text-white sm:text-4xl">Plans & Pricing</h1>
+          <h1 className="mt-4 text-3xl font-bold text-white sm:text-4xl md:text-5xl">
+            Choose Your <span className="bg-gradient-to-r from-orange-400 via-pink-400 to-yellow-300 bg-clip-text text-transparent">Perfect Plan</span>
+          </h1>
           <p className="mx-auto mt-3 max-w-xl text-white/60">
             {isBrand
               ? 'Post campaigns, reach the right creators, and grow your brand collaborations.'
@@ -254,27 +278,39 @@ export default function Pricing() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: i * 0.08 }}
                     className={cn(
-                      'relative flex flex-col rounded-3xl border p-6',
-                      isHighlighted ? 'border-orange-400/50 bg-gradient-to-b from-orange-500/10 to-navy-800/60' : 'border-white/10 bg-navy-800/50'
+                      'relative flex flex-col rounded-3xl border p-6 shadow-card transition-all duration-300 ease-out hover:-translate-y-1',
+                      isHighlighted
+                        ? 'border-orange-400/50 bg-gradient-to-b from-orange-500/10 to-navy-800/60 shadow-glow'
+                        : 'border-white/10 bg-navy-800/50 hover:border-white/20'
                     )}
                   >
                     {isHighlighted && (
-                      <span className="absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-orange-500 px-3 py-1 text-[10px] font-bold uppercase text-white">
-                        <Sparkles size={11} /> Popular
+                      <span className="absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-orange-500 px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-glow">
+                        <Flame size={11} /> Most Popular
                       </span>
                     )}
 
-                    <p className="text-lg font-bold text-white">{plan.name}</p>
-                    {plan.description && <p className="mt-1 text-sm text-white/50">{plan.description}</p>}
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className={cn(
+                          'flex h-10 w-10 shrink-0 items-center justify-center rounded-full ring-1 ring-inset',
+                          isHighlighted ? 'bg-orange-500/20 text-orange-300 ring-orange-500/30' : 'bg-white/10 text-white/60 ring-white/10'
+                        )}
+                      >
+                        {plan.price === 0 ? <Leaf size={17} /> : <Crown size={17} />}
+                      </span>
+                      <p className="text-lg font-bold text-white">{plan.name}</p>
+                    </div>
+                    {plan.description && <p className="mt-3 text-sm text-white/50">{plan.description}</p>}
 
-                    <div className="mt-4">
+                    <div className="mt-4 border-b border-white/10 pb-5">
                       <span className="text-3xl font-bold text-white">{plan.price === 0 ? 'Free' : formatRupees(plan.price)}</span>
                       {plan.price > 0 && (
                         <span className="text-sm text-white/50">/{plan.billingCycle === 'yearly' ? 'year' : 'month'}</span>
                       )}
                     </div>
 
-                    <ul className="mt-6 flex-1 space-y-2.5">
+                    <ul className="mt-5 flex-1 space-y-2.5">
                       {plan.perks.map((perk, idx) => (
                         <li key={idx} className="flex items-start gap-2 text-sm text-white/70">
                           <Check size={15} className="mt-0.5 shrink-0 text-emerald-400" />
@@ -283,30 +319,37 @@ export default function Pricing() {
                       ))}
                     </ul>
 
-                    <button
+                    <motion.button
+                      whileHover={{ scale: isCurrent || isLowerTier || plan.price === 0 ? 1 : 1.02 }}
+                      whileTap={{ scale: 0.97 }}
                       onClick={() => handleUpgrade(plan)}
                       disabled={isCurrent || isLowerTier || upgradingId === plan._id || plan.price === 0}
                       className={cn(
-                        'mt-6 flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold transition-colors disabled:cursor-default',
+                        'group relative mt-6 flex w-full items-center justify-center gap-2 overflow-hidden rounded-full py-3 text-sm font-bold transition-all duration-200 ease-out disabled:cursor-default',
                         isCurrent
-                          ? 'bg-emerald-500/15 text-emerald-300'
-                          : isLowerTier || plan.price === 0
+                          ? 'bg-orange-500/90 text-white'
+                          : isLowerTier
                           ? 'bg-white/10 text-white/50'
-                          : 'bg-orange-500 text-white hover:bg-orange-600'
+                          : plan.price === 0
+                          ? 'border-2 border-white/15 text-white hover:border-orange-400'
+                          : isHighlighted
+                          ? 'bg-orange-500 text-white hover:bg-orange-400 hover:shadow-glow'
+                          : 'border-2 border-orange-400/50 text-orange-300 hover:bg-orange-500/10'
                       )}
                     >
+                      {isHighlighted && !isLowerTier && plan.price > 0 && <span className="shine-sweep" />}
                       {upgradingId === plan._id ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : isCurrent ? (
-                        'Current Plan'
+                        <>Current Plan <ArrowRight size={15} /></>
                       ) : isLowerTier ? (
                         'Included in Your Plan'
                       ) : plan.price === 0 ? (
-                        'Free Plan'
+                        <>Free Plan <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" /></>
                       ) : (
-                        `Upgrade to ${plan.name}`
+                        <>{`Upgrade to ${plan.name}`} <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" /></>
                       )}
-                    </button>
+                    </motion.button>
                   </motion.div>
                 );
               })}

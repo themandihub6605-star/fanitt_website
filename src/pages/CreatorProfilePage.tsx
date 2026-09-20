@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Star,
@@ -23,6 +23,7 @@ import {
   UserCircle,
   FileText,
   LogOut,
+  X,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
@@ -67,6 +68,7 @@ export default function CreatorProfilePage() {
   const [bioExpanded, setBioExpanded] = useState(false);
   const [mySubscription, setMySubscription] = useState<ApiUserSubscription | null>(null);
   const [proProfileModalOpen, setProProfileModalOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
   const authUser = useAppSelector((s) => s.auth.user);
   const { logout } = useAuth();
@@ -247,11 +249,18 @@ export default function CreatorProfilePage() {
           className="flex flex-col items-start gap-5 sm:flex-row sm:items-end"
         >
           <div className="relative shrink-0">
-            <img
-              src={creator.user.avatarUrl || `https://i.pravatar.cc/300?u=${creator._id}`}
-              alt={creator.user.name}
-              className="h-24 w-24 rounded-full border-4 border-orange-500/70 object-cover shadow-lifted sm:h-28 sm:w-28"
-            />
+            <button
+              type="button"
+              onClick={() => setPhotoOpen(true)}
+              className="group block rounded-full transition-transform duration-200 ease-out hover:scale-[1.03]"
+              aria-label="View full photo"
+            >
+              <img
+                src={creator.user.avatarUrl || `https://i.pravatar.cc/300?u=${creator._id}`}
+                alt={creator.user.name}
+                className="h-24 w-24 rounded-full border-4 border-orange-500/70 object-cover shadow-lifted sm:h-28 sm:w-28"
+              />
+            </button>
             {creator.isAvailableForWork !== false && (
               <span className="absolute bottom-1.5 right-1.5 h-4 w-4 rounded-full border-2 border-[#0A0A0A] bg-emerald-400" />
             )}
@@ -638,6 +647,37 @@ export default function CreatorProfilePage() {
       {creator && (
         <ProProfileUpgradeModal open={proProfileModalOpen} onClose={() => setProProfileModalOpen(false)} name={creator.user.name} />
       )}
+
+      <AnimatePresence>
+        {photoOpen && creator && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setPhotoOpen(false)}
+          >
+            <motion.img
+              src={creator.user.avatarUrl || `https://i.pravatar.cc/600?u=${creator._id}`}
+              alt={creator.user.name}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="max-h-[85vh] w-auto max-w-[90vw] rounded-2xl object-contain shadow-lifted"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              type="button"
+              onClick={() => setPhotoOpen(false)}
+              aria-label="Close"
+              className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-200 ease-out hover:rotate-90 hover:bg-white/20 sm:right-6 sm:top-6"
+            >
+              <X size={18} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

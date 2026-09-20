@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Star,
@@ -19,6 +19,7 @@ import {
   Linkedin,
   Facebook,
   ExternalLink,
+  X,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
@@ -57,6 +58,7 @@ export default function BrandProfilePage() {
   const [tab, setTab] = useState<Tab>('Reviews');
   const [mySubscription, setMySubscription] = useState<ApiUserSubscription | null>(null);
   const [proProfileModalOpen, setProProfileModalOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
   const authUser = useAppSelector((s) => s.auth.user);
   const isOwnProfile = Boolean(isAuthenticated && authUser && brand && authUser._id === brand.user._id);
@@ -191,13 +193,19 @@ export default function BrandProfilePage() {
 
       <Container className="relative -mt-14 text-center sm:-mt-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-navy-900 bg-navy-800 shadow-lifted sm:h-28 sm:w-28">
+          <button
+            type="button"
+            onClick={() => brand.logoUrl && setPhotoOpen(true)}
+            disabled={!brand.logoUrl}
+            aria-label="View full logo"
+            className="group mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-navy-900 bg-navy-800 shadow-lifted transition-transform duration-200 ease-out enabled:hover:scale-[1.03] sm:h-28 sm:w-28"
+          >
             {brand.logoUrl ? (
               <img src={getUploadUrl(brand.logoUrl)} alt={brand.companyName} className="h-full w-full object-cover" />
             ) : (
               <Building2 size={32} className="text-white/40" />
             )}
-          </div>
+          </button>
 
           <div className="mt-3 flex items-center justify-center gap-1.5">
             <h1 className="text-xl font-bold text-white sm:text-2xl">{brand.companyName}</h1>
@@ -447,6 +455,37 @@ export default function BrandProfilePage() {
       {brand && (
         <ProProfileUpgradeModal open={proProfileModalOpen} onClose={() => setProProfileModalOpen(false)} name={brand.companyName} />
       )}
+
+      <AnimatePresence>
+        {photoOpen && brand?.logoUrl && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setPhotoOpen(false)}
+          >
+            <motion.img
+              src={getUploadUrl(brand.logoUrl)}
+              alt={brand.companyName}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="max-h-[85vh] w-auto max-w-[90vw] rounded-2xl object-contain shadow-lifted"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              type="button"
+              onClick={() => setPhotoOpen(false)}
+              aria-label="Close"
+              className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-200 ease-out hover:rotate-90 hover:bg-white/20 sm:right-6 sm:top-6"
+            >
+              <X size={18} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
