@@ -270,14 +270,6 @@ export default function Signup() {
     setError('');
     if (!photoFile) return setError(`Please upload a ${photoLabel.toLowerCase()} — it's required to create an account`);
 
-    if (role === 'creator' || role === 'brand') {
-      if (!instagram.trim()) return setError('Instagram handle is required');
-      if (!youtube.trim()) return setError('YouTube handle is required');
-      if (role === 'creator' && !facebook.trim()) return setError('Facebook username is required');
-      if (role === 'brand' && !linkedin.trim()) return setError('LinkedIn company page is required');
-      if (!website.trim()) return setError('Website is required');
-    }
-
     if (role === 'agency' && !documentFile) return setError('ID / Address proof is required');
 
     goNext();
@@ -976,11 +968,11 @@ export default function Signup() {
 
                   {(role === 'creator' || role === 'brand') && (
                     <>
-                      <TextField icon={Instagram} value={instagram} onChange={setInstagram} placeholder="Instagram handle" required />
-                      <TextField icon={Youtube} value={youtube} onChange={setYoutube} placeholder="YouTube handle" required />
-                      {role === 'creator' && <TextField icon={Facebook} value={facebook} onChange={setFacebook} placeholder="Facebook username" required />}
-                      {role === 'brand' && <TextField value={linkedin} onChange={setLinkedin} placeholder="LinkedIn company page" required />}
-                      <TextField icon={Globe} value={website} onChange={setWebsite} placeholder="Website" required />
+                      <TextField icon={Instagram} value={instagram} onChange={setInstagram} placeholder="Instagram handle (optional)" />
+                      <TextField icon={Youtube} value={youtube} onChange={setYoutube} placeholder="YouTube handle (optional)" />
+                      {role === 'creator' && <TextField icon={Facebook} value={facebook} onChange={setFacebook} placeholder="Facebook username (optional)" />}
+                      {role === 'brand' && <TextField value={linkedin} onChange={setLinkedin} placeholder="LinkedIn company page (optional)" />}
+                      <TextField icon={Globe} value={website} onChange={setWebsite} placeholder="Website (optional)" />
                     </>
                   )}
 

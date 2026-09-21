@@ -108,9 +108,8 @@ export default function Feed() {
 
   useEffect(loadFeed, []);
 
-  const visiblePosts = authUser
-    ? posts.filter((p) => typeof p.creator === 'string' || !p.creator.user || String(p.creator.user._id) !== String(authUser._id))
-    : posts;
+  // Everyone's posts show here, including your own — no self-post filter.
+  const visiblePosts = posts;
 
   const handleFollowChange = (creatorId: string, following: boolean) => {
     setFollowingIds((prev) => {
