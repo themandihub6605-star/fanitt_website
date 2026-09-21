@@ -147,7 +147,11 @@ export default function BrandDashboard() {
       .finally(() => !cancelled && setLoading(false));
     brandApi
       .getMyProfile()
-      .then((p) => !cancelled && setProfile(p))
+      .then((p) => {
+        if (cancelled) return;
+        setProfile(p);
+        if (p.logoUrl) setLogoUrl(p.logoUrl); // pre-fill from the already-saved logo, not just fresh uploads
+      })
       .catch(() => !cancelled && setProfile(null));
     return () => {
       cancelled = true;

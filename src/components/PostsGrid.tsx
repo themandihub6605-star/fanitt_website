@@ -31,10 +31,13 @@ export function PostsGrid({ posts, onDelete, onEditCaption }: PostsGridProps) {
           const thumb = post.mediaItems?.[0];
 
           return (
-            <button
+            <div
               key={post._id}
+              role="button"
+              tabIndex={0}
               onClick={() => setLightboxIndex(i)}
-              className="group relative aspect-square overflow-hidden rounded-xl bg-white/5"
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setLightboxIndex(i)}
+              className="group relative aspect-square cursor-pointer overflow-hidden rounded-xl bg-white/5"
             >
               {thumb ? (
                 thumb.type === 'video' ? (
@@ -86,7 +89,7 @@ export function PostsGrid({ posts, onDelete, onEditCaption }: PostsGridProps) {
                   </button>
                 )}
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
