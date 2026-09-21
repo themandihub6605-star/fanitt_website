@@ -4,6 +4,7 @@ import { Loader2, AlertCircle, CheckCircle2, Building2, User, MapPin, FileText }
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { agencyApi, type ApiAgency } from '@/services/agencyApi';
+import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import { getApiErrorMessage } from '@/services/apiClient';
 
 export default function EditAgencyProfile() {
@@ -139,14 +140,7 @@ export default function EditAgencyProfile() {
           <div className="grid grid-cols-2 gap-4">
             <label className="block">
               <span className="mb-1.5 block text-sm font-semibold text-white/80">City</span>
-              <div className="relative">
-                <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
-                <input
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white focus:border-orange-400"
-                />
-              </div>
+              <LocationAutocomplete icon={MapPin} mode="api" value={city} onChange={setCity} placeholder="" />
             </label>
             <label className="block">
               <span className="mb-1.5 block text-sm font-semibold text-white/80">State</span>

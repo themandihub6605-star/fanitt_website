@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from 'recharts';
-import { Wallet, Users, Eye, Star, TrendingUp, Loader2, AlertCircle, Plus, Video, Grid3x3, ArrowRight, ChevronRight, FileText, Sparkles, Calendar, CalendarClock, Megaphone, ShieldAlert, Clock } from 'lucide-react';
+import { Wallet, Users, Eye, Star, TrendingUp, Loader2, AlertCircle, Plus, Video, Grid3x3, ArrowRight, ChevronRight, FileText, Sparkles, Calendar, CalendarClock, Megaphone, ShieldAlert, Clock, CheckCircle2, Flame } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 // TEMPORARY (Point 4, live marketplace not launched yet): using ComingSoonModal
@@ -67,20 +67,18 @@ function canJoinNow(scheduledAt: string) {
 }
 
 function computeProfileCompletion(profile: ApiCreator | null, hasAvatar: boolean) {
-  if (!profile) return 0;
-  const checks = [
-    hasAvatar,
-    Boolean(profile.title),
-    Boolean(profile.bio),
-    Boolean(profile.category),
-    Boolean(profile.location),
-    Boolean(profile.skills && profile.skills.length > 0),
-    Boolean(
+  if (!profile) return { percent: 0, checks: { photo: false, bio: false, portfolio: false, socials: false } };
+  const checks = {
+    photo: hasAvatar,
+    bio: Boolean(profile.bio && profile.category),
+    portfolio: Boolean((profile.skills && profile.skills.length > 0) || profile.portfolioLink),
+    socials: Boolean(
       profile.socials && (profile.socials.instagram || profile.socials.youtube || profile.socials.behance || profile.socials.website)
     ),
-  ];
-  const done = checks.filter(Boolean).length;
-  return Math.round((done / checks.length) * 100);
+  };
+  const done = Object.values(checks).filter(Boolean).length;
+  const percent = Math.round((done / 4) * 100);
+  return { percent, checks };
 }
 
 // "Proposal Credits" card — how many proposals this cycle's plan allows,
@@ -147,38 +145,73 @@ function ProposalCreditsCard({ subscription }: { subscription: ApiUserSubscripti
   );
 }
 
-// "Profile Strength" — a real radial gauge of the same `completion` % used
-// site-wide (computeProfileCompletion), not a fabricated metric.
-function ProfileStrengthCard({ completion }: { completion: number }) {
+// "Profile Strength" — a real radial gauge + checklist, both derived from
+// the same computeProfileCompletion() used site-wide. No fabricated data:
+// the reference's week-over-week "+12%" style deltas elsewhere on this
+// page aren't included here since there's no such field in the API.
+function ProfileStrengthCard({ completion, checks }: { completion: number; checks: { photo: boolean; bio: boolean; portfolio: boolean; socials: boolean } }) {
   const gaugeData = [{ value: completion, fill: 'url(#profileStrengthGradient)' }];
+  const tier = completion >= 90 ? 'Excellent' : completion >= 60 ? 'Good' : completion >= 30 ? 'Fair' : 'Just started';
+  const checklist = [
+    { label: 'Profile photo', done: checks.photo },
+    { label: 'Bio & interests', done: checks.bio },
+    { label: 'Add portfolio', done: checks.portfolio },
+    { label: 'Add social links', done: checks.socials },
+  ];
 
   return (
     <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-5 shadow-card">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-white/50">Profile Strength</h2>
-        <Link to="/dashboard/creator/edit" className="text-xs font-semibold text-orange-400 hover:underline">Edit</Link>
+        <h2 className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-white/50">
+          <Sparkles size={13} className="text-orange-400" /> Profile Strength
+        </h2>
+        <Link to="/dashboard/creator/edit" className="rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-white/70 transition-colors hover:border-orange-400/40 hover:text-orange-300">
+          Edit Profile
+        </Link>
       </div>
 
-      <div className="relative mx-auto mt-3 h-40 w-40">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadialBarChart innerRadius="72%" outerRadius="100%" data={gaugeData} startAngle={90} endAngle={-270}>
-            <defs>
-              <linearGradient id="profileStrengthGradient" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#FF5A1F" />
-                <stop offset="100%" stopColor="#EC2A78" />
-              </linearGradient>
-            </defs>
-            <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
-            <RadialBar background={{ fill: 'rgba(255,255,255,0.08)' }} dataKey="value" cornerRadius={20} />
-          </RadialBarChart>
-        </ResponsiveContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-bold text-white">{completion}%</span>
-          <span className="text-[11px] text-white/50">complete</span>
+      <div className="mt-3 flex items-center gap-4">
+        <div className="relative h-28 w-28 shrink-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadialBarChart innerRadius="72%" outerRadius="100%" data={gaugeData} startAngle={90} endAngle={-270}>
+              <defs>
+                <linearGradient id="profileStrengthGradient" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#FF5A1F" />
+                  <stop offset="100%" stopColor="#EC2A78" />
+                </linearGradient>
+              </defs>
+              <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+              <RadialBar background={{ fill: 'rgba(255,255,255,0.08)' }} dataKey="value" cornerRadius={20} />
+            </RadialBarChart>
+          </ResponsiveContainer>
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-2xl font-bold text-white">{completion}%</span>
+            <span className="text-[10px] font-semibold text-orange-300">{tier}</span>
+          </div>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-xs leading-relaxed text-white/50">
+            {completion < 100
+              ? 'Complete your profile to get more collaborations and better opportunities.'
+              : 'Your profile is fully set up — nice work!'}
+          </p>
+          <ul className="mt-3 space-y-1.5">
+            {checklist.map((item) => (
+              <li key={item.label} className="flex items-center gap-2 text-xs">
+                {item.done ? (
+                  <CheckCircle2 size={14} className="shrink-0 text-emerald-400" />
+                ) : (
+                  <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/25" />
+                )}
+                <span className={item.done ? 'text-white/70' : 'text-white/40'}>{item.label}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
-      {completion < 100 ? (
+      {completion < 100 && (
         <Link
           to="/dashboard/creator/edit"
           className="group relative mt-4 flex w-full items-center justify-center gap-1.5 overflow-hidden rounded-full bg-orange-500 py-2.5 text-sm font-semibold text-white transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-orange-400 hover:shadow-glow"
@@ -186,10 +219,6 @@ function ProfileStrengthCard({ completion }: { completion: number }) {
           <span className="shine-sweep" />
           Complete Profile <ArrowRight size={14} />
         </Link>
-      ) : (
-        <p className="mt-4 flex items-center justify-center gap-1.5 text-sm font-semibold text-emerald-300">
-          🎉 Your profile is fully set up <ChevronRight size={14} />
-        </p>
       )}
     </div>
   );
@@ -409,7 +438,7 @@ export default function CreatorDashboard() {
     { icon: Star, label: 'Fanitt Score', value: data.stats.averageRating ? String(data.stats.averageRating) : '—', tone: 'blue' as const },
   ];
 
-  const completion = computeProfileCompletion(profile, Boolean(user?.avatarUrl));
+  const { percent: completion, checks: completionChecks } = computeProfileCompletion(profile, Boolean(user?.avatarUrl));
 
   return (
     <div className="pt-8 pb-14">
@@ -493,7 +522,9 @@ export default function CreatorDashboard() {
         {categories.length > 0 && (
           <div className="mt-8">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white">Trending Categories</h2>
+              <h2 className="flex items-center gap-2 text-lg font-bold text-white">
+                <Flame size={17} className="text-orange-400" /> Trending Categories
+              </h2>
               <Link to="/explore" className="flex items-center gap-1 text-xs font-semibold text-orange-400 hover:underline">
                 Explore all <ArrowRight size={12} />
               </Link>
@@ -701,14 +732,19 @@ export default function CreatorDashboard() {
                 <p className="mt-4 text-sm text-white/50">No posts yet — share a photo or reel to appear on your profile.</p>
               ) : (
                 <div className="mt-4">
-                  <PostsGrid posts={posts} onDelete={setDeleteTarget} />
+                  <PostsGrid
+                    posts={posts}
+                    onDelete={setDeleteTarget}
+                    onCreateNew={() => setCreatePostOpen(true)}
+                    maxPosts={MAX_POSTS_PER_CREATOR}
+                  />
                 </div>
               )}
             </motion.div>
           </div>
 
           <div className="space-y-6">
-            <ProfileStrengthCard completion={completion} />
+            <ProfileStrengthCard completion={completion} checks={completionChecks} />
             {mySubscription && <ProposalCreditsCard subscription={mySubscription} />}
 
             <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-5 shadow-card transition-all duration-300 ease-out hover:border-white/20">

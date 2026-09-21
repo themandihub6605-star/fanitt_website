@@ -16,6 +16,7 @@ import {
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { brandApi, type ApiBrand } from '@/services/brandApi';
+import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import { getApiErrorMessage, getUploadUrl } from '@/services/apiClient';
 import { cn } from '@/utils/cn';
 
@@ -209,10 +210,13 @@ export default function EditBrandProfile() {
 
             <label className="block">
               <span className="mb-1.5 block text-sm font-semibold text-white/80">Headquarters</span>
-              <div className="relative">
-                <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
-                <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Mumbai, Maharashtra, India" className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400" />
-              </div>
+              <LocationAutocomplete
+                icon={MapPin}
+                mode="api"
+                value={location}
+                onChange={setLocation}
+                placeholder="e.g. Mumbai, Maharashtra, India"
+              />
             </label>
 
             <div className="grid grid-cols-2 gap-4">

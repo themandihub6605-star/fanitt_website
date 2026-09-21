@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Trash2, Heart, Pencil, Layers } from 'lucide-react';
+import { Play, Trash2, Heart, Pencil, Layers, Plus } from 'lucide-react';
 import { PostLightbox } from './PostLightbox';
 import { getUploadUrl } from '@/services/apiClient';
 import type { ApiPost } from '@/services/postApi';
@@ -8,9 +8,13 @@ interface PostsGridProps {
   posts: ApiPost[];
   onDelete?: (postId: string) => void;
   onEditCaption?: (postId: string, newCaption: string) => void;
+  // Appends a dashed "Create New Post" tile as the grid's last cell instead
+  // of a separate link elsewhere — only rendered while there's room left.
+  onCreateNew?: () => void;
+  maxPosts?: number;
 }
 
-export function PostsGrid({ posts, onDelete, onEditCaption }: PostsGridProps) {
+export function PostsGrid({ posts, onDelete, onEditCaption, onCreateNew, maxPosts }: PostsGridProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   if (posts.length === 0) return null;
@@ -20,6 +24,8 @@ export function PostsGrid({ posts, onDelete, onEditCaption }: PostsGridProps) {
     const next = window.prompt('Edit caption:', post.caption);
     if (next !== null && next !== post.caption) onEditCaption?.(post._id, next);
   };
+
+  const canCreateMore = onCreateNew && (maxPosts === undefined || posts.length < maxPosts);
 
   return (
     <>
@@ -63,6 +69,12 @@ export function PostsGrid({ posts, onDelete, onEditCaption }: PostsGridProps) {
                 </span>
               )}
 
+              {/* Always-visible like count (real data — post.likeCount),
+                  not just on hover, so the tile reads at a glance. */}
+              <span className="pointer-events-none absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                <Heart size={9} fill="currentColor" /> {post.likeCount}
+              </span>
+
               <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/0 text-white opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
                 <Heart size={14} fill="currentColor" />
                 <span className="text-xs font-bold">{post.likeCount}</span>
@@ -92,6 +104,17 @@ export function PostsGrid({ posts, onDelete, onEditCaption }: PostsGridProps) {
             </div>
           );
         })}
+
+        {canCreateMore && (
+          <button
+            type="button"
+            onClick={onCreateNew}
+            className="group flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-white/15 text-white/40 transition-colors duration-200 hover:border-orange-400/50 hover:text-orange-300"
+          >
+            <Plus size={20} className="transition-transform duration-200 group-hover:scale-110" />
+            <span className="text-[11px] font-semibold">Create New Post</span>
+          </button>
+        )}
       </div>
 
       {lightboxIndex !== null && (
