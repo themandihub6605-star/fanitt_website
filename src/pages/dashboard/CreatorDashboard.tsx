@@ -97,12 +97,12 @@ function ProposalCreditsCard({ subscription }: { subscription: ApiUserSubscripti
   const isFreePlan = plan.price === 0;
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-5 shadow-card transition-all duration-300 ease-out hover:border-white/20">
-      <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-white/50">
-          <FileText size={14} /> Proposal Credits
+    <div className="min-w-0 rounded-2xl border border-white/10 bg-navy-800/60 p-5 shadow-card transition-all duration-300 ease-out hover:border-white/20">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="flex min-w-0 items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-white/50">
+          <FileText size={14} className="shrink-0" /> <span className="truncate">Proposal Credits</span>
         </h2>
-        <span className="rounded-full bg-orange-500/15 px-2.5 py-1 text-[11px] font-bold text-orange-300 ring-1 ring-inset ring-orange-500/20">{plan.name}</span>
+        <span className="shrink-0 rounded-full bg-orange-500/15 px-2.5 py-1 text-[11px] font-bold text-orange-300 ring-1 ring-inset ring-orange-500/20">{plan.name}</span>
       </div>
 
       {limit == null ? (
@@ -150,7 +150,7 @@ function ProposalCreditsCard({ subscription }: { subscription: ApiUserSubscripti
 // the reference's week-over-week "+12%" style deltas elsewhere on this
 // page aren't included here since there's no such field in the API.
 function ProfileStrengthCard({ completion, checks }: { completion: number; checks: { photo: boolean; bio: boolean; portfolio: boolean; socials: boolean } }) {
-  const gaugeData = [{ value: completion, fill: 'url(#profileStrengthGradient)' }];
+  const gaugeData = [{ value: completion, fill: '#FF5A1F' }];
   const tier = completion >= 90 ? 'Excellent' : completion >= 60 ? 'Good' : completion >= 30 ? 'Fair' : 'Just started';
   const checklist = [
     { label: 'Profile photo', done: checks.photo },
@@ -160,33 +160,27 @@ function ProfileStrengthCard({ completion, checks }: { completion: number; check
   ];
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-5 shadow-card">
-      <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-white/50">
-          <Sparkles size={13} className="text-orange-400" /> Profile Strength
+    <div className="min-w-0 rounded-2xl border border-white/10 bg-navy-800/60 p-5 shadow-card">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="flex min-w-0 items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-white/50">
+          <Sparkles size={13} className="shrink-0 text-orange-400" /> <span className="truncate">Profile Strength</span>
         </h2>
-        <Link to="/dashboard/creator/edit" className="rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-white/70 transition-colors hover:border-orange-400/40 hover:text-orange-300">
+        <Link to="/dashboard/creator/edit" className="shrink-0 rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-white/70 transition-colors hover:border-orange-400/40 hover:text-orange-300">
           Edit Profile
         </Link>
       </div>
 
       <div className="mt-3 flex items-center gap-4">
-        <div className="relative h-28 w-28 shrink-0">
+        <div className="relative h-24 w-24 shrink-0 sm:h-28 sm:w-28">
           <ResponsiveContainer width="100%" height="100%">
             <RadialBarChart innerRadius="72%" outerRadius="100%" data={gaugeData} startAngle={90} endAngle={-270}>
-              <defs>
-                <linearGradient id="profileStrengthGradient" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#FF5A1F" />
-                  <stop offset="100%" stopColor="#EC2A78" />
-                </linearGradient>
-              </defs>
               <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
-              <RadialBar background={{ fill: 'rgba(255,255,255,0.08)' }} dataKey="value" cornerRadius={20} />
+              <RadialBar background={{ fill: 'rgba(255,255,255,0.08)' }} dataKey="value" cornerRadius={20} fill="#FF5A1F" />
             </RadialBarChart>
           </ResponsiveContainer>
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-bold text-white">{completion}%</span>
-            <span className="text-[10px] font-semibold text-orange-300">{tier}</span>
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-1">
+            <span className="whitespace-nowrap text-lg font-bold leading-none text-white sm:text-xl">{completion}%</span>
+            <span className="mt-1 whitespace-nowrap text-[9px] font-semibold leading-none text-orange-300">{tier}</span>
           </div>
         </div>
 
@@ -204,7 +198,7 @@ function ProfileStrengthCard({ completion, checks }: { completion: number; check
                 ) : (
                   <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/25" />
                 )}
-                <span className={item.done ? 'text-white/70' : 'text-white/40'}>{item.label}</span>
+                <span className={cn('truncate', item.done ? 'text-white/70' : 'text-white/40')}>{item.label}</span>
               </li>
             ))}
           </ul>
@@ -232,10 +226,10 @@ function EarningsBreakdownCard({ breakdown, formatRupees }: { breakdown: { _id: 
   const total = breakdown.reduce((sum, r) => sum + r.total, 0);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-6 shadow-card">
+    <div className="min-w-0 rounded-2xl border border-white/10 bg-navy-800/60 p-6 shadow-card">
       <div className="flex items-center gap-2">
-        <TrendingUp size={16} className="text-teal-400" />
-        <h2 className="text-lg font-bold text-white">Earnings breakdown</h2>
+        <TrendingUp size={16} className="shrink-0 text-teal-400" />
+        <h2 className="truncate text-lg font-bold text-white">Earnings breakdown</h2>
       </div>
 
       {breakdown.length === 0 ? (
@@ -433,15 +427,18 @@ export default function CreatorDashboard() {
 
   const STATS = [
     { icon: Users, label: 'Total followers', value: data.stats.followerCount.toLocaleString('en-IN'), tone: 'orange' as const },
-    { icon: Eye, label: 'Profile views', value: data.stats.profileViews.toLocaleString('en-IN'), tone: 'red' as const },
-    { icon: Wallet, label: 'Total earnings', value: formatRupees(data.stats.totalEarnings), tone: 'purple' as const },
-    { icon: Star, label: 'Fanitt Score', value: data.stats.averageRating ? String(data.stats.averageRating) : '—', tone: 'blue' as const },
+    { icon: Eye, label: 'Profile views', value: data.stats.profileViews.toLocaleString('en-IN'), tone: 'orange' as const },
+    { icon: Wallet, label: 'Total earnings', value: formatRupees(data.stats.totalEarnings), tone: 'orange' as const },
+    { icon: Star, label: 'Fanitt Score', value: data.stats.averageRating ? String(data.stats.averageRating) : '—', tone: 'orange' as const },
   ];
 
   const { percent: completion, checks: completionChecks } = computeProfileCompletion(profile, Boolean(user?.avatarUrl));
 
   return (
-    <div className="pt-8 pb-14">
+    // FIX: `w-full max-w-full overflow-x-hidden` is a page-level safety net that
+    // guarantees nothing inside this page can ever force horizontal scrolling
+    // on the viewport itself, no matter what a child component does.
+    <div className="w-full max-w-full overflow-x-hidden pt-8 pb-14">
       <Container>
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -449,9 +446,14 @@ export default function CreatorDashboard() {
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           className="flex flex-wrap items-center justify-between gap-4"
         >
-          <div>
-            <h1 className="flex items-center gap-2 text-2xl font-bold text-white sm:text-3xl">
-              Welcome back, <span className="bg-gradient-to-r from-orange-400 via-pink-400 to-yellow-300 bg-clip-text text-transparent">{user?.name?.split(' ')[0]}</span>
+          {/* FIX: min-w-0 lets this block shrink/wrap instead of forcing
+              the flex row wider when the creator's name is long. */}
+          <div className="min-w-0">
+            <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold text-white sm:text-3xl">
+              Welcome back,{' '}
+              <span className="break-words text-orange-400">
+                {user?.name?.split(' ')[0]}
+              </span>
               <motion.span
                 animate={{ rotate: [0, 18, -8, 18, 0] }}
                 transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut' }}
@@ -462,7 +464,7 @@ export default function CreatorDashboard() {
             </h1>
             <p className="mt-1 text-sm text-white/60">Ready to inspire, connect and grow today?</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             <Link
               to="/dashboard/creator/edit"
               className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-orange-400/50 hover:bg-orange-500/10 hover:text-orange-300 hover:shadow-card"
@@ -487,7 +489,7 @@ export default function CreatorDashboard() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: i * 0.06 }}
-              className={cn('flex items-center gap-3.5 rounded-2xl border border-l-4 border-white/10 bg-navy-800/60 p-4 shadow-card sm:p-5', toneBorderClasses[stat.tone])}
+              className={cn('flex min-w-0 items-center gap-3.5 rounded-2xl border border-l-4 border-white/10 bg-navy-800/60 p-4 shadow-card sm:p-5', toneBorderClasses[stat.tone])}
             >
               <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10', toneClasses[stat.tone])}>
                 <stat.icon size={18} />
@@ -496,9 +498,9 @@ export default function CreatorDashboard() {
                 {stat.value === '—' ? (
                   <p className="text-sm font-semibold leading-tight text-white/40">Not yet rated</p>
                 ) : (
-                  <p className="text-2xl font-bold leading-tight text-white">{stat.value}</p>
+                  <p className="truncate text-2xl font-bold leading-tight text-white">{stat.value}</p>
                 )}
-                <p className="text-xs text-white/50">{stat.label}</p>
+                <p className="truncate text-xs text-white/50">{stat.label}</p>
               </div>
               <ChevronRight size={16} className="shrink-0 text-white/15" />
             </motion.div>
@@ -506,11 +508,12 @@ export default function CreatorDashboard() {
         </div>
 
         {recommended.length > 0 && (
-          <div className="mt-8">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white">Recommended for you</h2>
-              <Link to="/sessions" className="text-xs font-semibold text-orange-400 hover:underline">View all</Link>
+          <div className="mt-8 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="truncate text-lg font-bold text-white">Recommended for you</h2>
+              <Link to="/sessions" className="shrink-0 text-xs font-semibold text-orange-400 hover:underline">View all</Link>
             </div>
+            {/* Horizontal-scroll row: safe as long as its ancestors (above) have min-w-0 */}
             <div className="mt-4 flex gap-5 overflow-x-auto pb-3 pr-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {recommended.map((session) => (
                 <RecommendedSessionCard key={session._id} session={session} />
@@ -520,12 +523,12 @@ export default function CreatorDashboard() {
         )}
 
         {categories.length > 0 && (
-          <div className="mt-8">
-            <div className="flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-                <Flame size={17} className="text-orange-400" /> Trending Categories
+          <div className="mt-8 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="flex min-w-0 items-center gap-2 text-lg font-bold text-white">
+                <Flame size={17} className="shrink-0 text-orange-400" /> <span className="truncate">Trending Categories</span>
               </h2>
-              <Link to="/explore" className="flex items-center gap-1 text-xs font-semibold text-orange-400 hover:underline">
+              <Link to="/explore" className="flex shrink-0 items-center gap-1 text-xs font-semibold text-orange-400 hover:underline">
                 Explore all <ArrowRight size={12} />
               </Link>
             </div>
@@ -545,8 +548,8 @@ export default function CreatorDashboard() {
                       to={`/explore?category=${cat._id}`}
                       className="flex items-center gap-2 rounded-full border border-white/10 bg-navy-800/60 px-4 py-2 text-sm font-semibold text-white/70 shadow-soft transition-all duration-200 ease-out hover:border-orange-400/40 hover:bg-orange-500/10 hover:text-white hover:shadow-card"
                     >
-                      <Icon size={15} className="text-orange-400" />
-                      {cat.label}
+                      <Icon size={15} className="shrink-0 text-orange-400" />
+                      <span className="truncate">{cat.label}</span>
                     </Link>
                   </motion.div>
                 );
@@ -559,16 +562,16 @@ export default function CreatorDashboard() {
             Locked state entices Lite users to upgrade instead of hiding
             the feature entirely. */}
         {(suggestionsLocked || (suggestedCampaigns && suggestedCampaigns.length > 0)) && (
-          <div className="mt-8">
-            <div className="flex items-center gap-2">
-              <Sparkles size={18} className="text-orange-400" />
-              <h2 className="text-lg font-bold text-white">AI-Suggested Campaigns</h2>
-              <span className="rounded-full bg-orange-500/15 px-2.5 py-0.5 text-[11px] font-bold uppercase text-orange-300">Pro</span>
+          <div className="mt-8 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Sparkles size={18} className="shrink-0 text-orange-400" />
+              <h2 className="truncate text-lg font-bold text-white">AI-Suggested Campaigns</h2>
+              <span className="shrink-0 rounded-full bg-orange-500/15 px-2.5 py-0.5 text-[11px] font-bold uppercase text-orange-300">Pro</span>
             </div>
 
             {suggestionsLocked ? (
               <div className="mt-4 flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-2xl border border-orange-500/20 bg-gradient-to-r from-orange-500/10 to-pink-500/10 p-5 shadow-card">
-                <div>
+                <div className="min-w-0">
                   <p className="font-bold text-white">Unlock personalized campaign matches</p>
                   <p className="mt-1 text-sm text-white/60">Upgrade to Pro to see campaigns picked for your category, location and skills.</p>
                 </div>
@@ -586,7 +589,7 @@ export default function CreatorDashboard() {
                     className="w-72 shrink-0 rounded-2xl border border-white/10 bg-navy-800/60 p-4 shadow-soft transition-all duration-300 ease-out hover:-translate-y-1 hover:border-orange-400/40 hover:shadow-card"
                   >
                     <p className="truncate text-sm font-bold text-white">{campaign.title}</p>
-                    <p className="mt-1 text-xs text-white/50">{campaign.brand.companyName}</p>
+                    <p className="mt-1 truncate text-xs text-white/50">{campaign.brand.companyName}</p>
                     <p className="mt-2 text-sm font-semibold text-orange-300">
                       {campaign.campaignType === 'paid' ? formatRupees(campaign.budget) : `${campaign.products.length} product(s)`}
                     </p>
@@ -610,28 +613,34 @@ export default function CreatorDashboard() {
             the right column (a proper radial gauge) — see below — instead
             of a separate full-width banner duplicating the same number. */}
 
+        {/* FIX: this is the real fix for the screenshot's overflow bug.
+            Grid items default to min-width:auto, so the Applied Campaigns
+            table (min-w-[440px], below) was stretching this whole grid —
+            and therefore the page — past the viewport width. Adding
+            min-w-0 to each column lets its content scroll internally
+            (via overflow-x-auto) instead of pushing the page wider. */}
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.7fr_1fr]">
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4 }}
-              className="relative overflow-hidden rounded-2xl border border-white/10 bg-navy-800/60 p-6 shadow-card transition-all duration-300 ease-out hover:border-white/20"
+              className="relative min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-navy-800/60 p-6 shadow-card transition-all duration-300 ease-out hover:border-white/20"
             >
               <CalendarClock size={96} className="pointer-events-none absolute -bottom-4 -right-4 text-white/[0.04]" strokeWidth={1} />
               <h2 className="relative flex items-center gap-2 text-lg font-bold text-white">
-                <Calendar size={17} className="text-orange-400" /> Upcoming bookings
+                <Calendar size={17} className="shrink-0 text-orange-400" /> Upcoming bookings
               </h2>
               {data.upcomingSessions.length === 0 ? (
                 <p className="mt-4 text-sm text-white/50">No upcoming sessions — create one to get started.</p>
               ) : (
-                <div className="mt-4 divide-y divide-white/10">
+                <div className="relative mt-4 divide-y divide-white/10">
                   {data.upcomingSessions.map((s) => (
                     <div key={s._id} className="-mx-2 flex items-center gap-4 rounded-lg px-2 py-3.5 transition-colors duration-200 hover:bg-white/[0.04]">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-white">{s.title}</p>
-                        <p className="text-xs text-white/50">
+                        <p className="truncate text-xs text-white/50">
                           {new Date(s.scheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
                         </p>
                       </div>
@@ -658,18 +667,21 @@ export default function CreatorDashboard() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: 0.05 }}
-              className="rounded-2xl border border-white/10 bg-navy-800/60 p-6 shadow-card transition-all duration-300 ease-out hover:border-white/20"
+              className="min-w-0 rounded-2xl border border-white/10 bg-navy-800/60 p-6 shadow-card transition-all duration-300 ease-out hover:border-white/20"
             >
-              <div className="flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-                  <Megaphone size={17} className="text-orange-400" /> Applied Campaigns
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="flex min-w-0 items-center gap-2 text-lg font-bold text-white">
+                  <Megaphone size={17} className="shrink-0 text-orange-400" /> <span className="truncate">Applied Campaigns</span>
                 </h2>
-                <Link to="/proposals" className="text-xs font-semibold text-orange-400 hover:underline">View all</Link>
+                <Link to="/proposals" className="shrink-0 text-xs font-semibold text-orange-400 hover:underline">View all</Link>
               </div>
               {appliedCampaigns.length === 0 ? (
                 <p className="mt-4 text-sm text-white/50">You haven't applied to any campaigns yet — browse open campaigns to send your first proposal.</p>
               ) : (
-                <div className="mt-4 overflow-x-auto">
+                // FIX: `w-full` + the min-w-0 chain above means this now scrolls
+                // horizontally *inside its own card* on small screens instead of
+                // stretching the page.
+                <div className="mt-4 w-full overflow-x-auto">
                   <table className="w-full min-w-[440px] border-collapse text-left text-sm">
                     <thead>
                       <tr className="border-b border-white/10 text-[11px] font-bold uppercase tracking-wide text-white/40">
@@ -722,16 +734,16 @@ export default function CreatorDashboard() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: 0.1 }}
-              className="rounded-2xl border border-white/10 bg-navy-800/60 p-6 shadow-card transition-all duration-300 ease-out hover:border-white/20"
+              className="min-w-0 rounded-2xl border border-white/10 bg-navy-800/60 p-6 shadow-card transition-all duration-300 ease-out hover:border-white/20"
             >
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-white">Your posts</h2>
-                <span className="text-xs text-white/50">{posts.length}/{MAX_POSTS_PER_CREATOR} used</span>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="truncate text-lg font-bold text-white">Your posts</h2>
+                <span className="shrink-0 text-xs text-white/50">{posts.length}/{MAX_POSTS_PER_CREATOR} used</span>
               </div>
               {posts.length === 0 ? (
                 <p className="mt-4 text-sm text-white/50">No posts yet — share a photo or reel to appear on your profile.</p>
               ) : (
-                <div className="mt-4">
+                <div className="mt-4 min-w-0">
                   <PostsGrid
                     posts={posts}
                     onDelete={setDeleteTarget}
@@ -743,11 +755,11 @@ export default function CreatorDashboard() {
             </motion.div>
           </div>
 
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             <ProfileStrengthCard completion={completion} checks={completionChecks} />
             {mySubscription && <ProposalCreditsCard subscription={mySubscription} />}
 
-            <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-5 shadow-card transition-all duration-300 ease-out hover:border-white/20">
+            <div className="min-w-0 rounded-2xl border border-white/10 bg-navy-800/60 p-5 shadow-card transition-all duration-300 ease-out hover:border-white/20">
               <h2 className="text-sm font-bold uppercase tracking-wide text-white/50">Quick Actions</h2>
               <div className="mt-3 space-y-1">
                 {/* REVERT-GO-LIVE: onClick was `() => setCreateSessionOpen(true)` — swap back
@@ -756,44 +768,44 @@ export default function CreatorDashboard() {
                   onClick={() => setComingSoonOpen(true)}
                   className="group flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left transition-colors duration-200 hover:bg-white/[0.05]"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/15 text-red-400 ring-1 ring-inset ring-red-500/20 transition-transform duration-300 ease-out group-hover:scale-110"><Video size={17} /></span>
-                  <span className="flex-1">
-                    <span className="block text-sm font-semibold text-white">Go Live</span>
-                    <span className="block text-xs text-white/40">Start your live session</span>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500/15 text-red-400 ring-1 ring-inset ring-red-500/20 transition-transform duration-300 ease-out group-hover:scale-110"><Video size={17} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-white">Go Live</span>
+                    <span className="block truncate text-xs text-white/40">Start your live session</span>
                   </span>
-                  <ChevronRight size={16} className="text-white/30 transition-transform duration-200 ease-out group-hover:translate-x-1 group-hover:text-orange-400" />
+                  <ChevronRight size={16} className="shrink-0 text-white/30 transition-transform duration-200 ease-out group-hover:translate-x-1 group-hover:text-orange-400" />
                 </button>
                 <button
                   onClick={() => setCreatePostOpen(true)}
                   disabled={posts.length >= MAX_POSTS_PER_CREATOR}
                   className="group flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left transition-colors duration-200 hover:bg-white/[0.05] disabled:opacity-40"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-fuchsia-500/15 text-fuchsia-300 ring-1 ring-inset ring-fuchsia-500/20 transition-transform duration-300 ease-out group-hover:scale-110"><Grid3x3 size={17} /></span>
-                  <span className="flex-1">
-                    <span className="block text-sm font-semibold text-white">Create Post</span>
-                    <span className="block text-xs text-white/40">Share an update ({posts.length}/{MAX_POSTS_PER_CREATOR})</span>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-fuchsia-500/15 text-fuchsia-300 ring-1 ring-inset ring-fuchsia-500/20 transition-transform duration-300 ease-out group-hover:scale-110"><Grid3x3 size={17} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-white">Create Post</span>
+                    <span className="block truncate text-xs text-white/40">Share an update ({posts.length}/{MAX_POSTS_PER_CREATOR})</span>
                   </span>
-                  <ChevronRight size={16} className="text-white/30 transition-transform duration-200 ease-out group-hover:translate-x-1 group-hover:text-orange-400" />
+                  <ChevronRight size={16} className="shrink-0 text-white/30 transition-transform duration-200 ease-out group-hover:translate-x-1 group-hover:text-orange-400" />
                 </button>
                 <Link to="/dashboard/creator/analytics" className="group flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left transition-colors duration-200 hover:bg-white/[0.05]">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/15 text-sky-300 ring-1 ring-inset ring-sky-500/20 transition-transform duration-300 ease-out group-hover:scale-110"><TrendingUp size={17} /></span>
-                  <span className="flex-1">
-                    <span className="block text-sm font-semibold text-white">View Analytics</span>
-                    <span className="block text-xs text-white/40">Track your performance</span>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500/15 text-sky-300 ring-1 ring-inset ring-sky-500/20 transition-transform duration-300 ease-out group-hover:scale-110"><TrendingUp size={17} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-white">View Analytics</span>
+                    <span className="block truncate text-xs text-white/40">Track your performance</span>
                   </span>
-                  <ChevronRight size={16} className="text-white/30 transition-transform duration-200 ease-out group-hover:translate-x-1 group-hover:text-orange-400" />
+                  <ChevronRight size={16} className="shrink-0 text-white/30 transition-transform duration-200 ease-out group-hover:translate-x-1 group-hover:text-orange-400" />
                 </Link>
               </div>
             </div>
 
             {walletBalance !== null && (
-              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-navy-800/60 p-5 shadow-card transition-all duration-300 ease-out hover:border-orange-500/20">
+              <div className="relative min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-navy-800/60 p-5 shadow-card transition-all duration-300 ease-out hover:border-orange-500/20">
                 <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-orange-500/10 blur-2xl" />
-                <div className="relative flex items-center justify-between">
-                  <h2 className="text-sm font-bold uppercase tracking-wide text-white/50">Wallet Balance</h2>
-                  <Link to="/wallet" className="text-xs font-semibold text-orange-400 hover:underline">View wallet</Link>
+                <div className="relative flex items-center justify-between gap-2">
+                  <h2 className="truncate text-sm font-bold uppercase tracking-wide text-white/50">Wallet Balance</h2>
+                  <Link to="/wallet" className="shrink-0 text-xs font-semibold text-orange-400 hover:underline">View wallet</Link>
                 </div>
-                <p className="relative mt-2 bg-gradient-to-r from-orange-400 to-yellow-300 bg-clip-text text-2xl font-bold text-transparent">{formatRupees(walletBalance)}</p>
+                <p className="relative mt-2 truncate text-2xl font-bold text-orange-400">{formatRupees(walletBalance)}</p>
                 <Link
                   to="/wallet"
                   className="relative mt-4 flex w-full items-center justify-center overflow-hidden rounded-full bg-orange-500 py-2.5 text-sm font-semibold text-white transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-orange-400 hover:shadow-glow"

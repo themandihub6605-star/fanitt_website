@@ -38,6 +38,21 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as (typeof error.config) & { _retry?: boolean };
 
+    // Account suspended — can happen on login/register (not yet
+    // authenticated) or mid-session on any authenticated call (an admin
+    // suspended them while they were still logged in). Fires a custom
+    // event that App.tsx listens for and shows as a popup right over
+    // whatever page they're on, instead of a hard navigation to a
+    // separate page — this interceptor runs outside any component, so a
+    // DOM event (not react-router's navigate) is how it reaches the UI.
+    const errorCode = (error.response?.data as { errorCode?: string } | undefined)?.errorCode;
+    if (errorCode === 'ACCOUNT_SUSPENDED') {
+      const message = (error.response?.data as { message?: string } | undefined)?.message || '';
+      store.dispatch(logout());
+      window.dispatchEvent(new CustomEvent('fanitt:suspended', { detail: message }));
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
 

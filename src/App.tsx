@@ -1,8 +1,9 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MainLayout } from '@/layouts/MainLayout';
 import { ProtectedRoute, APPROVAL_GATED_ROLES } from '@/components/ProtectedRoute';
+import { SuspensionModal } from '@/components/SuspensionModal';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setCredentials, setHydrated } from '@/store/slices/authSlice';
 import { authApi } from '@/services/authApi';
@@ -85,6 +86,25 @@ function useAuthHydration() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Being suspended mid-session was previously only caught the next time
+  // the person happened to click something that hit the API — sit still
+  // on an already-loaded page and you'd never find out. This polls a
+  // lightweight endpoint periodically so it surfaces within ~30s even if
+  // they don't touch anything; auth.middleware.js already throws the same
+  // ACCOUNT_SUSPENDED error on any authenticated call, so apiClient.ts's
+  // interceptor picks it up exactly the same way it does for any other
+  // request — this just guarantees a request happens regularly.
+  useEffect(() => {
+    if (!accessToken) return;
+    const interval = setInterval(() => {
+      authApi.getMe().catch(() => {
+        // a real failure here (suspension, expired session) is already
+        // handled by apiClient.ts's interceptor — nothing to do here
+      });
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [accessToken]);
 }
 
 const LAYOUT_ROUTES: { path: string; element: ReactNode }[] = [
@@ -252,7 +272,7 @@ const LAYOUT_ROUTES: { path: string; element: ReactNode }[] = [
   },
 ];
 
-export default function App() {
+function AppRoutes() {
   const location = useLocation();
   useAuthHydration();
   const { isAuthenticated, user, hasHydrated } = useAppSelector((s) => s.auth);
@@ -316,5 +336,30 @@ export default function App() {
         </Routes>
       </AnimatePresence>
     </MainLayout>
+  );
+}
+
+export default function App() {
+  const [suspensionMessage, setSuspensionMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      setSuspensionMessage((e as CustomEvent<string>).detail || '');
+    };
+    window.addEventListener('fanitt:suspended', handler);
+    return () => window.removeEventListener('fanitt:suspended', handler);
+  }, []);
+
+  return (
+    <>
+      <AppRoutes />
+      <SuspensionModal
+        message={suspensionMessage}
+        onLogout={() => {
+          setSuspensionMessage(null);
+          window.location.href = '/';
+        }}
+      />
+    </>
   );
 }

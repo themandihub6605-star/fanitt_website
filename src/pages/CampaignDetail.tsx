@@ -26,6 +26,11 @@ import {
   Wallet,
   Lock,
   Paperclip,
+  FileText,
+  Layers,
+  CheckCircle2,
+  XCircle,
+  Gift,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
@@ -80,6 +85,120 @@ function ExpandableImage({
         <Maximize2 size={13} />
       </span>
     </button>
+  );
+}
+
+// Adaptive sample-media layout for the sidebar: 1 item gets the full
+// tile, 2 split side-by-side, 3 becomes one big tile + two below —
+// fills the leftover sidebar space instead of a cramped thumbnail row.
+function SampleMediaGrid({ media, onExpand }: { media: string[]; onExpand: (url: string) => void }) {
+  if (media.length === 1) {
+    return (
+      <ExpandableImage
+        src={media[0]}
+        className="h-64 w-full object-cover"
+        onExpand={onExpand}
+        isVideo={isVideoUrl(media[0])}
+        roundedClassName="rounded-2xl"
+      />
+    );
+  }
+  if (media.length === 2) {
+    return (
+      <div className="grid grid-cols-2 gap-3">
+        {media.map((url, i) => (
+          <ExpandableImage
+            key={i}
+            src={url}
+            className="h-40 w-full object-cover"
+            onExpand={onExpand}
+            isVideo={isVideoUrl(url)}
+            roundedClassName="rounded-2xl"
+          />
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <ExpandableImage
+        src={media[0]}
+        className="col-span-2 h-40 w-full object-cover"
+        onExpand={onExpand}
+        isVideo={isVideoUrl(media[0])}
+        roundedClassName="rounded-2xl"
+      />
+      {media.slice(1, 3).map((url, i) => (
+        <ExpandableImage
+          key={i}
+          src={url}
+          className="h-28 w-full object-cover"
+          onExpand={onExpand}
+          isVideo={isVideoUrl(url)}
+          roundedClassName="rounded-2xl"
+        />
+      ))}
+    </div>
+  );
+}
+
+// Small pill used in the "who brands are looking for" chip row.
+function RequirementChip({ children, accent = false }: { children: React.ReactNode; accent?: boolean }) {
+  return (
+    <span
+      className={cn(
+        'rounded-full border px-3.5 py-2 text-xs font-semibold',
+        accent ? 'border-orange-400/25 bg-orange-500/10 text-orange-300' : 'border-white/10 bg-white/5 text-white/70'
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+// Compact "N Reel / N Story" pill used in the deliverables strip.
+function DeliverableChip({ count, label }: { count: number; label: string }) {
+  if (!count) return null;
+  return (
+    <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-2 text-xs font-semibold text-white/70">
+      <span className="text-sm font-bold text-white">{count}</span> {label}
+      {count > 1 ? 's' : ''}
+    </span>
+  );
+}
+
+// Small section heading used throughout the page: an icon chip + label,
+// no uppercase eyebrow, no left accent bar — the icon itself signals
+// what kind of information follows.
+function SectionHeading({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="mb-3 flex items-center gap-2.5">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/5 text-white/50">{icon}</span>
+      <h2 className="text-base font-bold text-white">{children}</h2>
+    </div>
+  );
+}
+
+// One row in the sidebar's quick-facts card: label left, value right,
+// full width — replaces the old stat rail that left a blank gap on the
+// right on wide screens.
+function QuickFactRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+      <span className="flex items-center gap-2 text-xs font-semibold text-white/50">
+        <span className="text-white/40">{icon}</span>
+        {label}
+      </span>
+      <span className="text-right text-sm font-bold text-white">{value}</span>
+    </div>
   );
 }
 
@@ -174,7 +293,7 @@ function ApplyModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center sm:p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={onClose}
         >
           <motion.div
@@ -182,12 +301,12 @@ function ApplyModal({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl border border-white/10 bg-navy-900 p-6 sm:max-w-md sm:rounded-2xl"
+            className="max-h-[90vh] w-full overflow-y-auto rounded-t-[28px] border border-white/10 bg-navy-900 p-6 sm:max-w-md sm:rounded-3xl"
           >
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-white">Apply to this opportunity</h2>
-              <button onClick={onClose} className="text-white/50 hover:text-white">
-                <X size={20} />
+              <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-white/50 hover:bg-white/5 hover:text-white">
+                <X size={18} />
               </button>
             </div>
             <p className="mt-1 truncate text-sm text-white/50">{campaign.title}</p>
@@ -199,7 +318,7 @@ function ApplyModal({
             )}
 
             {quotaExceeded && (
-              <div className="mt-4 rounded-xl border border-orange-400/30 bg-orange-500/10 p-4">
+              <div className="mt-4 rounded-2xl border border-orange-400/30 bg-orange-500/10 p-4">
                 <p className="flex items-center gap-1.5 text-sm font-bold text-orange-300">
                   <Sparkles size={14} /> You're out of proposals for this cycle
                 </p>
@@ -216,7 +335,7 @@ function ApplyModal({
             )}
 
             {exclusiveLocked && (
-              <div className="mt-4 rounded-xl border border-orange-400/30 bg-orange-500/10 p-4">
+              <div className="mt-4 rounded-2xl border border-orange-400/30 bg-orange-500/10 p-4">
                 <p className="flex items-center gap-1.5 text-sm font-bold text-orange-300">
                   <Sparkles size={14} /> This is an exclusive campaign for Pro creators
                 </p>
@@ -233,7 +352,7 @@ function ApplyModal({
             )}
 
             {error && (
-              <div className="mt-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              <div className="mt-4 flex items-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
                 <AlertCircle size={16} className="shrink-0" /> {error}
               </div>
             )}
@@ -250,7 +369,7 @@ function ApplyModal({
                     value={quotedAmount}
                     onChange={(e) => setQuotedAmount(e.target.value)}
                     placeholder={campaign.budget ? `e.g. ${campaign.budget / 100}` : undefined}
-                    className="w-full rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
+                    className="w-full rounded-2xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
                   />
                 </label>
 
@@ -266,13 +385,13 @@ function ApplyModal({
                           value={link}
                           onChange={(e) => updateLink(i, e.target.value)}
                           placeholder="https://instagram.com/reel/..."
-                          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
+                          className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
                         />
                         {portfolioLinks.length > 1 && (
                           <button
                             type="button"
                             onClick={() => removeLinkField(i)}
-                            className="shrink-0 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 text-white/40 hover:border-red-400/50 hover:text-red-400"
+                            className="shrink-0 flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 text-white/40 hover:border-red-400/50 hover:text-red-400"
                           >
                             <X size={15} />
                           </button>
@@ -300,7 +419,7 @@ function ApplyModal({
                     value={deliveryTimeline}
                     onChange={(e) => setDeliveryTimeline(e.target.value)}
                     placeholder="e.g. 3 days"
-                    className="w-full rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
+                    className="w-full rounded-2xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
                   />
                 </label>
 
@@ -311,7 +430,7 @@ function ApplyModal({
                     value={pitch}
                     onChange={(e) => setPitch(e.target.value)}
                     placeholder="Why you're a great fit for this..."
-                    className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
+                    className="w-full resize-none rounded-2xl border border-white/10 bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400"
                   />
                 </label>
 
@@ -372,7 +491,7 @@ function SubmissionForm({
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Describe what you're submitting..."
-        className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-orange-400"
+        className="w-full resize-none rounded-2xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-orange-400"
       />
       <div className="space-y-1.5">
         {links.map((link, i) => (
@@ -382,13 +501,13 @@ function SubmissionForm({
               value={link}
               onChange={(e) => updateLink(i, e.target.value)}
               placeholder="Link (Drive, Figma, etc.)"
-              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-orange-400"
+              className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:border-orange-400"
             />
             {links.length > 1 && (
               <button
                 type="button"
                 onClick={() => removeLink(i)}
-                className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-white/40 hover:border-red-400/50 hover:text-red-400"
+                className="shrink-0 flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 text-white/40 hover:border-red-400/50 hover:text-red-400"
               >
                 <X size={13} />
               </button>
@@ -405,7 +524,7 @@ function SubmissionForm({
           type="file"
           multiple
           onChange={(e) => setFiles(Array.from(e.target.files || []))}
-          className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-3 py-1.5 text-[11px] text-white/70 file:mr-2 file:rounded-lg file:border-0 file:bg-orange-500/20 file:px-2.5 file:py-1 file:text-[10px] file:font-bold file:text-orange-300"
+          className="w-full rounded-2xl border border-white/10 bg-navy-800/70 px-3 py-1.5 text-[11px] text-white/70 file:mr-2 file:rounded-lg file:border-0 file:bg-orange-500/20 file:px-2.5 file:py-1 file:text-[10px] file:font-bold file:text-orange-300"
         />
       </label>
       <Button
@@ -423,8 +542,11 @@ function SubmissionForm({
 // role, the milestone's current status, and whether it's locked (an
 // earlier milestone hasn't been released yet — see the sequential-unlock
 // logic in CampaignDetail below, which computes `locked` per card).
+// `index` numbers the card to match the read-only "How you'll get paid"
+// timeline above it, so the two stay visually linked.
 function MilestoneCard({
   milestone,
+  index,
   locked,
   isBrandOwner,
   isAssignedCreator,
@@ -432,6 +554,7 @@ function MilestoneCard({
   onChanged,
 }: {
   milestone: ApiMilestone;
+  index: number;
   locked: boolean;
   isBrandOwner: boolean;
   isAssignedCreator: boolean;
@@ -540,9 +663,9 @@ function MilestoneCard({
 
   if (locked) {
     return (
-      <div className="flex items-center justify-between rounded-xl border border-white/5 bg-navy-800/30 p-4 opacity-60">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/30">
+      <div className="flex items-center justify-between rounded-2xl border border-white/5 bg-navy-800/30 p-4 opacity-60">
+        <div className="flex items-center gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/5 text-white/30">
             <Lock size={13} />
           </span>
           <div>
@@ -556,14 +679,19 @@ function MilestoneCard({
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-navy-800/50 p-4">
+    <div className="rounded-2xl border border-white/10 bg-navy-800/50 p-5">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="flex items-center gap-1.5 text-sm font-bold text-white">
-            {milestone.isAdvance && <Wallet size={13} className="text-orange-400" />}
-            {milestone.title}
-          </p>
-          <p className="mt-0.5 text-lg font-bold text-orange-300">{formatRupees(milestone.amount)}</p>
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/15 bg-navy-900 text-xs font-bold text-white/60">
+            {index + 1}
+          </span>
+          <div>
+            <p className="flex items-center gap-1.5 text-sm font-bold text-white">
+              {milestone.isAdvance && <Wallet size={13} className="text-orange-400" />}
+              {milestone.title}
+            </p>
+            <p className="mt-0.5 text-lg font-bold text-orange-300">{formatRupees(milestone.amount)}</p>
+          </div>
         </div>
         <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold', MILESTONE_STATUS_STYLES[milestone.status])}>
           {MILESTONE_STATUS_LABEL[milestone.status]}
@@ -603,7 +731,7 @@ function MilestoneCard({
       {/* CHANGES_REQUESTED — creator sees the request + resubmits */}
       {isAssignedCreator && milestone.status === 'changes_requested' && (
         <div className="mt-3">
-          <div className="rounded-xl border border-orange-400/20 bg-orange-500/5 p-3">
+          <div className="rounded-2xl border border-orange-400/20 bg-orange-500/5 p-3">
             <p className="text-xs font-bold text-orange-300">Changes requested</p>
             <p className="mt-1 text-xs text-white/70">{milestone.changeDescription}</p>
             {(milestone.changeReferenceLinks || []).filter(Boolean).map((link, i) => (
@@ -627,7 +755,7 @@ function MilestoneCard({
       {/* SUBMITTED — brand reviews with 3 options; creator sees their own submission */}
       {isBrandOwner && milestone.status === 'submitted' && (
         <div className="mt-3">
-          <div className="rounded-xl border border-white/10 bg-navy-900/40 p-3">
+          <div className="rounded-2xl border border-white/10 bg-navy-900/40 p-3">
             <p className="text-xs font-bold text-white/80">Creator's submission</p>
             {milestone.submissionDescription && <p className="mt-1 text-xs text-white/70">{milestone.submissionDescription}</p>}
             {(milestone.submissionLinks || []).filter(Boolean).map((link, i) => (
@@ -667,7 +795,7 @@ function MilestoneCard({
           )}
 
           {activeDecision === 'changes' && (
-            <div className="mt-3 space-y-2.5 rounded-xl border border-orange-400/20 bg-orange-500/5 p-3">
+            <div className="mt-3 space-y-2.5 rounded-2xl border border-orange-400/20 bg-orange-500/5 p-3">
               <textarea
                 rows={2}
                 value={changeDescription}
@@ -704,7 +832,7 @@ function MilestoneCard({
           )}
 
           {activeDecision === 'dispute' && (
-            <div className="mt-3 space-y-2.5 rounded-xl border border-red-500/20 bg-red-500/5 p-3">
+            <div className="mt-3 space-y-2.5 rounded-2xl border border-red-500/20 bg-red-500/5 p-3">
               <textarea
                 rows={2}
                 value={disputeReason}
@@ -765,7 +893,16 @@ export default function CampaignDetail() {
   const { isAuthenticated, user } = useAppSelector((s) => s.auth);
 
   const [applyModalOpen, setApplyModalOpen] = useState(false);
+
+  // `applied` = the creator already has a proposal on this campaign,
+  // whether that happened just now in this session (set after a
+  // successful submit) or was found on page load (see the
+  // "already applied?" check below, via getMyProposals — the campaign
+  // object itself carries no per-viewer "did I apply" flag). While that
+  // check is in flight we hide the Apply button to avoid a flash of the
+  // wrong state, tracked by `checkingApplied`.
   const [applied, setApplied] = useState(false);
+  const [checkingApplied, setCheckingApplied] = useState(true);
 
   const [milestones, setMilestones] = useState<ApiMilestone[]>([]);
   const [milestonesLoading, setMilestonesLoading] = useState(false);
@@ -786,6 +923,25 @@ export default function CampaignDetail() {
   };
 
   useEffect(load, [id]);
+
+  // Already-applied check — only matters for creators. Pulls the
+  // creator's own proposals and checks whether one already points at
+  // this campaign, so a page reload/fresh visit shows "Applied" instead
+  // of letting them try (and fail) to apply again.
+  useEffect(() => {
+    if (!id || !user || user.role !== 'creator') {
+      setCheckingApplied(false);
+      return;
+    }
+    setCheckingApplied(true);
+    campaignApi
+      .getMyProposals()
+      .then(({ proposals }) => {
+        if (proposals.some((p) => p.campaign._id === id)) setApplied(true);
+      })
+      .catch(() => {})
+      .finally(() => setCheckingApplied(false));
+  }, [id, user]);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -857,415 +1013,430 @@ export default function CampaignDetail() {
   const hasDeliverables = campaign.deliverables && (campaign.deliverables.reel || campaign.deliverables.story || campaign.deliverables.post);
   const hasProducts = campaign.products && campaign.products.length > 0;
   const hasSampleMedia = campaign.sampleMedia && campaign.sampleMedia.length > 0;
+  const hasRequirements = Boolean(
+    campaign.minFollowers || campaign.ageRange || campaign.genderTarget?.length > 0 || campaign.influencerCategories?.length > 0
+  );
   const descriptionIsLong = campaign.description.length > DESCRIPTION_TRUNCATE_LENGTH;
+  const showApplyAction = !checkingApplied && (canApply || applied);
+  const showStickyApplyBar = !checkingApplied && canApply && !applied;
+  const hasBothDosDonts = campaign.dos?.length > 0 && campaign.donts?.length > 0;
+
+  // Quick-facts sidebar card — budget/duration/location/applied +
+  // deliverables + brand's "view applicants" + escrow note + posted
+  // date. No Apply button here — that's its own section at the very
+  // bottom of the page (see applyCard below).
+  const factsCard = (
+    <div className="rounded-[28px] border border-white/10 bg-navy-800/50 p-5">
+      <div className="divide-y divide-white/5">
+        <QuickFactRow
+          icon={<Briefcase size={14} />}
+          label={campaign.campaignType === 'paid' ? 'Budget' : 'Products'}
+          value={
+            campaign.campaignType === 'paid'
+              ? formatRupees(campaign.budget)
+              : `${campaign.products.length} item${campaign.products.length === 1 ? '' : 's'}`
+          }
+        />
+        <QuickFactRow icon={<Clock size={14} />} label="Duration" value={campaign.durationLabel || 'Flexible'} />
+        <QuickFactRow icon={<MapPin size={14} />} label="Location" value={campaign.location} />
+        <QuickFactRow icon={<Instagram size={14} />} label="Applied" value={campaign.applicantCount} />
+      </div>
+
+      {hasDeliverables && (
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-white/5 pt-4">
+          <DeliverableChip count={campaign.deliverables.reel} label="Reel" />
+          <DeliverableChip count={campaign.deliverables.story} label="Story" />
+          <DeliverableChip count={campaign.deliverables.post} label="Post" />
+        </div>
+      )}
+
+      {isBrandOwner && campaign.status === 'open' && (
+        <Link to={`/campaigns/${id}/applications`} className="mt-4 block">
+          <Button className="w-full justify-center" variant="outline">
+            View {campaign.applicantCount} applicant{campaign.applicantCount === 1 ? '' : 's'}
+          </Button>
+        </Link>
+      )}
+
+      {campaign.campaignType === 'paid' && (
+        <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-teal-500/15 bg-teal-500/5 px-3.5 py-3">
+          <ShieldCheck size={15} className="mt-0.5 shrink-0 text-teal-400" />
+          <p className="text-xs leading-relaxed text-teal-200/90">
+            Payout held securely in escrow, released one milestone at a time as each is approved.
+          </p>
+        </div>
+      )}
+
+      <p className="mt-4 flex items-center gap-1.5 text-xs text-white/35">
+        <Calendar size={12} /> Posted on {formatDate(campaign.createdAt)}
+      </p>
+    </div>
+  );
+
+  // Sample media card — adaptive grid (1 = full tile, 2 = split,
+  // 3 = big + two small) — sits right under the facts card so it fills
+  // the sidebar's leftover height instead of leaving it blank.
+  const sampleMediaCard = hasSampleMedia && (
+    <div className="rounded-[28px] border border-white/10 bg-navy-800/50 p-5">
+      <SectionHeading icon={<ImagePlus size={14} />}>Sample media</SectionHeading>
+      <SampleMediaGrid media={campaign.sampleMedia} onExpand={setLightboxUrl} />
+    </div>
+  );
+
+  // Apply CTA — deliberately its own last section on the page (after
+  // brief, requirements, milestones and even the completed-review
+  // block), same position on desktop and mobile, so it never gets lost
+  // mid-page inside the sidebar.
+  const applyCard = showApplyAction && (
+    <section className="mt-8 border-t border-white/10 pt-8">
+      <div className="rounded-[28px] border border-white/10 bg-navy-800/50 p-6 text-center sm:p-8">
+        <h3 className="text-lg font-bold text-white">{applied ? "You're in!" : 'Ready to apply?'}</h3>
+        <p className="mx-auto mt-1.5 max-w-md text-sm text-white/50">
+          {applied
+            ? 'Your proposal has been sent for this opportunity — track it under My Proposals.'
+            : `Send your proposal and ${campaign.brand.companyName} will get back to you.`}
+        </p>
+        <button
+          type="button"
+          disabled={applied}
+          aria-disabled={applied}
+          onClick={applied ? undefined : openApplyModal}
+          className={cn(
+            'mx-auto mt-5 flex w-full max-w-sm items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold transition-all',
+            applied
+              ? 'cursor-not-allowed bg-emerald-500/15 text-emerald-300'
+              : 'bg-orange-500 text-white shadow-lg shadow-orange-500/20 hover:bg-orange-600 hover:shadow-orange-500/30'
+          )}
+        >
+          {applied ? (
+            <>
+              <Check size={16} /> Applied
+            </>
+          ) : (
+            'Apply to this opportunity'
+          )}
+        </button>
+      </div>
+    </section>
+  );
 
   return (
-    <div className="pt-24 pb-24 sm:pt-28">
-      <Container className="max-w-3xl">
+    <div className={cn('pt-24 sm:pt-28', showStickyApplyBar ? 'pb-32 sm:pb-16' : 'pb-16')}>
+      <Container className="max-w-6xl">
         <Link to="/campaigns" className="inline-flex items-center gap-1.5 text-sm font-semibold text-white/60 hover:text-orange-400">
           <ArrowLeft size={15} /> Back to campaigns
         </Link>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mt-4 space-y-4"
-        >
-          {/* Hero card — image + brand/price/applied count side-by-side, plain dark card, matching reference layout */}
-          <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-4 sm:p-5">
-            <div className="flex gap-4">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mt-4">
+          {/* HERO — banner + brand avatar + title only. Budget/duration/
+              location/applicants live in the facts sidebar; the Apply
+              button lives at the very bottom. */}
+          <div className="overflow-hidden rounded-[28px] border border-white/10 bg-navy-800/50">
+            <div className="relative h-44 w-full overflow-hidden bg-navy-700 sm:h-56">
               {campaign.campaignImageUrl ? (
-                <div className="relative aspect-square w-28 shrink-0 overflow-hidden rounded-xl sm:w-36">
-                  <ExpandableImage
-                    src={campaign.campaignImageUrl}
-                    className="h-full w-full object-cover"
-                    onExpand={setLightboxUrl}
-                    roundedClassName="h-full w-full rounded-xl"
-                  />
-                  {campaign.campaignType && (
-                    <span
-                      className={cn(
-                        'absolute inset-x-1.5 bottom-1.5 rounded-full py-1 text-center text-[10px] font-bold uppercase tracking-wide text-white',
-                        campaign.campaignType === 'paid' ? 'bg-emerald-500' : 'bg-purple-500'
-                      )}
-                    >
-                      {campaign.campaignType === 'paid' ? 'Paid' : 'Barter'}
-                    </span>
-                  )}
-                </div>
+                <img src={campaign.campaignImageUrl} alt="" className="h-full w-full object-cover" />
               ) : (
-                <div className="flex aspect-square w-28 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white/30 sm:w-36">
-                  <ImagePlus size={22} />
+                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-navy-700 to-navy-900 text-white/15">
+                  <ImagePlus size={32} />
                 </div>
               )}
+              <div className="absolute inset-0 bg-gradient-to-t from-navy-900 via-navy-900/40 to-transparent" />
 
-              <div className="min-w-0 flex-1">
-                <h1 className="line-clamp-2 text-lg font-bold leading-tight text-white sm:text-xl">{campaign.title}</h1>
-
-                <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                  {campaign.brand.slug ? (
-                    <Link
-                      to={`/brand/${campaign.brand.slug}`}
-                      className="inline-flex items-center gap-1 text-sm font-semibold text-orange-300 hover:opacity-80"
-                    >
-                      By {campaign.brand.companyName} <ExternalLink size={11} className="shrink-0" />
-                    </Link>
-                  ) : (
-                    <p className="text-sm font-semibold text-white/70">By {campaign.brand.companyName}</p>
-                  )}
-                  {campaign.visibilityTier && (
-                    <span
-                      className={cn(
-                        'flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold',
-                        campaign.visibilityTier === 'exclusive' ? 'bg-orange-500/15 text-orange-300' : 'bg-white/10 text-white/50'
-                      )}
-                    >
-                      {campaign.visibilityTier === 'exclusive' && <Sparkles size={10} />}
-                      {campaign.visibilityTier === 'exclusive' ? 'Pro' : 'Lite'}
-                    </span>
-                  )}
-                </div>
-
-                <div className="mt-2.5 flex items-center gap-1.5 text-lg font-bold text-white">
-                  <Briefcase size={16} className="text-emerald-400" />
-                  {campaign.campaignType === 'paid'
-                    ? formatRupees(campaign.budget)
-                    : `${campaign.products.length} item${campaign.products.length === 1 ? '' : 's'}`}
-                </div>
-
-                <div className="mt-2.5 flex w-fit items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1.5 text-[10px] font-semibold text-emerald-300">
-                  <Instagram size={11} /> Creators Applied · {campaign.applicantCount}
-                </div>
-              </div>
-            </div>
-
-            {/* Deliverables row — neutral bordered box, matching reference */}
-            {hasDeliverables && (
-              <div className="mt-4 grid grid-cols-3 divide-x divide-white/10 rounded-xl border border-white/10 bg-navy-900/40 py-3.5 text-center">
-                <div>
-                  <p className="text-lg font-bold text-white">{campaign.deliverables.reel}</p>
-                  <p className="text-[11px] text-white/50">Reel</p>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-white">{campaign.deliverables.story}</p>
-                  <p className="text-[11px] text-white/50">Story</p>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-white">{campaign.deliverables.post}</p>
-                  <p className="text-[11px] text-white/50">Post</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Category tag, if any */}
-          {campaign.category?.label && (
-            <div className="px-1">
-              <span className="inline-block rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white/70">
-                {campaign.category.label}
-              </span>
-            </div>
-          )}
-
-          {/* About Campaign — light accent card with left bar, matching reference */}
-          <div className="rounded-xl border-l-4 border-purple-400 bg-navy-800/60 p-5">
-            <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-white">About Campaign</p>
-            {campaign.location && (
-              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-white/60">
-                <MapPin size={12} className="text-orange-400" /> {campaign.location}
-              </p>
-            )}
-            <p className={cn('leading-relaxed text-white/70', !descExpanded && descriptionIsLong && 'line-clamp-4')}>
-              {campaign.description}
-            </p>
-            {descriptionIsLong && (
-              <button
-                onClick={() => setDescExpanded((v) => !v)}
-                className="mt-1.5 flex items-center gap-1 text-sm font-semibold text-orange-400 hover:underline"
+              <span
+                className={cn(
+                  'absolute left-4 top-4 rounded-full px-3 py-1 text-[11px] font-bold text-white',
+                  campaign.campaignType === 'paid' ? 'bg-emerald-500' : 'bg-purple-500'
+                )}
               >
-                {descExpanded ? 'See less' : 'Read more'}
-                <ChevronDown size={14} className={cn('transition-transform', descExpanded && 'rotate-180')} />
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-navy-800/45 px-4 py-3.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-500/15 text-teal-400">
-                <Clock size={16} />
+                {campaign.campaignType === 'paid' ? 'Paid campaign' : 'Barter campaign'}
               </span>
-              <div>
-                <p className="text-sm font-bold text-white">{campaign.durationLabel || 'Flexible'}</p>
-                <p className="text-[11px] text-white/50">Duration</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-navy-800/45 px-4 py-3.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-yellow-500/15 text-yellow-400">
-                <MapPin size={16} />
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-white">{campaign.location}</p>
-                <p className="text-[11px] text-white/50">Location</p>
-              </div>
-            </div>
-          </div>
 
-          {/* Creator Requirement — light accent card, matching reference */}
-          {(campaign.minFollowers || campaign.ageRange || campaign.genderTarget?.length > 0) && (
-            <div className="rounded-xl border-l-4 border-purple-400 bg-navy-800/60 p-5">
-              <p className="mb-3 flex items-center gap-1.5 text-sm font-bold text-white">
-                <Users2 size={14} className="text-white/50" /> Creator Requirement
-              </p>
-              <div className="flex flex-wrap justify-around gap-6 divide-x divide-white/10 text-center">
-                {campaign.minFollowers ? (
-                  <div className="flex-1 min-w-[80px]">
-                    <p className="font-bold text-white">{campaign.minFollowers.toLocaleString('en-IN')}+</p>
-                    <p className="text-[10px] text-white/40">Followers</p>
-                  </div>
-                ) : null}
-                <div className="flex-1 min-w-[80px]">
-                  <p className="font-bold text-white">{campaign.ageRange.min} - {campaign.ageRange.max}</p>
-                  <p className="text-[10px] text-white/40">Age</p>
+              {campaign.campaignImageUrl && (
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(campaign.campaignImageUrl)}
+                  className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60"
+                  aria-label="View full image"
+                >
+                  <Maximize2 size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="relative -mt-9 px-5 pb-6 sm:px-7">
+              <div className="flex items-end justify-between gap-3">
+                <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-navy-800 bg-navy-700 sm:h-[76px] sm:w-[76px]">
+                  {campaign.brand.logoUrl ? (
+                    <img src={campaign.brand.logoUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Building2 size={22} className="text-white/30" />
+                  )}
                 </div>
-                {campaign.genderTarget?.length > 0 && (
-                  <div className="flex-1 min-w-[80px]">
-                    <p className="font-bold text-white">{campaign.genderTarget.map((g) => g[0].toUpperCase()).join('/')}</p>
-                    <p className="text-[10px] text-white/40">Gender</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Milestone Overview — static preview computed from the
-              campaign's milestoneCount/milestoneTitles/budget, visible to
-              every viewer (even before a creator is assigned) so creators
-              know the payment structure before applying. This is separate
-              from the interactive "Payment Milestones" cards further down,
-              which only exist once real Milestone documents are created
-              (i.e. after a creator is accepted). */}
-          {campaign.campaignType === 'paid' && campaign.milestoneCount && campaign.milestoneCount > 0 && (
-            <div className="rounded-xl border border-white/10 bg-navy-800/60 p-5">
-              <p className="mb-3 text-sm font-bold text-white">Milestone Overview</p>
-              <div className="divide-y divide-white/5">
-                {Array.from({ length: campaign.milestoneCount }).map((_, i) => {
-                  const count = campaign.milestoneCount!;
-                  const perMilestone = Math.floor(campaign.budget / count);
-                  const remainder = campaign.budget - perMilestone * count;
-                  const amount = perMilestone + (i === count - 1 ? remainder : 0);
-                  const percent = Math.round((amount / campaign.budget) * 100);
-                  const title = campaign.milestoneTitles?.[i]?.trim() || (count === 1 ? 'Full payment' : `Milestone ${i + 1}`);
-                  return (
-                    <div key={i} className="flex items-center justify-between py-2.5 text-sm">
-                      <div>
-                        <p className="font-semibold text-white">{title}</p>
-                        <p className="text-xs text-white/40">{percent}%</p>
-                      </div>
-                      <p className="font-bold text-orange-300">{formatRupees(amount)}</p>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-2 flex items-center justify-between border-t border-white/10 pt-2.5 text-sm">
-                <p className="font-bold text-white">Total</p>
-                <p className="font-bold text-white">100% — {formatRupees(campaign.budget)}</p>
-              </div>
-              <p className="mt-3 text-xs text-white/40">
-                The next milestone unlocks as soon as the current one is approved and released.
-              </p>
-            </div>
-          )}
-
-          {/* Everything below stays inside the same rounded card shell as before */}
-          <div className="space-y-6 rounded-2xl border border-white/10 bg-navy-800/70 p-5 text-left backdrop-blur-xl sm:p-6">
-            {/* Influencer categories */}
-            {campaign.influencerCategories?.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {campaign.influencerCategories.map((c) => (
-                  <span key={c} className="rounded-full bg-navy-700 px-3 py-1 text-xs font-semibold text-white/70">
-                    {c}
+                {campaign.visibilityTier === 'exclusive' && (
+                  <span className="mb-1.5 flex shrink-0 items-center gap-1 rounded-full bg-orange-500/15 px-2.5 py-1 text-[10px] font-bold text-orange-300">
+                    <Sparkles size={10} /> Pro exclusive
                   </span>
-                ))}
-              </div>
-            )}
-
-            {/* Dos & Don'ts */}
-            {(campaign.dos?.length > 0 || campaign.donts?.length > 0) && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {campaign.dos?.length > 0 && (
-                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-                    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-emerald-300">Do's</p>
-                    <ul className="space-y-1.5 text-xs text-white/60">
-                      {campaign.dos.map((d, i) => (
-                        <li key={i}>• {d}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {campaign.donts?.length > 0 && (
-                  <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-                    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-red-300">Dont's</p>
-                    <ul className="space-y-1.5 text-xs text-white/60">
-                      {campaign.donts.map((d, i) => (
-                        <li key={i}>• {d}</li>
-                      ))}
-                    </ul>
-                  </div>
                 )}
               </div>
-            )}
 
-            {/* Products */}
-            {hasProducts && (
-              <div>
-                <p className="mb-3 text-sm font-bold text-white">{campaign.campaignType === 'barter' ? 'Barter Products' : 'Free Products'}</p>
-                <div className="flex flex-wrap gap-3">
-                  {campaign.products.map((p) => (
-                    <div key={p._id} className="w-24 rounded-xl border border-white/10 bg-navy-800/45 p-2 text-center">
-                      {p.imageUrl ? (
-                        <ExpandableImage src={p.imageUrl} className="h-16 w-full rounded-xl object-cover" onExpand={setLightboxUrl} roundedClassName="rounded-xl" />
-                      ) : (
-                        <div className="flex h-16 w-full items-center justify-center rounded-xl bg-white/10 text-white/30">
-                          <ImagePlus size={16} />
-                        </div>
-                      )}
-                      <p className="mt-1.5 truncate text-[10px] font-semibold text-white/70">{p.name}</p>
-                      <p className="text-[10px] text-white/40">Qty {p.quantity}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Sample media */}
-            {hasSampleMedia && (
-              <div>
-                <p className="mb-3 text-sm font-bold text-white">Sample Media</p>
-                <div className="flex gap-3 overflow-x-auto pb-1">
-                  {campaign.sampleMedia.map((url, i) => (
-                    <div key={i} className="h-24 w-24 shrink-0">
-                      <ExpandableImage
-                        src={url}
-                        className="h-24 w-24 rounded-xl object-cover"
-                        onExpand={setLightboxUrl}
-                        isVideo={isVideoUrl(url)}
-                        roundedClassName="rounded-xl"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Escrow note — general info visible to everyone, matches the
-                per-milestone note shown to the brand near the Fund button */}
-            {campaign.campaignType === 'paid' && (
-              <div className="flex items-start gap-3 rounded-xl border border-teal-500/20 bg-teal-500/10 p-4">
-                <ShieldCheck size={16} className="mt-0.5 shrink-0 text-teal-400" />
-                <p className="text-sm text-teal-200">
-                  This budget is held securely in Fanitt escrow, one milestone at a time — released to the creator only as
-                  each milestone is approved.
-                </p>
-              </div>
-            )}
-
-            {/* Created date */}
-            <p className="flex items-center gap-1.5 text-xs text-white/40">
-              <Calendar size={12} /> Campaign created on {formatDate(campaign.createdAt)}
-            </p>
-
-            {/* Error */}
-            {error && (
-              <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                <AlertCircle size={16} className="shrink-0" /> {error}
-              </div>
-            )}
-
-            {/* Apply */}
-            {!applied && canApply && (
-              <div className="border-t border-white/10 pt-5">
-                <Button className="w-full justify-center" onClick={openApplyModal}>
-                  Apply to this opportunity
-                </Button>
-              </div>
-            )}
-
-            {applied && (
-              <div className="flex items-center justify-center gap-2 rounded-xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
-                <Check size={16} /> Proposal sent — track it under "My Proposals".
-              </div>
-            )}
-
-            {/* Brand owner: view applicants (still relevant regardless of milestones) */}
-            {isBrandOwner && campaign.status === 'open' && (
-              <div className="border-t border-white/10 pt-5">
-                <Link to={`/campaigns/${id}/applications`}>
-                  <Button className="w-full justify-center" variant="outline">
-                    View {campaign.applicantCount} applicant{campaign.applicantCount === 1 ? '' : 's'}
-                  </Button>
-                </Link>
-              </div>
-            )}
-
-            {/* Point 12: per-milestone payment cards — shown to both the
-                brand owner and the assigned creator once a creator has been
-                accepted on a paid campaign. Barter campaigns have no
-                milestones (no cash budget to split). */}
-            {(isBrandOwner || isAssignedCreator) && campaign.campaignType === 'paid' && campaign.assignedCreator && (
-              <div className="border-t border-white/10 pt-5">
-                <h3 className="mb-3 text-sm font-bold text-white">Payment Milestones</h3>
-                {milestonesLoading ? (
-                  <div className="flex justify-center py-6">
-                    <Loader2 size={20} className="animate-spin text-white/40" />
-                  </div>
-                ) : milestones.length === 0 ? (
-                  <p className="text-sm text-white/50">Milestones will appear here once set up.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {/* Sequential unlock: the first non-released milestone
-                        (by order) is the only interactive one — everything
-                        after it renders as "Locked" until it clears. */}
-                    {(() => {
-                      const firstUnreleasedIndex = milestones.findIndex((m) => m.status !== 'released');
-                      return milestones.map((m, i) => (
-                        <MilestoneCard
-                          key={m._id}
-                          milestone={m}
-                          locked={firstUnreleasedIndex !== -1 && i > firstUnreleasedIndex}
-                          isBrandOwner={Boolean(isBrandOwner)}
-                          isAssignedCreator={Boolean(isAssignedCreator)}
-                          brandName={campaign.brand.companyName}
-                          onChanged={handleMilestoneChanged}
-                        />
-                      ));
-                    })()}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {campaign.status === 'completed' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-center gap-2 rounded-xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
-                  <Check size={16} /> Completed — payment released to the creator.
-                </div>
-                {(isBrandOwner || isAssignedCreator) && !reviewDone && (
-                  <button
-                    onClick={() => setReviewModalOpen(true)}
-                    className="flex w-full items-center justify-center gap-2 rounded-full border border-orange-400/40 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/10"
+              <div className="mt-3">
+                {campaign.brand.slug ? (
+                  <Link
+                    to={`/brand/${campaign.brand.slug}`}
+                    className="inline-flex items-center gap-1 text-sm font-semibold text-white/60 hover:text-orange-300"
                   >
-                    Leave a review for {isBrandOwner ? campaign.assignedCreator?.user.name : campaign.brand.companyName}
+                    {campaign.brand.companyName} <ExternalLink size={11} className="shrink-0" />
+                  </Link>
+                ) : (
+                  <p className="text-sm font-semibold text-white/60">{campaign.brand.companyName}</p>
+                )}
+                <h1 className="mt-1 text-2xl font-bold leading-tight text-white sm:text-[28px]">{campaign.title}</h1>
+              </div>
+
+              {campaign.category?.label && (
+                <span className="mt-4 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs font-semibold text-white/60">
+                  {campaign.category.label}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile: facts card + sample media stack right under the hero,
+              above the brief. */}
+          <div className="mt-6 space-y-6 lg:hidden">
+            {factsCard}
+            {sampleMediaCard}
+          </div>
+
+          {/* Two-column body: brief/requirements/milestones/dos-donts on
+              the left, sticky facts + sample-media sidebar on the right. */}
+          <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
+            <div className="space-y-8 lg:col-span-2">
+              {/* Brief */}
+              <section>
+                <SectionHeading icon={<FileText size={14} />}>The brief</SectionHeading>
+                <p className={cn('leading-relaxed text-white/70', !descExpanded && descriptionIsLong && 'line-clamp-4')}>
+                  {campaign.description}
+                </p>
+                {descriptionIsLong && (
+                  <button
+                    onClick={() => setDescExpanded((v) => !v)}
+                    className="mt-2 flex items-center gap-1 text-sm font-semibold text-orange-400 hover:underline"
+                  >
+                    {descExpanded ? 'Show less' : 'Read more'}
+                    <ChevronDown size={14} className={cn('transition-transform', descExpanded && 'rotate-180')} />
                   </button>
                 )}
-                {reviewDone && (
-                  <p className="text-center text-xs text-white/40">Thanks for your review.</p>
-                )}
+              </section>
+
+              {/* Who brands are looking for */}
+              {hasRequirements && (
+                <section>
+                  <SectionHeading icon={<Users2 size={14} />}>Who they're looking for</SectionHeading>
+                  <div className="flex flex-wrap gap-2">
+                    {campaign.minFollowers ? <RequirementChip>{campaign.minFollowers.toLocaleString('en-IN')}+ followers</RequirementChip> : null}
+                    <RequirementChip>
+                      Age {campaign.ageRange.min}–{campaign.ageRange.max}
+                    </RequirementChip>
+                    {campaign.genderTarget?.length > 0 && (
+                      <RequirementChip>{campaign.genderTarget.map((g) => g[0].toUpperCase() + g.slice(1)).join(' · ')}</RequirementChip>
+                    )}
+                    {campaign.influencerCategories?.map((c) => (
+                      <RequirementChip key={c} accent>
+                        {c}
+                      </RequirementChip>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* How you'll get paid */}
+              {campaign.campaignType === 'paid' && campaign.milestoneCount && campaign.milestoneCount > 0 && (
+                <section>
+                  <SectionHeading icon={<Layers size={14} />}>How you'll get paid</SectionHeading>
+                  <div className="rounded-2xl border border-white/10 bg-navy-800/40 p-5">
+                    <div className="relative">
+                      <div className="absolute bottom-2 left-[15px] top-2 w-px bg-white/10" />
+                      <div className="space-y-5">
+                        {Array.from({ length: campaign.milestoneCount }).map((_, i) => {
+                          const count = campaign.milestoneCount!;
+                          const perMilestone = Math.floor(campaign.budget / count);
+                          const remainder = campaign.budget - perMilestone * count;
+                          const amount = perMilestone + (i === count - 1 ? remainder : 0);
+                          const percent = Math.round((amount / campaign.budget) * 100);
+                          const title = campaign.milestoneTitles?.[i]?.trim() || (count === 1 ? 'Full payment' : `Milestone ${i + 1}`);
+                          return (
+                            <div key={i} className="relative flex items-start gap-4">
+                              <span className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-navy-900 text-xs font-bold text-white/60">
+                                {i + 1}
+                              </span>
+                              <div className="flex flex-1 items-center justify-between gap-3 pt-1">
+                                <div>
+                                  <p className="text-sm font-semibold text-white">{title}</p>
+                                  <p className="text-xs text-white/40">{percent}% of budget</p>
+                                </div>
+                                <p className="text-sm font-bold text-orange-300">{formatRupees(amount)}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4 text-sm">
+                      <p className="font-bold text-white">Total</p>
+                      <p className="font-bold text-white">{formatRupees(campaign.budget)}</p>
+                    </div>
+                    <p className="mt-3 text-xs text-white/40">Each milestone unlocks once the one before it is approved and released.</p>
+                  </div>
+                </section>
+              )}
+
+              {/* Do's & Don'ts — 2-column only when both exist, else a
+                  single full-width card, so there's never a blank second
+                  column. */}
+              {(campaign.dos?.length > 0 || campaign.donts?.length > 0) && (
+                <section className={cn('grid grid-cols-1 gap-3', hasBothDosDonts && 'sm:grid-cols-2')}>
+                  {campaign.dos?.length > 0 && (
+                    <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/5 p-4">
+                      <p className="mb-3 text-sm font-bold text-emerald-300">Do</p>
+                      <ul className="space-y-2.5">
+                        {campaign.dos.map((d, i) => (
+                          <li key={i} className="flex items-start gap-2 text-xs leading-relaxed text-white/70">
+                            <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-emerald-400" /> {d}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {campaign.donts?.length > 0 && (
+                    <div className="rounded-2xl border border-red-500/15 bg-red-500/5 p-4">
+                      <p className="mb-3 text-sm font-bold text-red-300">Don't</p>
+                      <ul className="space-y-2.5">
+                        {campaign.donts.map((d, i) => (
+                          <li key={i} className="flex items-start gap-2 text-xs leading-relaxed text-white/70">
+                            <XCircle size={14} className="mt-0.5 shrink-0 text-red-400" /> {d}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* Products */}
+              {hasProducts && (
+                <section>
+                  <SectionHeading icon={<Gift size={14} />}>
+                    {campaign.campaignType === 'barter' ? 'Barter products' : 'Free products'}
+                  </SectionHeading>
+                  <div className="flex flex-wrap gap-3">
+                    {campaign.products.map((p) => (
+                      <div key={p._id} className="w-24 rounded-2xl border border-white/10 bg-navy-800/45 p-2.5 text-center">
+                        {p.imageUrl ? (
+                          <ExpandableImage src={p.imageUrl} className="h-16 w-full rounded-xl object-cover" onExpand={setLightboxUrl} roundedClassName="rounded-xl" />
+                        ) : (
+                          <div className="flex h-16 w-full items-center justify-center rounded-xl bg-white/10 text-white/30">
+                            <ImagePlus size={16} />
+                          </div>
+                        )}
+                        <p className="mt-1.5 truncate text-[10px] font-semibold text-white/70">{p.name}</p>
+                        <p className="text-[10px] text-white/40">Qty {p.quantity}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {error && (
+                <div className="flex items-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                  <AlertCircle size={16} className="shrink-0" /> {error}
+                </div>
+              )}
+            </div>
+
+            {/* Sticky sidebar — desktop only (mobile copy already rendered
+                above, under the hero). Facts card + sample media stack. */}
+            <div className="hidden lg:col-span-1 lg:block">
+              <div className="sticky top-28 space-y-6">
+                {factsCard}
+                {sampleMediaCard}
               </div>
-            )}
+            </div>
           </div>
+
+          {/* Interactive payment milestones — needs full width for the
+              funding/submission/review forms. */}
+          {(isBrandOwner || isAssignedCreator) && campaign.campaignType === 'paid' && campaign.assignedCreator && (
+            <div className="mt-8 border-t border-white/10 pt-6">
+              <h3 className="mb-3 text-sm font-bold text-white">Payment milestones</h3>
+              {milestonesLoading ? (
+                <div className="flex justify-center py-6">
+                  <Loader2 size={20} className="animate-spin text-white/40" />
+                </div>
+              ) : milestones.length === 0 ? (
+                <p className="text-sm text-white/50">Milestones will appear here once set up.</p>
+              ) : (
+                <div className="space-y-3">
+                  {/* Sequential unlock: the first non-released milestone
+                      (by order) is the only interactive one — everything
+                      after it renders as "Locked" until it clears. */}
+                  {(() => {
+                    const firstUnreleasedIndex = milestones.findIndex((m) => m.status !== 'released');
+                    return milestones.map((m, i) => (
+                      <MilestoneCard
+                        key={m._id}
+                        milestone={m}
+                        index={i}
+                        locked={firstUnreleasedIndex !== -1 && i > firstUnreleasedIndex}
+                        isBrandOwner={Boolean(isBrandOwner)}
+                        isAssignedCreator={Boolean(isAssignedCreator)}
+                        brandName={campaign.brand.companyName}
+                        onChanged={handleMilestoneChanged}
+                      />
+                    ));
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
+
+          {campaign.status === 'completed' && (
+            <div className="mt-8 space-y-3 border-t border-white/10 pt-6">
+              <div className="flex items-center justify-center gap-2 rounded-2xl bg-teal-500/15 py-3.5 text-sm font-bold text-teal-300">
+                <Check size={16} /> Completed — payment released to the creator.
+              </div>
+              {(isBrandOwner || isAssignedCreator) && !reviewDone && (
+                <button
+                  onClick={() => setReviewModalOpen(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-orange-400/40 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/10"
+                >
+                  Leave a review for {isBrandOwner ? campaign.assignedCreator?.user.name : campaign.brand.companyName}
+                </button>
+              )}
+              {reviewDone && <p className="text-center text-xs text-white/40">Thanks for your review.</p>}
+            </div>
+          )}
+
+          {/* Apply — always last, both desktop and mobile. */}
+          {applyCard}
         </motion.div>
       </Container>
+
+      {/* Mobile sticky apply bar — floating quick-access while scrolling,
+          separate from the full Apply section at the bottom. */}
+      {showStickyApplyBar && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-navy-900/95 p-3 backdrop-blur-lg sm:hidden">
+          <Container className="max-w-6xl">
+            <button
+              type="button"
+              onClick={openApplyModal}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-500/20"
+            >
+              Apply to this opportunity
+            </button>
+          </Container>
+        </div>
+      )}
 
       {campaign && (
         <ApplyModal
@@ -1275,9 +1446,9 @@ export default function CampaignDetail() {
           onSubmitted={() => {
             setApplyModalOpen(false);
             setApplied(true);
-            // Brief pause so the "Proposal sent" confirmation is still
-            // visible for a moment before jumping to My Proposals —
-            // same pattern as PostCampaign's post-publish redirect.
+            // Brief pause so the "Applied" state is visible for a moment
+            // before jumping to My Proposals — same pattern as
+            // PostCampaign's post-publish redirect.
             setTimeout(() => navigate('/proposals'), 1200);
           }}
         />

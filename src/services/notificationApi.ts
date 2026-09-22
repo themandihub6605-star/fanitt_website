@@ -3,11 +3,13 @@ import type { ApiEnvelope } from '@/types/api';
 
 export interface ApiNotification {
   _id: string;
-  type: string;
+  type: 'like' | 'follow' | 'comment' | string;
   title: string;
   message: string;
   isRead: boolean;
   createdAt: string;
+  fromUser?: { _id: string; name: string; avatarUrl?: string };
+  post?: { _id: string; mediaItems: { url: string; type: 'image' | 'video' }[] };
 }
 
 export const notificationApi = {

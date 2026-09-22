@@ -1,11 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, AlertCircle, CheckCircle2, Building2, User, MapPin, FileText } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, Building2, User, MapPin, FileText, Camera } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { agencyApi, type ApiAgency } from '@/services/agencyApi';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import { getApiErrorMessage } from '@/services/apiClient';
+
+// Small label row used above every field: shows a required "*" in orange,
+// or a muted "(optional)" hint when the field isn't mandatory — same
+// pattern as the Signup flow, so Edit Profile reads consistently with it.
+function FieldLabel({ label, required }: { label: string; required?: boolean }) {
+  return (
+    <span className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-white/80">
+      {label}
+      {required ? (
+        <span className="font-bold text-orange-400">*</span>
+      ) : (
+        <span className="text-[11px] font-normal text-white/35">(optional)</span>
+      )}
+    </span>
+  );
+}
 
 export default function EditAgencyProfile() {
   const navigate = useNavigate();
@@ -23,6 +39,16 @@ export default function EditAgencyProfile() {
   const [state, setState] = useState('');
   const [gstNumber, setGstNumber] = useState('');
 
+  // Signup requires an ID / Address proof document for agencies, but this
+  // Edit form never had a field for it — adding it back here. `hasExistingDocument`
+  // tracks whether one's already on file so we don't force a re-upload on
+  // every edit, only the first time. NOTE: adjust the `a.documentUrl` check
+  // below if your ApiAgency type uses a different field name for the
+  // uploaded document's URL.
+  const documentInputRef = useRef<HTMLInputElement>(null);
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [hasExistingDocument, setHasExistingDocument] = useState(false);
+
   useEffect(() => {
     agencyApi
       .getMyProfile()
@@ -34,17 +60,56 @@ export default function EditAgencyProfile() {
         setState(a.state || '');
         setGstNumber(a.gstNumber || '');
         setStatus(a.verificationStatus);
+        setHasExistingDocument(Boolean((a as any).documentUrl));
       })
       .catch((err) => setError(getApiErrorMessage(err)))
       .finally(() => setLoading(false));
   }, []);
 
+  const handleDocumentSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file');
+      return;
+    }
+    setDocumentFile(file);
+  };
+
+  // Same required set as the Signup flow's "work" step for agencies
+  // (agencyName, ownerName, city, state, gstNumber), plus mobile (phone was
+  // required on Signup's "personal" step). Signup also requires teamSize,
+  // yearsInBusiness and specialization, but this edit form has no fields
+  // for those, so they're left out here.
+  const validate = (): string | null => {
+    if (!agencyName.trim()) return 'Agency name is required';
+    if (!ownerName.trim()) return 'Owner name is required';
+    if (!mobile.trim()) return 'Mobile number is required';
+    if (!city.trim()) return 'City is required';
+    if (!state.trim()) return 'State is required';
+    if (!gstNumber.trim()) return 'GST number is required';
+    if (!documentFile && !hasExistingDocument) return 'ID / Address proof is required';
+    return null;
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSaved(false);
+
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setSaving(true);
     try {
+      if (documentFile) {
+        await agencyApi.uploadDocument(documentFile);
+        setHasExistingDocument(true);
+      }
+
       await agencyApi.updateMyProfile({
         agencyName,
         ownerName,
@@ -89,6 +154,9 @@ export default function EditAgencyProfile() {
             ? 'Update your details and resubmit for review.'
             : 'Saving submits (or resubmits) your details for admin approval.'}
         </p>
+        <p className="mt-1 text-xs text-white/40">
+          Fields marked <span className="font-semibold text-orange-400">*</span> are required
+        </p>
 
         {error && (
           <div className="mt-5 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
@@ -103,7 +171,26 @@ export default function EditAgencyProfile() {
 
         <form onSubmit={handleSave} className="mt-6 space-y-4 rounded-2xl border border-white/10 bg-navy-800/50 p-5">
           <label className="block">
-            <span className="mb-1.5 block text-sm font-semibold text-white/80">Agency name</span>
+            <span className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-white/80">
+              ID / Address proof <span className="font-bold text-orange-400">*</span>
+            </span>
+            <input ref={documentInputRef} type="file" accept="image/*" onChange={handleDocumentSelect} className="hidden" />
+            <button
+              type="button"
+              onClick={() => documentInputRef.current?.click()}
+              className="flex w-full items-center gap-3 rounded-xl border border-dashed border-white/15 bg-navy-800/70 px-4 py-3 text-left text-sm text-white/60 hover:border-orange-400/50"
+            >
+              <Camera size={16} className="shrink-0 text-white/40" />
+              {documentFile
+                ? documentFile.name
+                : hasExistingDocument
+                  ? 'Document on file — tap to replace'
+                  : 'Tap to upload an image'}
+            </button>
+          </label>
+
+          <label className="block">
+            <FieldLabel label="Agency name" required />
             <div className="relative">
               <Building2 size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
               <input
@@ -116,7 +203,7 @@ export default function EditAgencyProfile() {
           </label>
 
           <label className="block">
-            <span className="mb-1.5 block text-sm font-semibold text-white/80">Owner name</span>
+            <FieldLabel label="Owner name" required />
             <div className="relative">
               <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
               <input
@@ -128,7 +215,7 @@ export default function EditAgencyProfile() {
           </label>
 
           <label className="block">
-            <span className="mb-1.5 block text-sm font-semibold text-white/80">Mobile number</span>
+            <FieldLabel label="Mobile number" required />
             <input
               value={mobile}
               onChange={(e) => setMobile(e.target.value)}
@@ -139,11 +226,11 @@ export default function EditAgencyProfile() {
 
           <div className="grid grid-cols-2 gap-4">
             <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-white/80">City</span>
+              <FieldLabel label="City" required />
               <LocationAutocomplete icon={MapPin} mode="api" value={city} onChange={setCity} placeholder="" />
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-white/80">State</span>
+              <FieldLabel label="State" required />
               <input
                 value={state}
                 onChange={(e) => setState(e.target.value)}
@@ -153,7 +240,7 @@ export default function EditAgencyProfile() {
           </div>
 
           <label className="block">
-            <span className="mb-1.5 block text-sm font-semibold text-white/80">GST number (optional)</span>
+            <FieldLabel label="GST number" required />
             <div className="relative">
               <FileText size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
               <input

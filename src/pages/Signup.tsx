@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   User,
   Phone,
+  Mail,
   Sparkles,
   Building2,
   Users2,
@@ -24,7 +25,6 @@ import {
   FileText,
   CheckCircle2,
   Briefcase,
-  Link2,
   ChevronDown,
   ShieldCheck,
   Zap,
@@ -109,6 +109,27 @@ const INDUSTRIES = [
 
 const COMPANY_SIZES = ['1-10 employees', '11-50 employees', '51-200 employees', '201-500 employees', '500+ employees'];
 
+// --- Social profile URL validation -----------------------------------------
+// Users now paste a full profile URL instead of just a handle. Each pattern
+// accepts with/without protocol and with/without "www.", and is used both to
+// show a live green tick on the field and to gate the "required" checks.
+const SOCIAL_URL_PATTERNS: Record<'instagram' | 'youtube' | 'facebook' | 'linkedin' | 'website', RegExp> = {
+  instagram: /^(https?:\/\/)?(www\.)?instagram\.com\/[a-zA-Z0-9._]{1,30}\/?(\?.*)?$/i,
+  youtube: /^(https?:\/\/)?(www\.)?(youtube\.com\/(channel\/|c\/|@)?[\w.-]+|youtu\.be\/[\w.-]+)\/?(\?.*)?$/i,
+  facebook: /^(https?:\/\/)?(www\.)?facebook\.com\/[\w.]{1,50}\/?(\?.*)?$/i,
+  linkedin: /^(https?:\/\/)?(www\.)?linkedin\.com\/(company|in)\/[\w-]{1,100}\/?(\?.*)?$/i,
+  website: /^(https?:\/\/)?([\w-]+\.)+[a-zA-Z]{2,}([/?#].*)?$/i,
+};
+
+const isValidSocialUrl = (platform: keyof typeof SOCIAL_URL_PATTERNS, value: string) =>
+  SOCIAL_URL_PATTERNS[platform].test(value.trim());
+
+const normalizeUrl = (value: string) => {
+  const v = value.trim();
+  if (!v) return '';
+  return /^https?:\/\//i.test(v) ? v : `https://${v}`;
+};
+
 function getSlides(role: SignupRole): string[] {
   const slides = ['role', 'personal'];
   if (role !== 'fan') slides.push('work');
@@ -124,7 +145,19 @@ const SLIDE_LABELS: Record<string, string> = {
   review: 'Review',
 };
 
+// Icon shown in the small badge above each step's title in the mobile header.
+// The 'role' step uses the currently selected role's own icon instead (see
+// usage) so it reacts live as the person picks Creator / Brand / Agency.
+const STEP_ICONS: Record<string, LucideIcon> = {
+  personal: User,
+  work: Briefcase,
+  social: Camera,
+  review: CheckCircle2,
+};
+
 const APPROVAL_GATED_ROLES: SignupRole[] = ['creator', 'brand', 'agency'];
+
+const KNOWN_SIGNUP_ROLES: SignupRole[] = ['fan', 'creator', 'brand', 'agency'];
 
 export default function Signup() {
   const [role, setRole] = useState<SignupRole>('creator');
@@ -189,16 +222,47 @@ export default function Signup() {
   const routerLocation = useLocation();
   const currentUser = useAppSelector((s) => s.auth.user);
 
-  const viaGoogle = Boolean((routerLocation.state as { viaGoogle?: boolean } | null)?.viaGoogle);
+  // True right after the Google-button flow (router state) OR when the
+  // person is already authenticated with an incomplete profile and lands
+  // here directly — closed the tab mid-signup, refreshed, typed the URL
+  // again, came back next day, etc. Router state is only present for the
+  // single navigation that set it, so on a fresh page load it's gone even
+  // though the person is still logged in — currentUser.onboardingCompleted
+  // is the real, persistent source of truth for "mid Google signup".
+  const viaGoogleState = Boolean((routerLocation.state as { viaGoogle?: boolean } | null)?.viaGoogle);
+  const hasIncompleteGoogleSession = Boolean(currentUser && !currentUser.onboardingCompleted);
+  const viaGoogle = viaGoogleState || hasIncompleteGoogleSession;
 
+  // currentUser is frequently still null on first render (auth restore from
+  // the session/cookie resolves asynchronously after mount), so this can't
+  // be a mount-only effect — it has to react whenever currentUser actually
+  // becomes available. The ref stops it from re-firing and stomping on
+  // fields the person has since edited.
+  const prefilledFromGoogleRef = useRef(false);
   useEffect(() => {
-    if (viaGoogle && currentUser) {
-      setName(currentUser.name);
-      setEmail(currentUser.email);
-      setGoogleAvatarUrl(currentUser.avatarUrl || '');
+    if (!currentUser || prefilledFromGoogleRef.current) return;
+    if (!viaGoogleState && !hasIncompleteGoogleSession) return;
+
+    prefilledFromGoogleRef.current = true;
+    setName(currentUser.name);
+    setEmail(currentUser.email);
+    setGoogleAvatarUrl(currentUser.avatarUrl || '');
+
+    if (hasIncompleteGoogleSession) {
+      // A returning, incomplete profile may already have a role assigned
+      // server-side — pre-select it instead of defaulting to 'creator' so
+      // the right work-details fields show up, but stay on the Role step:
+      // the person can still see it and change their mind before
+      // continuing (previously this also auto-advanced past the step,
+      // which hid the picker entirely for anyone with an existing
+      // session — reverted).
+      const savedRole = currentUser.role as SignupRole;
+      if (KNOWN_SIGNUP_ROLES.includes(savedRole)) {
+        setRole(savedRole);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentUser, viaGoogleState, hasIncompleteGoogleSession]);
 
   const slides = useMemo(() => getSlides(role), [role]);
   const currentSlide = slides[slideIndex];
@@ -264,11 +328,16 @@ export default function Signup() {
     goNext();
   };
 
-  // Same idea for the 'social' step — photo and social links are now
-  // mandatory too, so this step gets its own Continue handler.
+  // Same idea for the 'social' step — photo, and (for creator/brand)
+  // Instagram, are now mandatory, so this step gets its own Continue handler.
   const handleSocialNext = () => {
     setError('');
     if (!photoFile) return setError(`Please upload a ${photoLabel.toLowerCase()} — it's required to create an account`);
+
+    if (role === 'creator' || role === 'brand') {
+      if (!instagram.trim()) return setError('Instagram profile URL is required');
+      if (!isValidSocialUrl('instagram', instagram)) return setError('Please enter a valid Instagram profile URL');
+    }
 
     if (role === 'agency' && !documentFile) return setError('ID / Address proof is required');
 
@@ -293,14 +362,22 @@ export default function Signup() {
   };
 
   const homeForReturningUser = (u: { role: string; profileStatus?: string | null; onboardingCompleted?: boolean }) => {
-    if (u.role === 'fan' && !u.onboardingCompleted) {
+    // Anyone — regardless of role — who hasn't finished the multi-step
+    // signup form yet must be sent back into it, never into a dashboard or
+    // even the pending-approval screen. Previously this check only applied
+    // to the 'fan' role, so a Creator/Brand/Agency user who authenticated
+    // with Google, got a role assigned, then left before finishing the
+    // form (or hitting "Finish") would fall through the checks below and
+    // land straight on their dashboard on their next visit — unapproved
+    // and with an incomplete profile.
+    if (!u.onboardingCompleted) {
       return '/signup';
     }
-    if (
-      APPROVAL_GATED_ROLES.includes(u.role as SignupRole) &&
-      u.profileStatus &&
-      u.profileStatus !== 'verified'
-    ) {
+    // Once onboarding is complete, an approval-gated role must be
+    // explicitly 'verified' to reach its dashboard. Any other value —
+    // including a missing/empty status — sends them to pending-approval
+    // instead of silently falling through to the dashboard link below.
+    if (APPROVAL_GATED_ROLES.includes(u.role as SignupRole) && u.profileStatus !== 'verified') {
       return '/pending-approval';
     }
     if (u.role === 'creator') return '/dashboard/creator';
@@ -318,6 +395,7 @@ export default function Signup() {
         setName(user.name);
         setEmail(user.email);
         setGoogleAvatarUrl(user.avatarUrl || '');
+        prefilledFromGoogleRef.current = true;
         goNext();
       } else {
         const dest = homeForReturningUser(user);
@@ -325,6 +403,7 @@ export default function Signup() {
           setName(user.name);
           setEmail(user.email);
           setGoogleAvatarUrl(user.avatarUrl || '');
+          prefilledFromGoogleRef.current = true;
           goNext();
         } else {
           navigate(dest);
@@ -412,10 +491,10 @@ export default function Signup() {
           yearsOfExperience: yearsOfExperience ? Number(yearsOfExperience) : undefined,
           portfolioLink: portfolioLink || undefined,
           socials: {
-            ...(instagram && { instagram: instagram.startsWith('http') ? instagram : `https://instagram.com/${instagram}` }),
-            ...(youtube && { youtube: youtube.startsWith('http') ? youtube : `https://youtube.com/@${youtube}` }),
-            ...(facebook && { facebook: facebook.startsWith('http') ? facebook : `https://facebook.com/${facebook}` }),
-            ...(website && { website: website.startsWith('http') ? website : `https://${website}` }),
+            ...(instagram && { instagram: normalizeUrl(instagram) }),
+            ...(youtube && { youtube: normalizeUrl(youtube) }),
+            ...(facebook && { facebook: normalizeUrl(facebook) }),
+            ...(website && { website: normalizeUrl(website) }),
           },
           submitForApproval: true,
         } as any)
@@ -436,9 +515,9 @@ export default function Signup() {
           targetAudience: targetAudience || undefined,
           contactDesignation: contactDesignation || undefined,
           socials: {
-            ...(instagram && { instagram: instagram.startsWith('http') ? instagram : `https://instagram.com/${instagram}` }),
-            ...(youtube && { youtube: youtube.startsWith('http') ? youtube : `https://youtube.com/@${youtube}` }),
-            ...(linkedin && { linkedin: linkedin.startsWith('http') ? linkedin : `https://linkedin.com/company/${linkedin}` }),
+            ...(instagram && { instagram: normalizeUrl(instagram) }),
+            ...(youtube && { youtube: normalizeUrl(youtube) }),
+            ...(linkedin && { linkedin: normalizeUrl(linkedin) }),
           },
           submitForApproval: true,
         } as any)
@@ -479,6 +558,9 @@ export default function Signup() {
     social: role === 'fan' ? 'Add a profile photo' : 'Photo & social links',
     review: 'Review & finish',
   };
+
+  // Steps that mix required/optional fields get a small legend under the title.
+  const showRequiredLegend = ['personal', 'work', 'social'].includes(currentSlide) && role !== 'fan';
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
@@ -651,32 +733,83 @@ export default function Signup() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             whileHover={{ boxShadow: '0 30px 60px -20px rgba(249,67,110,0.15)' }}
-            className="relative rounded-3xl border border-white/10 bg-navy-800/60 p-5 shadow-lifted backdrop-blur-sm sm:rounded-[2rem] sm:p-8"
+            className="relative rounded-3xl border border-white/10 bg-navy-800/60 p-6 shadow-lifted backdrop-blur-sm sm:rounded-[2rem] sm:p-9"
           >
-            <Link to="/" className="mb-6 flex justify-center lg:hidden">
-              <Logo />
-            </Link>
-
-            <div className="mb-6 flex items-center gap-1.5 lg:hidden">
-              {slides.map((s, i) => (
-                <span key={s} className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-                  <motion.span
-                    className="block h-full rounded-full bg-orange-500"
-                    initial={false}
-                    animate={{ width: i <= slideIndex ? '100%' : '0%' }}
-                    transition={{ duration: 0.35, ease: 'easeOut' }}
-                  />
+            <div className="mb-7 lg:hidden">
+              <div className="flex items-center justify-between">
+                <Link to="/" className="flex items-center">
+                  <Logo className="h-7 w-auto" />
+                </Link>
+                <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] py-1 pl-1 pr-3">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-[10px] font-bold text-white">
+                    {slideIndex + 1}
+                  </span>
+                  <span className="text-[11px] font-semibold text-white/45">of {totalSteps}</span>
                 </span>
-              ))}
+              </div>
+
+              <div className="mt-4 flex items-center gap-1.5">
+                {slides.map((s, i) => (
+                  <span key={s} className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                    <motion.span
+                      className="block h-full rounded-full bg-orange-500"
+                      initial={false}
+                      animate={{ width: i <= slideIndex ? '100%' : '0%' }}
+                      transition={{ duration: 0.35, ease: 'easeOut' }}
+                    />
+                  </span>
+                ))}
+              </div>
             </div>
 
-            <h1 className="text-center text-2xl font-bold text-white">{slideTitles[currentSlide]}</h1>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentSlide}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                className="text-center"
+              >
+                {(() => {
+                  const RoleIcon = ROLES.find((r) => r.key === role)?.icon || Sparkles;
+                  const StepIcon = currentSlide === 'role' ? RoleIcon : STEP_ICONS[currentSlide] || Sparkles;
+                  return (
+                    <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500/20 to-pink-500/10 text-orange-400 ring-1 ring-inset ring-white/10">
+                      <StepIcon size={18} />
+                    </span>
+                  );
+                })()}
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-orange-300/70">
+                  {SLIDE_LABELS[currentSlide]}
+                </span>
+                <h1 className="mt-3 text-2xl font-bold tracking-tight text-white">{slideTitles[currentSlide]}</h1>
+                {showRequiredLegend && (
+                  <p className="mt-1.5 text-xs text-white/40">
+                    Fields marked <span className="font-semibold text-orange-400">*</span> are required
+                  </p>
+                )}
+              </motion.div>
+            </AnimatePresence>
 
-            {error && (
-              <div className="mt-5 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                <AlertCircle size={16} className="shrink-0" /> {error}
-              </div>
-            )}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, height: 0, marginTop: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto', marginTop: 20 }}
+                  exit={{ opacity: 0, y: -8, height: 0, marginTop: 0 }}
+                  transition={{ duration: 0.25, ease: 'easeOut' }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex items-start gap-3 rounded-2xl border border-red-500/25 bg-red-500/[0.08] px-4 py-3.5 shadow-[0_8px_24px_-12px_rgba(239,68,68,0.35)]">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500/15 text-red-400">
+                      <AlertCircle size={16} />
+                    </span>
+                    <p className="pt-1.5 text-sm font-medium leading-snug text-red-200">{error}</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <ErrorBoundary key={currentSlide} label={`Signup — ${currentSlide} step`}>
               <AnimatePresence mode="wait">
@@ -686,7 +819,7 @@ export default function Signup() {
                     {viaGoogle ? `Signed in as ${name || email} — pick the option that fits you.` : 'Pick the option that fits you, then continue with Google.'}
                   </p>
 
-              <div className="mt-6 grid grid-cols-2 gap-3">
+              <div className="mt-6 grid grid-cols-2 gap-3.5">
                     {ROLES.map((r, idx) => {
                       const selected = role === r.key;
                       return (
@@ -732,12 +865,13 @@ export default function Signup() {
                   </div>
 
                   {!viaGoogle && (
-                    <label className="mt-4 block">
+                    <label className="mt-5 block">
+                      <FieldLabel label="Referral code" />
                       <input
                         value={referralCode}
                         onChange={(e) => setReferralCode(e.target.value)}
-                        placeholder="Referral code (optional)"
-                        className="w-full rounded-xl border border-white/10 bg-navy-800/50 px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+                        placeholder="Enter a referral code"
+                        className="w-full rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
                       />
                     </label>
                   )}
@@ -773,7 +907,7 @@ export default function Signup() {
               )}
 
               {currentSlide === 'personal' && (
-                <motion.div key="personal" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-6 space-y-4">
+                <motion.div key="personal" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-6 space-y-5">
                   <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3">
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400"><CheckCircle2 size={16} /></span>
                     <div className="min-w-0">
@@ -782,39 +916,44 @@ export default function Signup() {
                     </div>
                   </div>
 
-                  <TextField icon={User} value={name} onChange={setName} placeholder="Your full name" required />
+                  <TextField label="Full name" icon={User} value={name} onChange={setName} placeholder="e.g. Priya Sharma" required />
                   <TextField
+                    label="Phone number"
                     icon={Phone}
                     value={phone}
                     onChange={(v) => setPhone(v.replace(/\D/g, '').slice(0, 10))}
-                    placeholder="Phone number"
+                    placeholder="10-digit mobile number"
                     type="tel"
                     maxLength={10}
                     required
                   />
-                  <LocationAutocomplete
-                    icon={MapPin}
-                    mode="api"
-                    value={location}
-                    onChange={setLocation}
-                    placeholder="Location (city, country)"
-                    required
-                  />
+                  <label className="block">
+                    <FieldLabel label="Location" required />
+                    <LocationAutocomplete
+                      icon={MapPin}
+                      mode="api"
+                      value={location}
+                      onChange={setLocation}
+                      placeholder="City, country"
+                      required
+                    />
+                  </label>
 
                   <StepNav onBack={goBack} onNext={handleStepNext} loading={loading} />
                 </motion.div>
               )}
 
               {currentSlide === 'work' && (
-                <motion.div key="work" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-6 space-y-4">
+                <motion.div key="work" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-6 space-y-5">
                   {role === 'creator' && (
                     <>
-                      <TextField value={title} onChange={setTitle} placeholder="Title / Tagline (e.g. Photographer & Filmmaker)" required />
+                      <TextField label="Title / Tagline" value={title} onChange={setTitle} placeholder="e.g. Photographer & Filmmaker" required />
                       <label className="block">
-                        <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Short bio" rows={3} maxLength={500} required className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/40 focus:border-orange-400" />
+                        <FieldLabel label="Bio" required />
+                        <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="A short bio about you and your work" rows={3} maxLength={500} required className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20" />
                       </label>
                       <label className="block">
-                        <span className="mb-1.5 block text-sm font-semibold text-white/80">Category</span>
+                        <FieldLabel label="Category" required />
                         <div className="relative">
                           <select
                             value={category}
@@ -831,11 +970,11 @@ export default function Signup() {
                           <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/40" />
                         </div>
                       </label>
-                      <TextField icon={Tag} value={skills} onChange={setSkills} placeholder="Skills, comma separated" required />
-                      <TextField icon={LanguagesIcon} value={languages} onChange={setLanguages} placeholder="Languages" required />
-                      <div className="grid grid-cols-2 gap-3">
-                        <TextField icon={Clock} value={responseTime} onChange={setResponseTime} placeholder="Response time" required />
-                        <TextField icon={Briefcase} value={yearsOfExperience} onChange={setYearsOfExperience} placeholder="Years experience" type="number" required />
+                      <TextField label="Skills" icon={Tag} value={skills} onChange={setSkills} placeholder="Comma separated, e.g. Editing, Reels" required />
+                      <TextField label="Languages" icon={LanguagesIcon} value={languages} onChange={setLanguages} placeholder="Comma separated" required />
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <TextField label="Response time" icon={Clock} value={responseTime} onChange={setResponseTime} placeholder="e.g. Within a day" required />
+                        <TextField label="Years of experience" icon={Briefcase} value={yearsOfExperience} onChange={setYearsOfExperience} placeholder="e.g. 3" type="number" required />
                       </div>
                       <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3.5">
                         <div className="min-w-0 flex-1">
@@ -865,14 +1004,15 @@ export default function Signup() {
 
                   {role === 'brand' && (
                     <>
-                      <TextField icon={Building2} value={companyName} onChange={setCompanyName} placeholder="Company name" required />
-                      <TextField value={tagline} onChange={setTagline} placeholder="Tagline" required />
+                      <TextField label="Company name" icon={Building2} value={companyName} onChange={setCompanyName} placeholder="e.g. Glow Cosmetics" required />
+                      <TextField label="Tagline" value={tagline} onChange={setTagline} placeholder="One line that sums up your brand" required />
                       <label className="block">
-                        <textarea value={about} onChange={(e) => setAbout(e.target.value)} placeholder="About your brand" rows={3} maxLength={500} required className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/40 focus:border-orange-400" />
+                        <FieldLabel label="About your brand" required />
+                        <textarea value={about} onChange={(e) => setAbout(e.target.value)} placeholder="What does your brand do?" rows={3} maxLength={500} required className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20" />
                       </label>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <label className="block">
-                          <span className="mb-1.5 block text-sm font-semibold text-white/80">Industry</span>
+                          <FieldLabel label="Industry" required />
                           <div className="relative">
                             <select
                               value={industry}
@@ -890,11 +1030,11 @@ export default function Signup() {
                             <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/40" />
                           </div>
                         </label>
-                        <TextField icon={Calendar} value={foundedYear} onChange={setFoundedYear} placeholder="Founded year" type="number" required />
+                        <TextField label="Founded year" icon={Calendar} value={foundedYear} onChange={setFoundedYear} placeholder="e.g. 2019" type="number" required />
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <label className="block">
-                          <span className="mb-1.5 block text-sm font-semibold text-white/80">Company size</span>
+                          <FieldLabel label="Company size" required />
                           <div className="relative">
                             <select
                               value={companySize}
@@ -912,27 +1052,27 @@ export default function Signup() {
                             <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/40" />
                           </div>
                         </label>
-                        <TextField value={contactDesignation} onChange={setContactDesignation} placeholder="Your designation" required />
+                        <TextField label="Your designation" value={contactDesignation} onChange={setContactDesignation} placeholder="e.g. Marketing Head" required />
                       </div>
-                      <TextField icon={Tag} value={whatWeOffer} onChange={setWhatWeOffer} placeholder="What you offer, comma separated" required />
-                      <TextField value={targetAudience} onChange={setTargetAudience} placeholder="Target audience (e.g. Women 18-30)" required />
+                      <TextField label="What you offer" icon={Tag} value={whatWeOffer} onChange={setWhatWeOffer} placeholder="Comma separated" required />
+                      <TextField label="Target audience" value={targetAudience} onChange={setTargetAudience} placeholder="e.g. Women 18-30" required />
                     </>
                   )}
 
                   {role === 'agency' && (
                     <>
-                      <TextField icon={Building2} value={companyName} onChange={setCompanyName} placeholder="Agency name" required />
-                      <TextField icon={User} value={ownerName} onChange={setOwnerName} placeholder="Contact Person" required />
-                      <div className="grid grid-cols-2 gap-3">
-                        <TextField icon={MapPin} value={city} onChange={setCity} placeholder="City" required />
-                        <TextField value={agencyState} onChange={setAgencyState} placeholder="State" required />
+                      <TextField label="Agency name" icon={Building2} value={companyName} onChange={setCompanyName} placeholder="e.g. Creator Hub Agency" required />
+                      <TextField label="Contact person" icon={User} value={ownerName} onChange={setOwnerName} placeholder="Full name" required />
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <TextField label="City" icon={MapPin} value={city} onChange={setCity} placeholder="e.g. Mumbai" required />
+                        <TextField label="State" value={agencyState} onChange={setAgencyState} placeholder="e.g. Maharashtra" required />
                       </div>
-                      <TextField icon={FileText} value={gstNumber} onChange={setGstNumber} placeholder="GST number" required />
-                      <div className="grid grid-cols-2 gap-3">
-                        <TextField icon={Users2} value={teamSize} onChange={setTeamSize} placeholder="Team size (e.g. 1-10)" required />
-                        <TextField icon={Calendar} value={yearsInBusiness} onChange={setYearsInBusiness} placeholder="Years in business" type="number" required />
+                      <TextField label="GST number" icon={FileText} value={gstNumber} onChange={setGstNumber} placeholder="15-character GSTIN" required />
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <TextField label="Team size" icon={Users2} value={teamSize} onChange={setTeamSize} placeholder="e.g. 1-10" required />
+                        <TextField label="Years in business" icon={Calendar} value={yearsInBusiness} onChange={setYearsInBusiness} placeholder="e.g. 2" type="number" required />
                       </div>
-                      <TextField value={specialization} onChange={setSpecialization} placeholder="Specialization (e.g. Fashion creators)" required />
+                      <TextField label="Specialization" value={specialization} onChange={setSpecialization} placeholder="e.g. Fashion creators" required />
                       <p className="rounded-xl border border-orange-500/20 bg-orange-500/5 px-4 py-3 text-xs text-white/50">
                         Your agency needs admin approval before the dashboard unlocks.
                       </p>
@@ -944,7 +1084,7 @@ export default function Signup() {
               )}
 
               {currentSlide === 'social' && (
-                <motion.div key="social" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-6 space-y-4">
+                <motion.div key="social" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-6 space-y-5">
                   <div className="flex flex-col items-center gap-2">
                     <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
                     <button
@@ -961,24 +1101,65 @@ export default function Signup() {
                         <Camera size={22} />
                       )}
                     </button>
-                    <span className="text-xs font-semibold text-white/60">
-                      {photoFile ? photoLabel : googleAvatarUrl ? `Tap to upload your own ${photoLabel.toLowerCase()} (required)` : `${photoLabel} (required)`}
+                    <span className="flex items-center gap-1 text-xs font-semibold text-white/60">
+                      {photoFile ? photoLabel : googleAvatarUrl ? `Tap to upload your own ${photoLabel.toLowerCase()}` : photoLabel}
+                      <span className="text-orange-400">*</span>
                     </span>
                   </div>
 
                   {(role === 'creator' || role === 'brand') && (
                     <>
-                      <TextField icon={Instagram} value={instagram} onChange={setInstagram} placeholder="Instagram handle (optional)" />
-                      <TextField icon={Youtube} value={youtube} onChange={setYoutube} placeholder="YouTube handle (optional)" />
-                      {role === 'creator' && <TextField icon={Facebook} value={facebook} onChange={setFacebook} placeholder="Facebook username (optional)" />}
-                      {role === 'brand' && <TextField value={linkedin} onChange={setLinkedin} placeholder="LinkedIn company page (optional)" />}
-                      <TextField icon={Globe} value={website} onChange={setWebsite} placeholder="Website (optional)" />
+                      <SocialUrlField
+                        label="Instagram profile"
+                        icon={Instagram}
+                        platform="instagram"
+                        value={instagram}
+                        onChange={setInstagram}
+                        placeholder="https://instagram.com/yourhandle"
+                        required
+                      />
+                      <SocialUrlField
+                        label="YouTube channel"
+                        icon={Youtube}
+                        platform="youtube"
+                        value={youtube}
+                        onChange={setYoutube}
+                        placeholder="https://youtube.com/@yourchannel"
+                      />
+                      {role === 'creator' && (
+                        <SocialUrlField
+                          label="Facebook profile"
+                          icon={Facebook}
+                          platform="facebook"
+                          value={facebook}
+                          onChange={setFacebook}
+                          placeholder="https://facebook.com/yourpage"
+                        />
+                      )}
+                      {role === 'brand' && (
+                        <SocialUrlField
+                          label="LinkedIn page"
+                          icon={Globe}
+                          platform="linkedin"
+                          value={linkedin}
+                          onChange={setLinkedin}
+                          placeholder="https://linkedin.com/company/yourcompany"
+                        />
+                      )}
+                      <SocialUrlField
+                        label="Website"
+                        icon={Globe}
+                        platform="website"
+                        value={website}
+                        onChange={setWebsite}
+                        placeholder="https://yourwebsite.com"
+                      />
                     </>
                   )}
 
                   {role === 'agency' && (
                     <label className="block">
-                      <span className="mb-1.5 block text-sm font-semibold text-white/80">ID / Address proof</span>
+                      <FieldLabel label="ID / Address proof" required />
                       <input type="file" accept="image/*" onChange={handleDocumentSelect} required className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-sm text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500/20 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-orange-300" />
                     </label>
                   )}
@@ -990,25 +1171,50 @@ export default function Signup() {
            {currentSlide === 'review' && (
                 <motion.div key="review" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-6">
                   <div className="flex flex-col items-center text-center">
-                    <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
-                      <CheckCircle2 size={26} />
+                    <motion.span
+                      initial={{ scale: 0.6, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 18, delay: 0.05 }}
+                      className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 ring-4 ring-emerald-500/10"
+                    >
+                      <CheckCircle2 size={30} />
+                    </motion.span>
+                    <h2 className="mt-4 text-lg font-bold text-white">You're all set!</h2>
+                    <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-orange-400/30 bg-orange-500/10 px-3 py-1 text-xs font-semibold text-orange-300">
+                      {(() => {
+                        const RoleIcon = ROLES.find((r) => r.key === role)?.icon || Sparkles;
+                        return <RoleIcon size={12} />;
+                      })()}
+                      Signing up as {ROLES.find((r) => r.key === role)?.label || 'Fan'}
                     </span>
-                    {(() => {
-                      const reviewDisplayName = role === 'agency' ? companyName.trim() || name : name;
-                      return (
-                        <p className="mt-4 text-sm text-white/60">
-                          You're all set as a <b className="text-white capitalize">{role}</b>
-                          {reviewDisplayName && <> — welcome, <b className="text-white">{reviewDisplayName}</b>!</>}
-                        </p>
-                      );
-                    })()}
-                    {role !== 'fan' && (
-                      <p className="mt-2 text-xs text-white/40">Your details will be sent to the Fanitt team for approval before the full dashboard unlocks.</p>
+                  </div>
+
+                  <div className="mt-6 divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/10 bg-navy-800/50">
+                    <SummaryRow icon={User} label="Name" value={role === 'agency' ? companyName.trim() || name : name} />
+                    <SummaryRow icon={Mail} label="Email" value={email} />
+                    <SummaryRow icon={Phone} label="Phone" value={phone ? `+91 ${phone}` : ''} />
+                    <SummaryRow
+                      icon={MapPin}
+                      label="Location"
+                      value={role === 'agency' ? [city, agencyState].filter(Boolean).join(', ') : location}
+                    />
+                    {role === 'creator' && <SummaryRow icon={Sparkles} label="Title" value={title} />}
+                    {(role === 'brand' || role === 'agency') && (
+                      <SummaryRow icon={Building2} label={role === 'brand' ? 'Company' : 'Agency'} value={companyName} />
                     )}
                   </div>
 
+                  {role !== 'fan' && (
+                    <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-orange-500/20 bg-orange-500/5 px-4 py-3">
+                      <ShieldCheck size={15} className="mt-0.5 shrink-0 text-orange-400" />
+                      <p className="text-left text-xs leading-relaxed text-white/50">
+                        Your details will be sent to the Fanitt team for approval before the full dashboard unlocks.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="mt-6 flex gap-3">
-                    <button type="button" onClick={goBack} className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-3 text-sm font-semibold text-white/70 hover:border-white/30">
+                    <button type="button" onClick={goBack} className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-3 text-sm font-semibold text-white/70 transition-colors hover:border-white/30">
                       <ArrowLeft size={15} /> Back
                     </button>
                     <button
@@ -1039,30 +1245,82 @@ export default function Signup() {
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 12 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 320, damping: 24 }}
-              className="flex w-full max-w-sm items-center gap-4 rounded-2xl border border-white/10 bg-navy-800 p-5 shadow-lifted sm:max-w-md sm:p-6"
+              className="relative w-full max-w-xs overflow-hidden rounded-3xl border border-white/10 bg-navy-800 p-7 text-center shadow-lifted sm:max-w-sm"
             >
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.1, type: 'spring', stiffness: 400, damping: 15 }}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400"
-              >
-                <CheckCircle2 size={24} />
-              </motion.span>
-              <div className="min-w-0 text-left">
-                <p className="text-base font-bold text-white">Profile submitted successfully!</p>
-                <p className="mt-0.5 text-sm text-white/50">Redirecting you now...</p>
+              <div className="pointer-events-none absolute inset-x-0 -top-24 h-40 bg-emerald-500/10 blur-3xl" />
+
+              <div className="relative flex flex-col items-center">
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.1, type: 'spring', stiffness: 380, damping: 14 }}
+                  className="relative flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400"
+                >
+                  <motion.span
+                    className="absolute inset-0 rounded-full border-2 border-emerald-400/40"
+                    animate={{ scale: [1, 1.5], opacity: [0.6, 0] }}
+                    transition={{ duration: 1.4, repeat: Infinity, ease: 'easeOut' }}
+                  />
+                  <CheckCircle2 size={30} />
+                </motion.span>
+
+                <p className="mt-4 text-lg font-bold text-white">Profile submitted!</p>
+                <p className="mt-1 text-sm text-white/50">Taking you to the next step...</p>
+
+                <span className="mt-5 block h-1 w-full overflow-hidden rounded-full bg-white/10">
+                  <motion.span
+                    className="block h-full rounded-full bg-emerald-500"
+                    initial={{ width: '0%' }}
+                    animate={{ width: '100%' }}
+                    transition={{ duration: 1.6, ease: 'linear' }}
+                  />
+                </span>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
+
+  );
+}
+
+// Small label row used above every field: shows a required "*" in orange,
+// or a muted "(optional)" hint when the field isn't mandatory.
+function FieldLabel({ label, required }: { label: string; required?: boolean }) {
+  return (
+    <span className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-white/80">
+      {label}
+      {required ? (
+        <span className="font-bold text-orange-400">*</span>
+      ) : (
+        <span className="text-[11px] font-normal text-white/35">(optional)</span>
+      )}
+    </span>
+  );
+}
+
+// One row in the Review step's summary card. Renders nothing when the value
+// is empty, so optional/skipped fields don't leave a blank row.
+function SummaryRow({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value?: string }) {
+  if (!value?.trim()) return null;
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5 text-white/50">
+        <Icon size={14} />
+      </span>
+      <div className="min-w-0 flex-1 text-left">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-white/35">{label}</p>
+        <p className="truncate text-sm font-semibold text-white">{value}</p>
+      </div>
+    </div>
   );
 }
 
 function TextField({
+  label,
   icon: Icon,
   value,
   onChange,
@@ -1071,6 +1329,7 @@ function TextField({
   required = false,
   maxLength,
 }: {
+  label?: string;
   icon?: LucideIcon;
   value: string;
   onChange: (v: string) => void;
@@ -1081,6 +1340,7 @@ function TextField({
 }) {
   return (
     <label className="block">
+      {label && <FieldLabel label={label} required={required} />}
       <div className="relative">
         {Icon && <Icon size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />}
         <input
@@ -1091,11 +1351,66 @@ function TextField({
           placeholder={placeholder}
           maxLength={maxLength}
           className={cn(
-            'w-full rounded-xl border border-white/10 bg-navy-800/70 py-3.5 pr-4 text-white placeholder:text-white/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20',
+            'w-full rounded-xl border border-white/10 bg-navy-800/70 py-3.5 pr-4 text-white placeholder:text-white/40 transition-colors focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20',
             Icon ? 'pl-11' : 'pl-4'
           )}
         />
       </div>
+    </label>
+  );
+}
+
+// Social profile URL field — validates against the platform's URL pattern as
+// the person types, and shows a green check + green border once it matches.
+function SocialUrlField({
+  label,
+  icon: Icon,
+  platform,
+  value,
+  onChange,
+  placeholder,
+  required = false,
+}: {
+  label: string;
+  icon: LucideIcon;
+  platform: keyof typeof SOCIAL_URL_PATTERNS;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  required?: boolean;
+}) {
+  const trimmed = value.trim();
+  const isValid = trimmed.length > 0 && isValidSocialUrl(platform, trimmed);
+  const isInvalid = trimmed.length > 0 && !isValid;
+
+  return (
+    <label className="block">
+      <FieldLabel label={label} required={required} />
+      <div className="relative">
+        <Icon size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />
+        <input
+          type="url"
+          inputMode="url"
+          required={required}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={cn(
+            'w-full rounded-xl border bg-navy-800/70 py-3.5 pl-11 pr-10 text-white placeholder:text-white/40 transition-colors focus:ring-2',
+            isValid
+              ? 'border-emerald-400/60 focus:border-emerald-400 focus:ring-emerald-400/20'
+              : isInvalid
+                ? 'border-red-400/50 focus:border-red-400 focus:ring-red-400/20'
+                : 'border-white/10 focus:border-orange-400 focus:ring-orange-400/20'
+          )}
+        />
+        {isValid && (
+          <CheckCircle2 size={17} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-400" />
+        )}
+      </div>
+      {isInvalid && (
+        <span className="mt-1 block text-xs text-red-300/80">Enter a valid {label.toLowerCase()} URL</span>
+      )}
     </label>
   );
 }

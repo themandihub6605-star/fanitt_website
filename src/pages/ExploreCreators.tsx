@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, AlertCircle, Search, Star, Sparkles, MapPin, Grid3x3, List, SlidersHorizontal, Crown, Wand2, Calendar as CalendarIcon, ArrowUpDown, Users, Briefcase, Clock, CheckCircle2, Languages as LanguagesIcon } from 'lucide-react';
+import { Loader2, AlertCircle, Search, Star, Sparkles, MapPin, Grid3x3, List, SlidersHorizontal, Crown, Wand2, Calendar as CalendarIcon, ArrowUpDown, Users, Briefcase, Clock, CheckCircle2, Languages as LanguagesIcon, ArrowUpRight } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { creatorApi, type ApiCreator } from '@/services/creatorApi';
 import { categoryApi, type ApiCategory } from '@/services/categoryApi';
@@ -15,10 +15,69 @@ import { cn } from '@/utils/cn';
 type SortOption = 'relevance' | 'rating' | 'followers';
 
 // Cover-photo style card for the Grid view — big photo across the top
-// (like a poster), everything else stacked below it. Only 3 skills shown
-// here; the rest are visible on the full profile page (View Profile).
+// (like a poster), everything else stacked below it. Only 2 skills shown
+// here (+ a "+N more" badge); the rest are visible on the full profile
+// page (View Profile).
 function CreatorGridCard({ creator, onCardClick }: { creator: ApiCreator; onCardClick: (e: React.MouseEvent, creator: ApiCreator) => void }) {
   const CategoryIcon = creator.category?.icon ? resolveIcon(creator.category.icon) : null;
+
+  // Every card renders exactly 4 stat slots (a fixed 2x2 block), one
+  // fixed-height skills row, and an always-visible footer line — no
+  // matter how much data a given creator actually has. A variable-length
+  // list is what was leaving blank space at the bottom of shorter cards;
+  // backfilling missing slots with same-size invisible placeholders makes
+  // every card in the row come out identically tall with nothing empty.
+  const statNodes: React.ReactNode[] = [];
+  if (creator.averageRating > 0) {
+    statNodes.push(
+      <span key="rating" className="flex items-center gap-1 rounded-lg bg-yellow-400/10 px-2 py-1 text-[11px] font-bold leading-tight text-yellow-300">
+        <Star size={11} className="shrink-0" fill="currentColor" /> {creator.averageRating} <span className="font-normal text-yellow-300/60">({creator.reviewCount})</span>
+      </span>
+    );
+  }
+  if (creator.followerCount > 0) {
+    statNodes.push(
+      <span key="followers" className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] leading-tight text-white/60">
+        <Users size={11} className="shrink-0 text-white/40" /> {creator.followerCount.toLocaleString('en-IN')}
+      </span>
+    );
+  }
+  if (creator.yearsOfExperience != null && creator.yearsOfExperience > 0) {
+    statNodes.push(
+      <span key="exp" className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] leading-tight text-white/60">
+        <Briefcase size={11} className="shrink-0 text-white/40" /> {creator.yearsOfExperience}+ yrs exp
+      </span>
+    );
+  }
+  if (creator.onTimeDeliveryPercent != null) {
+    statNodes.push(
+      <span key="ontime" className="flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold leading-tight text-emerald-300">
+        <CheckCircle2 size={11} className="shrink-0" /> {creator.onTimeDeliveryPercent}% on-time
+      </span>
+    );
+  }
+  if (creator.responseTime) {
+    statNodes.push(
+      <span key="response" className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] leading-tight text-white/60">
+        <Clock size={11} className="shrink-0 text-white/40" /> {creator.responseTime}
+      </span>
+    );
+  }
+  if (creator.languages && creator.languages.length > 0) {
+    statNodes.push(
+      <span key="lang" className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] leading-tight text-white/60">
+        <LanguagesIcon size={11} className="shrink-0 text-white/40" /> {creator.languages.join(', ')}
+      </span>
+    );
+  }
+  const visibleStats = statNodes.slice(0, 4);
+  while (visibleStats.length < 4) {
+    visibleStats.push(
+      <span key={`stat-placeholder-${visibleStats.length}`} className="invisible rounded-lg px-2 py-1 text-[11px] leading-tight">
+        —
+      </span>
+    );
+  }
 
   return (
     <Link
@@ -52,6 +111,16 @@ function CreatorGridCard({ creator, onCardClick }: { creator: ApiCreator; onCard
           )}
         />
 
+        {/* View-profile affordance — the whole card is already a link, this
+            just makes that obvious at a glance. Brightens to solid brand
+            orange on hover/focus so it reads as an actionable control. */}
+        <span
+          title="View full profile"
+          className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white ring-1 ring-inset ring-white/25 backdrop-blur-sm transition-all duration-300 ease-out group-hover:bg-orange-500 group-hover:ring-orange-400/60"
+        >
+          <ArrowUpRight size={15} />
+        </span>
+
         <div className="absolute inset-x-0 bottom-0 p-3.5">
           <p className="line-clamp-1 text-base font-bold text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)]">{creator.user.name}</p>
           {(creator.title || creator.category?.label) && (
@@ -65,61 +134,43 @@ function CreatorGridCard({ creator, onCardClick }: { creator: ApiCreator; onCard
 
       {/* Details below the photo */}
       <div className="flex flex-1 flex-col p-3.5">
-        {creator.location && (
-          <p className="flex items-center gap-1 text-xs text-white/40">
-            <MapPin size={11} className="shrink-0" /> <span className="truncate">{creator.location}</span>
-          </p>
-        )}
+        {/* Location — always renders one line of height; if missing, the
+            text is just invisible rather than the line disappearing. */}
+        <p className={cn('flex items-center gap-1 text-xs text-white/40', !creator.location && 'invisible')}>
+          <MapPin size={11} className="shrink-0" /> <span className="truncate">{creator.location || '—'}</span>
+        </p>
 
-        {/* Stat pills — fixed 2-column grid so they stay aligned in tidy
-            rows; only fields the creator actually has render. */}
-        <div className="mt-2.5 grid grid-cols-2 gap-1.5">
-          {creator.averageRating > 0 && (
-            <span className="flex items-center gap-1 rounded-lg bg-yellow-400/10 px-2 py-1 text-[11px] font-bold leading-tight text-yellow-300">
-              <Star size={11} className="shrink-0" fill="currentColor" /> {creator.averageRating} <span className="font-normal text-yellow-300/60">({creator.reviewCount})</span>
-            </span>
-          )}
-          {creator.followerCount > 0 && (
-            <span className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] leading-tight text-white/60">
-              <Users size={11} className="shrink-0 text-white/40" /> {creator.followerCount.toLocaleString('en-IN')}
-            </span>
-          )}
-          {creator.yearsOfExperience != null && creator.yearsOfExperience > 0 && (
-            <span className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] leading-tight text-white/60">
-              <Briefcase size={11} className="shrink-0 text-white/40" /> {creator.yearsOfExperience}+ yrs exp
-            </span>
-          )}
-          {creator.responseTime && (
-            <span className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] leading-tight text-white/60">
-              <Clock size={11} className="shrink-0 text-white/40" /> {creator.responseTime}
-            </span>
-          )}
-          {creator.onTimeDeliveryPercent != null && (
-            <span className="flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold leading-tight text-emerald-300">
-              <CheckCircle2 size={11} className="shrink-0" /> {creator.onTimeDeliveryPercent}% on-time
-            </span>
-          )}
-          {creator.languages && creator.languages.length > 0 && (
-            <span className="flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[11px] leading-tight text-white/60">
-              <LanguagesIcon size={11} className="shrink-0 text-white/40" /> {creator.languages.join(', ')}
-            </span>
+        {/* Stat pills — always exactly 4 slots (a fixed 2x2 grid), so this
+            block is the same height on every card. */}
+        <div className="mt-2.5 grid grid-cols-2 gap-1.5">{visibleStats}</div>
+
+        {/* Skills — capped at 2 visible pills + a "+N more" badge (the
+            full list lives on the profile page). flex-nowrap + overflow
+            hidden means this can never wrap to a second line, so the row
+            is a fixed height on every card, skills or not. */}
+        <div className="mt-3 flex min-h-[34px] flex-nowrap items-center gap-1.5 overflow-hidden">
+          {creator.skills && creator.skills.length > 0 ? (
+            <>
+              {creator.skills.slice(0, 2).map((skill) => (
+                <span
+                  key={skill}
+                  title={skill}
+                  className="max-w-[42%] shrink-0 truncate rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold leading-tight text-white/70"
+                >
+                  {skill}
+                </span>
+              ))}
+              {creator.skills.length > 2 && (
+                <span className="shrink-0 rounded-lg border border-orange-400/25 bg-orange-500/10 px-2.5 py-1.5 text-[11px] font-bold leading-tight text-orange-300">
+                  +{creator.skills.length - 2} more
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="shrink-0 rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 text-[11px] text-white/25">No skills listed yet</span>
           )}
         </div>
 
-        {/* Only 3 skills here — the rest are on the full profile page. */}
-        {creator.skills && creator.skills.length > 0 && (
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {creator.skills.slice(0, 3).map((skill) => (
-              <span key={skill} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/60">{skill}</span>
-            ))}
-          </div>
-        )}
-
-        {(creator.projectsCompletedCount ?? 0) > 0 && (
-          <p className="mt-auto pt-3.5 text-xs text-white/40">
-            <span className="font-bold text-white/70">{creator.projectsCompletedCount}+</span> Total Projects
-          </p>
-        )}
       </div>
     </Link>
   );

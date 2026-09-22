@@ -13,17 +13,17 @@ import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/utils/cn';
 import { resolveIcon } from '@/utils/icons';
 
-// Recommended-creators card — real data (creatorApi.list), same follow
-// action already wired on the post cards, just surfaced here too.
 function RecommendedCreators() {
   const [creators, setCreators] = useState<ApiCreator[]>([]);
-  const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     creatorApi
-      .list({ limit: 8 })
-      .then((d) => setCreators(d.creators.filter((c) => c.user).slice(0, 5)))
+      .list({ limit: 20 }) // fetch more than needed since we filter out already-followed ones below
+      .then((d) => {
+        const filtered = d.creators.filter((c) => c.user && !c.isFollowing).slice(0, 5);
+        setCreators(filtered);
+      })
       .catch(() => setCreators([]))
       .finally(() => setLoading(false));
   }, []);
@@ -31,12 +31,13 @@ function RecommendedCreators() {
   const handleFollow = async (creator: ApiCreator) => {
     try {
       const result = await creatorApi.follow(creator._id);
-      setFollowingIds((prev) => {
-        const next = new Set(prev);
-        if (result.following) next.add(creator._id);
-        else next.delete(creator._id);
-        return next;
-      });
+      if (result.following) {
+        // Now followed — drop it out of "Recommended" immediately rather
+        // than flipping the button to "Following" and leaving it sitting
+        // there, since this list's whole point is showing who you don't
+        // follow yet.
+        setCreators((prev) => prev.filter((c) => c._id !== creator._id));
+      }
     } catch {
       // non-critical
     }
@@ -69,14 +70,12 @@ function RecommendedCreators() {
                 <p className="truncate text-sm font-semibold text-white">{c.user.name}</p>
                 <p className="truncate text-xs text-white/40">{c.title || c.category?.label}</p>
               </Link>
-              {!followingIds.has(c._id) && (
-                <button
-                  onClick={() => handleFollow(c)}
-                  className="shrink-0 rounded-full border border-orange-400/60 px-3 py-1.5 text-xs font-bold text-orange-300 transition-colors hover:bg-orange-500/10"
-                >
-                  Follow
-                </button>
-              )}
+              <button
+                onClick={() => handleFollow(c)}
+                className="shrink-0 rounded-full border border-orange-400/60 px-3 py-1.5 text-xs font-bold text-orange-300 transition-colors hover:bg-orange-500/10"
+              >
+                Follow
+              </button>
             </div>
           ))}
         </div>
@@ -84,7 +83,6 @@ function RecommendedCreators() {
     </div>
   );
 }
-
 export default function Feed() {
   const [posts, setPosts] = useState<ApiPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,9 +90,6 @@ export default function Feed() {
   const [composerOpen, setComposerOpen] = useState(false);
   const authUser = useAppSelector((s) => s.auth.user);
 
-  // Shared across every card in this Feed — following a creator on one of
-  // their posts instantly reflects on every other post of theirs on this
-  // page too, instead of each card tracking its own disconnected state.
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
 
   const loadFeed = () => {
@@ -108,7 +103,14 @@ export default function Feed() {
 
   useEffect(loadFeed, []);
 
-  // Everyone's posts show here, including your own — no self-post filter.
+  useEffect(() => {
+    const ids = new Set<string>();
+    posts.forEach((p) => {
+      if (typeof p.creator === 'object' && p.creator.isFollowing) ids.add(p.creator._id);
+    });
+    setFollowingIds(ids);
+  }, [posts]);
+
   const visiblePosts = posts;
 
   const handleFollowChange = (creatorId: string, following: boolean) => {
@@ -124,7 +126,6 @@ export default function Feed() {
     <div className="pt-24 pb-24 sm:pt-28">
       <Container className="!px-0 sm:!px-gutter">
         <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)_300px] lg:items-start lg:gap-6 xl:grid-cols-[240px_minmax(0,1fr)_320px]">
-          {/* ───────── Left sidebar (desktop only — mobile already has MobileTabBar for this) ───────── */}
           <aside className="sticky top-28 hidden max-h-[calc(100vh-8rem)] space-y-6 overflow-y-auto lg:block">
             <nav className="space-y-1">
               <Link to="/feed" className="flex items-center gap-3 rounded-xl bg-orange-500/15 px-3 py-2.5 text-sm font-bold text-orange-300">
@@ -184,7 +185,6 @@ export default function Feed() {
             </Link>
           </aside>
 
-          {/* ───────── Center feed ───────── */}
           <div className="mx-auto w-full min-w-0 max-w-xl lg:mx-0 lg:max-w-2xl">
             {authUser && (authUser.role === 'creator' || authUser.role === 'brand') && (
               <button
@@ -249,7 +249,6 @@ export default function Feed() {
             )}
           </div>
 
-          {/* ───────── Right sidebar (desktop only) ───────── */}
           <aside className="sticky top-28 hidden max-h-[calc(100vh-8rem)] space-y-6 overflow-y-auto lg:block">
             <RecommendedCreators />
 
@@ -267,10 +266,6 @@ export default function Feed() {
               </Link>
             </div>
 
-            {/* Real category chips, in place of a "trending tags" cloud —
-                there's no hashtag/engagement-count system in the backend
-                yet, so this points at real categories instead of numbers
-                that would have to be invented. */}
             <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-4 shadow-card">
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-1.5 text-sm font-bold text-white">

@@ -30,6 +30,11 @@ export interface ApiCreator {
   // tier), populated by creator.controller.js's listCreators.
   planName?: string;
   isProPlan?: boolean;
+  // Whether the logged-in viewer already follows this creator — computed
+  // server-side in listCreators/getCreatorBySlug from req.user, so the UI
+  // can show the true Follow/Following state on first load instead of
+  // starting empty and guessing from clicks. Undefined for guests.
+  isFollowing?: boolean;
   // Admin approval status — gates full dashboard access (see
   // pages/dashboard/CreatorDashboard.tsx's StatusGate).
   verificationStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Volume2, VolumeX, Play, Pause, MoreHorizontal, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { postApi, type ApiPost } from '@/services/postApi';
+import { Heart, Volume2, VolumeX, Play, Pause, MoreHorizontal, X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { postApi, type ApiPost, type PostLike } from '@/services/postApi';
 import { creatorApi } from '@/services/creatorApi';
 import { getUploadUrl } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
@@ -224,6 +224,65 @@ function MediaTile({
   );
 }
 
+/** "Liked by" list — Instagram-style, fetched on open (not preloaded for
+ * every post in the feed, since most people never open it). */
+function LikesModal({ postId, onClose }: { postId: string; onClose: () => void }) {
+  const [likes, setLikes] = useState<PostLike[] | null>(null);
+
+  useEffect(() => {
+    postApi
+      .getLikes(postId)
+      .then(setLikes)
+      .catch(() => setLikes([]));
+  }, [postId]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 24 }}
+        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[70vh] w-full max-w-sm overflow-hidden rounded-t-2xl border border-white/10 bg-navy-800 shadow-lifted sm:rounded-2xl"
+      >
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3.5">
+          <p className="text-sm font-bold text-white">Liked by</p>
+          <button onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-full text-white/50 hover:bg-white/10 hover:text-white">
+            <X size={15} />
+          </button>
+        </div>
+        <div className="max-h-[calc(70vh-52px)] overflow-y-auto p-2">
+          {likes === null ? (
+            <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-white/30" /></div>
+          ) : likes.length === 0 ? (
+            <p className="py-8 text-center text-sm text-white/40">No likes yet.</p>
+          ) : (
+            likes.map((u) => (
+              <div key={u._id} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-white/5">
+                {u.avatarUrl ? (
+                  <img src={u.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
+                ) : (
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/20 text-xs font-bold text-orange-300">
+                    {u.name.charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <span className="truncate text-sm font-semibold text-white">{u.name}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export function FeedPostCard({
   post,
   isFollowing,
@@ -237,15 +296,18 @@ export function FeedPostCard({
   const navigate = useNavigate();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likeCount);
-  const [muted, setMuted] = useState(true);
+  const [likePreview, setLikePreview] = useState(post.likePreview || []);
+  const [muted, setMuted] = useState(false);
   const [justLiked, setJustLiked] = useState(false);
   const [justFollowed, setJustFollowed] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [likesOpen, setLikesOpen] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
   const { isAuthenticated, user } = useAppSelector((s) => s.auth);
 
   const creator = typeof post.creator === 'object' ? post.creator : null;
   const mediaItems = post.mediaItems || [];
+  const isOwnPost = !!user && !!creator?.user && creator.user._id === user._id;
 
   useEffect(() => {
     if (user) setLiked(post.likedBy.includes(user._id));
@@ -260,8 +322,6 @@ export function FeedPostCard({
   };
 
   const handleLike = async () => {
-    // Was silently doing nothing when logged out — send them to log in
-    // instead, same as every other interactive action on the site.
     if (!isAuthenticated) {
       navigate('/get-started');
       return;
@@ -270,6 +330,18 @@ export function FeedPostCard({
       const result = await postApi.toggleLike(post._id);
       setLiked(result.liked);
       setLikeCount(result.likeCount);
+
+      // Keep the little avatar stack in sync with the new like state —
+      // add ourselves to the front on like, drop ourselves on unlike —
+      // without waiting for a full page reload to see it reflected.
+      if (user) {
+        if (result.liked) {
+          setLikePreview((prev) => [{ _id: user._id, name: user.name, avatarUrl: user.avatarUrl }, ...prev].slice(0, 3));
+        } else {
+          setLikePreview((prev) => prev.filter((u) => u._id !== user._id));
+        }
+      }
+
       if (result.liked) {
         setJustLiked(true);
         setTimeout(() => setJustLiked(false), 500);
@@ -318,16 +390,27 @@ export function FeedPostCard({
               <span className="shrink-0 text-xs text-white/40">{timeAgo(post.createdAt)}</span>
             </Link>
             <div className="flex shrink-0 items-center gap-2">
-              {creator && !isFollowing && (
-                <motion.button
-                  onClick={handleFollow}
-                  whileTap={{ scale: 0.9 }}
-                  animate={justFollowed ? { scale: [1, 1.15, 1] } : {}}
-                  transition={{ duration: 0.35 }}
-                  className="rounded-full bg-orange-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-soft transition-colors hover:bg-orange-400"
-                >
-                  Follow
-                </motion.button>
+              {creator && !isOwnPost && (
+                isFollowing ? (
+                  <motion.button
+                    onClick={handleFollow}
+                    whileTap={{ scale: 0.9 }}
+                    className="group rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-bold text-white/70 transition-colors hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-300"
+                  >
+                    <span className="group-hover:hidden">Following</span>
+                    <span className="hidden group-hover:inline">Unfollow</span>
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    onClick={handleFollow}
+                    whileTap={{ scale: 0.9 }}
+                    animate={justFollowed ? { scale: [1, 1.15, 1] } : {}}
+                    transition={{ duration: 0.35 }}
+                    className="rounded-full bg-orange-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-soft transition-colors hover:bg-orange-400"
+                  >
+                    Follow
+                  </motion.button>
+                )
               )}
               <button className="text-white/30 hover:text-white/60">
                 <MoreHorizontal size={16} />
@@ -403,7 +486,55 @@ export function FeedPostCard({
             </motion.button>
           </div>
 
-          {likeCount > 0 && <p className="mt-1 text-xs font-semibold text-white/50">{likeCount} like{likeCount === 1 ? '' : 's'}</p>}
+          {/* Instagram-style "Liked by [avatars] X and others" row, replacing
+              the old plain "3 likes" text. */}
+          {likeCount > 0 && (
+            <button
+              onClick={() => setLikesOpen(true)}
+              className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-white/60 hover:text-white/90"
+            >
+              {likePreview.length > 0 && (
+                <div className="flex -space-x-2">
+                  {likePreview.slice(0, 3).map((u, idx) =>
+                    u.avatarUrl ? (
+                      <img
+                        key={u._id}
+                        src={u.avatarUrl}
+                        alt=""
+                        className="h-5 w-5 rounded-full border border-navy-900 object-cover"
+                        style={{ zIndex: 3 - idx }}
+                      />
+                    ) : (
+                      <span
+                        key={u._id}
+                        className="flex h-5 w-5 items-center justify-center rounded-full border border-navy-900 bg-orange-500/30 text-[9px] font-bold text-orange-200"
+                        style={{ zIndex: 3 - idx }}
+                      >
+                        {u.name.charAt(0).toUpperCase()}
+                      </span>
+                    )
+                  )}
+                </div>
+              )}
+              <span>
+                {likePreview.length > 0 ? (
+                  <>
+                    Liked by <span className="text-white">{likePreview[0].name}</span>
+                    {likeCount > 1 && (
+                      <>
+                        {' '}
+                        and <span className="text-white">{likeCount - 1} other{likeCount - 1 === 1 ? '' : 's'}</span>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {likeCount} like{likeCount === 1 ? '' : 's'}
+                  </>
+                )}
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -411,6 +542,7 @@ export function FeedPostCard({
         {lightboxIndex !== null && (
           <Lightbox mediaItems={mediaItems} startIndex={lightboxIndex} onClose={() => setLightboxIndex(null)} />
         )}
+        {likesOpen && <LikesModal postId={post._id} onClose={() => setLikesOpen(false)} />}
       </AnimatePresence>
     </div>
   );

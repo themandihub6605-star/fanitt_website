@@ -20,6 +20,22 @@ import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import { getApiErrorMessage, getUploadUrl } from '@/services/apiClient';
 import { cn } from '@/utils/cn';
 
+// Small label row used above every field: shows a required "*" in orange,
+// or a muted "(optional)" hint when the field isn't mandatory — same
+// pattern as the Signup flow, so Edit Profile reads consistently with it.
+function FieldLabel({ label, required }: { label: string; required?: boolean }) {
+  return (
+    <span className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-white/80">
+      {label}
+      {required ? (
+        <span className="font-bold text-orange-400">*</span>
+      ) : (
+        <span className="text-[11px] font-normal text-white/35">(optional)</span>
+      )}
+    </span>
+  );
+}
+
 export default function EditBrandProfile() {
   const navigate = useNavigate();
 
@@ -82,10 +98,41 @@ export default function EditBrandProfile() {
     setLogoPreview(URL.createObjectURL(file));
   };
 
+  // Same required set as the Signup flow's "work" step for brands
+  // (companyName, tagline, about, industry, foundedYear, companySize,
+  // whatWeOffer), plus location (required on Signup's "personal" step) and
+  // Instagram (required on Signup's "social" step for brands). Signup also
+  // requires contactDesignation and targetAudience, but this edit form has
+  // no fields for those, so they're left out here. Website/YouTube/LinkedIn
+  // stay optional.
+  const validate = (): string | null => {
+    // logoPreview is populated either from the existing logo loaded on
+    // mount, or from a newly selected file — so this only blocks brands
+    // that have never had a logo, not everyone on every edit.
+    if (!logoPreview) return 'Company logo is required';
+    if (!companyName.trim()) return 'Company name is required';
+    if (!tagline.trim()) return 'Tagline is required';
+    if (!about.trim()) return 'About your brand is required';
+    if (!industry.trim()) return 'Industry is required';
+    if (!location.trim()) return 'Headquarters location is required';
+    if (!foundedYear.trim()) return 'Founded year is required';
+    if (!companySize.trim()) return 'Company size is required';
+    if (!whatWeOffer.trim()) return 'What you offer is required';
+    if (!instagram.trim()) return 'Instagram handle is required';
+    return null;
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSaved(false);
+
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setSaving(true);
     try {
       if (logoFile) {
@@ -137,6 +184,9 @@ export default function EditBrandProfile() {
       <Container className="!max-w-2xl">
         <h1 className="text-2xl font-bold text-white sm:text-3xl">Edit Brand Profile</h1>
         <p className="mt-1 text-sm text-white/60">This is what creators and fans see on your public brand page.</p>
+        <p className="mt-1 text-xs text-white/40">
+          Fields marked <span className="font-semibold text-orange-400">*</span> are required
+        </p>
 
         {error && (
           <div className="mt-5 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
@@ -163,7 +213,9 @@ export default function EditBrandProfile() {
               </span>
             </button>
             <div>
-              <p className="text-sm font-semibold text-white">Company logo</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-white">
+                Company logo <span className="font-bold text-orange-400">*</span>
+              </p>
               <p className="text-xs text-white/50">Shown on your public brand page and campaigns.</p>
             </div>
           </div>
@@ -172,7 +224,7 @@ export default function EditBrandProfile() {
             <p className="text-xs font-bold uppercase tracking-wide text-white/40">Basics</p>
 
             <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-white/80">Company name</span>
+              <FieldLabel label="Company name" required />
               <input
                 required
                 value={companyName}
@@ -182,7 +234,7 @@ export default function EditBrandProfile() {
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-white/80">Tagline</span>
+              <FieldLabel label="Tagline" required />
               <input
                 value={tagline}
                 onChange={(e) => setTagline(e.target.value)}
@@ -193,7 +245,7 @@ export default function EditBrandProfile() {
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-white/80">About</span>
+              <FieldLabel label="About" required />
               <textarea
                 value={about}
                 onChange={(e) => setAbout(e.target.value)}
@@ -204,12 +256,12 @@ export default function EditBrandProfile() {
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-white/80">Industry</span>
+              <FieldLabel label="Industry" required />
               <input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="e.g. Beauty & Personal Care" className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/30 focus:border-orange-400" />
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-white/80">Headquarters</span>
+              <FieldLabel label="Headquarters" required />
               <LocationAutocomplete
                 icon={MapPin}
                 mode="api"
@@ -221,14 +273,14 @@ export default function EditBrandProfile() {
 
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
-                <span className="mb-1.5 block text-sm font-semibold text-white/80">Founded year</span>
+                <FieldLabel label="Founded year" required />
                 <div className="relative">
                   <Calendar size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
                   <input type="number" value={foundedYear} onChange={(e) => setFoundedYear(e.target.value)} placeholder="2019" className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400" />
                 </div>
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-sm font-semibold text-white/80">Company size</span>
+                <FieldLabel label="Company size" required />
                 <div className="relative">
                   <Users size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
                   <input value={companySize} onChange={(e) => setCompanySize(e.target.value)} placeholder="51-200" className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400" />
@@ -237,7 +289,7 @@ export default function EditBrandProfile() {
             </div>
 
             <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-white/80">What We Offer (comma separated)</span>
+              <FieldLabel label="What We Offer (comma separated)" required />
               <input
                 value={whatWeOffer}
                 onChange={(e) => setWhatWeOffer(e.target.value)}
@@ -251,7 +303,7 @@ export default function EditBrandProfile() {
             <p className="text-xs font-bold uppercase tracking-wide text-white/40">Social Links</p>
 
             <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-white/80">Website</span>
+              <FieldLabel label="Website" />
               <div className="relative">
                 <Globe size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
                 <input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourbrand.com" className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400" />
@@ -259,7 +311,7 @@ export default function EditBrandProfile() {
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-white/80">Instagram handle</span>
+              <FieldLabel label="Instagram handle" required />
               <div className="relative">
                 <Instagram size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
                 <input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="yourhandle" className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400" />
@@ -267,7 +319,7 @@ export default function EditBrandProfile() {
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-white/80">YouTube handle</span>
+              <FieldLabel label="YouTube handle" />
               <div className="relative">
                 <Youtube size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
                 <input value={youtube} onChange={(e) => setYoutube(e.target.value)} placeholder="yourhandle" className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400" />
@@ -275,7 +327,7 @@ export default function EditBrandProfile() {
             </label>
 
             <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-white/80">LinkedIn</span>
+              <FieldLabel label="LinkedIn" />
               <input value={linkedin} onChange={(e) => setLinkedin(e.target.value)} placeholder="company-name" className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/30 focus:border-orange-400" />
             </label>
           </div>
