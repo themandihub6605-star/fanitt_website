@@ -481,7 +481,17 @@ export default function CreatorDashboard() {
           </div>
         </motion.div>
 
-        <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {/* MOBILE-UI FIX: the stat cards were the source of the cut-off text in
+            the screenshot ("To…", "Fa…", "₹.."). On a 2-column mobile grid each
+            card is too narrow for the icon + value + label + chevron to fit on
+            one line, and `truncate` was clipping the label into an ellipsis and
+            (on long values) clipping the number itself.
+            Fix: hide the chevron below `sm`, shrink the icon/value slightly on
+            mobile, and let the label wrap onto two lines (`break-words`)
+            instead of being truncated to one line. From `sm` up there's more
+            room, so it reverts to the original single-line, chevron-visible
+            layout. */}
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {STATS.map((stat, i) => (
             <motion.div
               key={stat.label}
@@ -489,20 +499,23 @@ export default function CreatorDashboard() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: i * 0.06 }}
-              className={cn('flex min-w-0 items-center gap-3.5 rounded-2xl border border-l-4 border-white/10 bg-navy-800/60 p-4 shadow-card sm:p-5', toneBorderClasses[stat.tone])}
+              className={cn(
+                'flex min-w-0 items-center gap-2.5 rounded-2xl border border-l-4 border-white/10 bg-navy-800/60 p-3.5 shadow-card sm:gap-3.5 sm:p-5',
+                toneBorderClasses[stat.tone]
+              )}
             >
-              <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10', toneClasses[stat.tone])}>
+              <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10 sm:h-11 sm:w-11', toneClasses[stat.tone])}>
                 <stat.icon size={18} />
               </span>
               <div className="min-w-0 flex-1">
                 {stat.value === '—' ? (
                   <p className="text-sm font-semibold leading-tight text-white/40">Not yet rated</p>
                 ) : (
-                  <p className="truncate text-2xl font-bold leading-tight text-white">{stat.value}</p>
+                  <p className="truncate text-lg font-bold leading-tight text-white sm:text-2xl">{stat.value}</p>
                 )}
-                <p className="truncate text-xs text-white/50">{stat.label}</p>
+                <p className="mt-0.5 break-words text-[11px] leading-snug text-white/50 sm:truncate sm:text-xs">{stat.label}</p>
               </div>
-              <ChevronRight size={16} className="shrink-0 text-white/15" />
+              <ChevronRight size={16} className="hidden shrink-0 text-white/15 sm:block" />
             </motion.div>
           ))}
         </div>

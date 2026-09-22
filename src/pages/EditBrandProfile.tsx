@@ -12,12 +12,16 @@ import {
   Building2,
   Calendar,
   Users,
+  Phone,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { brandApi, type ApiBrand } from '@/services/brandApi';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
+import { userApi } from '@/services/userApi';
 import { getApiErrorMessage, getUploadUrl } from '@/services/apiClient';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { updateUser } from '@/store/slices/authSlice';
 import { cn } from '@/utils/cn';
 
 // Small label row used above every field: shows a required "*" in orange,
@@ -38,6 +42,8 @@ function FieldLabel({ label, required }: { label: string; required?: boolean }) 
 
 export default function EditBrandProfile() {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const authUser = useAppSelector((s) => s.auth.user);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,6 +55,10 @@ export default function EditBrandProfile() {
   const [logoPreview, setLogoPreview] = useState('');
 
   const [companyName, setCompanyName] = useState('');
+  // Lives on the User document — same gap as the creator edit page, a
+  // Google-signup brand contact had no way to add a phone number after
+  // signup since this page never had a field for it.
+  const [phone, setPhone] = useState(authUser?.phone || '');
   const [tagline, setTagline] = useState('');
   const [about, setAbout] = useState('');
   const [website, setWebsite] = useState('');
@@ -110,6 +120,7 @@ export default function EditBrandProfile() {
     // mount, or from a newly selected file — so this only blocks brands
     // that have never had a logo, not everyone on every edit.
     if (!logoPreview) return 'Company logo is required';
+    if (!phone.trim() || phone.trim().length < 10) return 'A valid phone number is required';
     if (!companyName.trim()) return 'Company name is required';
     if (!tagline.trim()) return 'Tagline is required';
     if (!about.trim()) return 'About your brand is required';
@@ -137,6 +148,11 @@ export default function EditBrandProfile() {
     try {
       if (logoFile) {
         await brandApi.uploadLogo(logoFile);
+      }
+
+      if (phone.trim() !== (authUser?.phone || '')) {
+        await userApi.updateMe({ phone: phone.trim() });
+        dispatch(updateUser({ phone: phone.trim() }));
       }
 
       await brandApi.updateMyProfile({
@@ -231,6 +247,21 @@ export default function EditBrandProfile() {
                 onChange={(e) => setCompanyName(e.target.value)}
                 className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
               />
+            </label>
+
+            <label className="block">
+              <FieldLabel label="Phone number" required />
+              <div className="relative">
+                <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+91 98765 43210"
+                  className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+                />
+              </div>
             </label>
 
             <label className="block">

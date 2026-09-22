@@ -12,6 +12,7 @@ import {
   Clock,
   Languages as LanguagesIcon,
   Tag,
+  Phone,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
@@ -20,7 +21,7 @@ import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import { categoryApi, type ApiCategory } from '@/services/categoryApi';
 import { userApi } from '@/services/userApi';
 import { getApiErrorMessage } from '@/services/apiClient';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { updateUser } from '@/store/slices/authSlice';
 import { cn } from '@/utils/cn';
 
@@ -125,6 +126,7 @@ function SocialUrlField({
 export default function EditCreatorProfile() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const authUser = useAppSelector((s) => s.auth.user);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -140,6 +142,11 @@ export default function EditCreatorProfile() {
   const [bio, setBio] = useState('');
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
+  // Lives on the User document, not CreatorProfile — a Google-signup
+  // creator can end up with no phone at all (Google never provides one),
+  // and there was previously no way to add it after signup since this
+  // page never had a field for it.
+  const [phone, setPhone] = useState(authUser?.phone || '');
   const [isAvailableForWork, setIsAvailableForWork] = useState(true);
   const [responseTime, setResponseTime] = useState('');
   const [languages, setLanguages] = useState('');
@@ -199,6 +206,7 @@ export default function EditCreatorProfile() {
     // mount, or from a newly selected file — so this only blocks people who
     // have never had a photo, not everyone on every edit.
     if (!photoPreview) return 'Profile photo is required';
+    if (!phone.trim() || phone.trim().length < 10) return 'A valid phone number is required';
     if (!title.trim()) return 'Title / Tagline is required';
     if (!bio.trim()) return 'Bio is required';
     if (!category) return 'Please select a category';
@@ -227,6 +235,11 @@ export default function EditCreatorProfile() {
       if (photoFile) {
         const { avatarUrl } = await userApi.uploadAvatar(photoFile);
         dispatch(updateUser({ avatarUrl }));
+      }
+
+      if (phone.trim() !== (authUser?.phone || '')) {
+        await userApi.updateMe({ phone: phone.trim() });
+        dispatch(updateUser({ phone: phone.trim() }));
       }
 
       await creatorApi.updateMyProfile({
@@ -348,6 +361,21 @@ export default function EditCreatorProfile() {
                 maxLength={80}
                 className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
               />
+            </label>
+
+            <label className="block">
+              <FieldLabel label="Phone number" required />
+              <div className="relative">
+                <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+91 98765 43210"
+                  className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+                />
+              </div>
             </label>
 
             <label className="block">
