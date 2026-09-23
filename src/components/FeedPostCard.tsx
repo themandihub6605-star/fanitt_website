@@ -470,10 +470,8 @@ export function FeedPostCard({
   post,
   isFollowing,
   onFollowChange,
-
-  // GLOBAL AUDIO PROPS
-  muted,
-  onToggleMute,
+  muted = false,
+  onToggleMute = () => {},
 }: {
   post: ApiPost;
   compact?: boolean;
@@ -482,10 +480,8 @@ export function FeedPostCard({
     creatorId: string,
     following: boolean
   ) => void;
-
-  // These now come from Feed.tsx
-  muted: boolean;
-  onToggleMute: () => void;
+  muted?: boolean;
+  onToggleMute?: () => void;
 }) {
   const navigate = useNavigate();
 
