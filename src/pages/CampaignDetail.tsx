@@ -957,7 +957,11 @@ export default function CampaignDetail() {
 
   const isBrandOwner = campaign && user?.role === 'brand' && campaign.brand.user._id === user._id;
   const isAssignedCreator = campaign?.assignedCreator?.user._id === user?._id;
-  const canApply = user?.role === 'creator' && campaign?.status === 'open';
+  const canApply = user?.role === 'creator' && campaign?.status === 'open' && !campaign?.assignedCreator;
+  // A campaign someone else already got accepted for — separate from
+  // canApply so the page can show a clear reason instead of just quietly
+  // not offering the Apply button.
+  const isAlreadyAllotted = Boolean(campaign?.assignedCreator) && !isAssignedCreator;
 
   // Milestones only exist for paid campaigns with an assigned creator —
   // and only the brand owner or the assigned creator can see them.
@@ -1019,6 +1023,11 @@ export default function CampaignDetail() {
   const descriptionIsLong = campaign.description.length > DESCRIPTION_TRUNCATE_LENGTH;
   const showApplyAction = !checkingApplied && (canApply || applied);
   const showStickyApplyBar = !checkingApplied && canApply && !applied;
+  // Shown instead of the Apply card when a creator (who hasn't applied
+  // themselves) opens a campaign that already has an accepted creator —
+  // previously this case just fell through to nothing being shown at
+  // the bottom of the page, with no explanation.
+  const showAllottedNotice = !checkingApplied && user?.role === 'creator' && !applied && isAlreadyAllotted && campaign.status === 'open';
   const hasBothDosDonts = campaign.dos?.length > 0 && campaign.donts?.length > 0;
 
   // Quick-facts sidebar card — budget/duration/location/applied +
@@ -1087,6 +1096,20 @@ export default function CampaignDetail() {
   // brief, requirements, milestones and even the completed-review
   // block), same position on desktop and mobile, so it never gets lost
   // mid-page inside the sidebar.
+  // Shown in place of the Apply card once someone else has already been
+  // accepted for this campaign — a clear reason instead of the section
+  // just silently disappearing.
+  const allottedNoticeCard = showAllottedNotice && (
+    <section className="mt-8 border-t border-white/10 pt-8">
+      <div className="rounded-[28px] border border-white/10 bg-navy-800/50 p-6 text-center sm:p-8">
+        <h3 className="text-lg font-bold text-white">Campaign already booked</h3>
+        <p className="mx-auto mt-1.5 max-w-md text-sm text-white/50">
+          {campaign.brand.companyName} has already accepted a creator for this campaign, so it's no longer accepting new proposals.
+        </p>
+      </div>
+    </section>
+  );
+
   const applyCard = showApplyAction && (
     <section className="mt-8 border-t border-white/10 pt-8">
       <div className="rounded-[28px] border border-white/10 bg-navy-800/50 p-6 text-center sm:p-8">
@@ -1419,6 +1442,7 @@ export default function CampaignDetail() {
 
           {/* Apply — always last, both desktop and mobile. */}
           {applyCard}
+          {allottedNoticeCard}
         </motion.div>
       </Container>
 

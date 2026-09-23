@@ -271,15 +271,36 @@ export default function CampaignApplications() {
                         </>
                       )}
 
-                      {app.status !== 'pending' && (
-                        <span
-                          className={
-                            app.status === 'accepted'
-                              ? 'rounded-full bg-teal-500/15 px-2.5 py-1 text-[10px] font-bold uppercase text-teal-300'
-                              : 'rounded-full bg-red-500/15 px-2.5 py-1 text-[10px] font-bold uppercase text-red-300'
-                          }
-                        >
-                          {app.status}
+                      {/* Still pending, but you've already accepted someone
+                          else for this campaign — Accept/Reject correctly
+                          don't apply anymore, but this card previously
+                          showed nothing at all here (neither the buttons
+                          above nor the status badge below, since that one
+                          only covers non-pending statuses). */}
+                      {app.status === 'pending' && campaign.assignedCreator && (
+                        <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase text-white/50">
+                          Not selected
+                        </span>
+                      )}
+
+                      {app.status === 'accepted' && (
+                        <span className="rounded-full bg-teal-500/15 px-2.5 py-1 text-[10px] font-bold uppercase text-teal-300">accepted</span>
+                      )}
+                      {app.status === 'rejected' && (
+                        <span className="rounded-full bg-red-500/15 px-2.5 py-1 text-[10px] font-bold uppercase text-red-300">rejected</span>
+                      )}
+                      {/* Fallback for any status value that isn't one of the
+                          three known ones (pending/accepted/rejected) — a
+                          malformed or unexpected value here previously fell
+                          through to a blank-looking badge instead of ever
+                          being visible. If you still see an empty slot
+                          after this, it means the real `status` string
+                          coming back from the API for that applicant isn't
+                          one of the three expected values — check the
+                          Network tab response for this row's raw data. */}
+                      {app.status !== 'pending' && app.status !== 'accepted' && app.status !== 'rejected' && (
+                        <span className="rounded-full bg-yellow-400/15 px-2.5 py-1 text-[10px] font-bold uppercase text-yellow-300">
+                          {app.status || 'unknown status'}
                         </span>
                       )}
                     </div>

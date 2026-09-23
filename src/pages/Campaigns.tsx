@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, Users2, Plus, Loader2, AlertCircle, Instagram, Search, SlidersHorizontal, X, Building2, Sparkles } from 'lucide-react';
+import { Briefcase, Users2, Plus, Loader2, AlertCircle, Instagram, Search, SlidersHorizontal, X, Building2, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { campaignApi, type ApiCampaign, type CampaignType, type GenderTarget, type LocationType } from '@/services/campaignApi';
@@ -461,11 +461,22 @@ export default function Campaigns() {
                   >
                   <div className="relative w-28 shrink-0 self-stretch overflow-hidden rounded-lg bg-white/5 lg:w-32">
                       {campaign.campaignImageUrl ? (
-                        <img src={campaign.campaignImageUrl} alt="" className="h-full w-full object-cover" />
+                        <img src={campaign.campaignImageUrl} alt="" className={cn('h-full w-full object-cover', campaign.assignedCreator && 'opacity-50')} />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-white/20">
                           <Building2 size={22} />
                         </div>
+                      )}
+                      {/* A creator's already been accepted for this
+                          campaign — a bold ribbon across the thumbnail so a
+                          browsing creator sees it immediately, not a tiny
+                          chip buried in the text below. The thumbnail is
+                          also dimmed (see opacity-50 above) to reinforce
+                          it's no longer an open opportunity. */}
+                      {campaign.assignedCreator && (
+                        <span className="absolute inset-x-0 top-3 flex items-center justify-center gap-1 bg-gradient-to-r from-orange-600 to-red-600 py-1.5 text-xs font-extrabold uppercase tracking-wide text-white shadow-lg">
+                          <CheckCircle2 size={13} /> Booked
+                        </span>
                       )}
                       <span
                         className={cn(
