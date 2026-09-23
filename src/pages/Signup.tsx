@@ -280,48 +280,71 @@ export default function Signup() {
   const goNext = () => setSlideIndex((i) => Math.min(i + 1, slides.length - 1));
   const goBack = () => setSlideIndex((i) => Math.max(i - 1, 0));
 
+  // UX FIX: previously a failed validation only set the error text, which
+  // renders at the TOP of the card — invisible if the person is scrolled
+  // down a long step (e.g. the Brand "work" step). This helper sets the
+  // error AND scrolls+focuses the exact field that's missing/invalid, by
+  // its DOM id, so the person lands right on the field that needs fixing
+  // instead of having to scroll up to find out what's wrong.
+  const setFieldError = (fieldId: string, message: string) => {
+    setError(message);
+    // A short delay lets the error banner's mount/height animation start
+    // and the current step's fields (already on screen, since we don't
+    // advance the step on failure) settle before we measure and scroll.
+    setTimeout(() => {
+      const el = document.getElementById(fieldId);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (typeof (el as HTMLElement).focus === 'function') {
+        (el as HTMLElement).focus({ preventScroll: true });
+      }
+    }, 50);
+  };
+
   // Validates the current step before letting the person move on — every
   // field on 'personal' and 'work' is now mandatory, so an empty field
-  // blocks Continue with a specific message instead of silently advancing.
+  // blocks Continue with a specific message instead of silently advancing,
+  // and now also auto-scrolls the person to that exact field (see
+  // setFieldError above).
   const handleStepNext = () => {
     setError('');
 
     if (currentSlide === 'personal') {
-      if (!name.trim()) return setError('Full name is required');
-      if (!phone.trim() || phone.trim().length < 10) return setError('A valid 10-digit phone number is required');
-      if (!location.trim()) return setError('Location is required');
+      if (!name.trim()) return setFieldError('field-name', 'Full name is required');
+      if (!phone.trim() || phone.trim().length < 10) return setFieldError('field-phone', 'A valid 10-digit phone number is required');
+      if (!location.trim()) return setFieldError('field-location', 'Location is required');
     }
 
     if (currentSlide === 'work') {
       if (role === 'creator') {
-        if (!title.trim()) return setError('Title / Tagline is required');
-        if (!bio.trim()) return setError('Bio is required');
-        if (!category) return setError('Please select a category');
-        if (!skills.trim()) return setError('Skills are required');
-        if (!languages.trim()) return setError('Languages are required');
-        if (!responseTime.trim()) return setError('Response time is required');
-        if (!yearsOfExperience.trim()) return setError('Years of experience is required');
+        if (!title.trim()) return setFieldError('field-title', 'Title / Tagline is required');
+        if (!bio.trim()) return setFieldError('field-bio', 'Bio is required');
+        if (!category) return setFieldError('field-category', 'Please select a category');
+        if (!skills.trim()) return setFieldError('field-skills', 'Skills are required');
+        if (!languages.trim()) return setFieldError('field-languages', 'Languages are required');
+        if (!responseTime.trim()) return setFieldError('field-responseTime', 'Response time is required');
+        if (!yearsOfExperience.trim()) return setFieldError('field-yearsOfExperience', 'Years of experience is required');
       }
       if (role === 'brand') {
-        if (!companyName.trim()) return setError('Company name is required');
-        if (!tagline.trim()) return setError('Tagline is required');
-        if (!about.trim()) return setError('About your brand is required');
-        if (!industry) return setError('Please select an industry');
-        if (!foundedYear.trim()) return setError('Founded year is required');
-        if (!companySize) return setError('Please select a company size');
-        if (!contactDesignation.trim()) return setError('Your designation is required');
-        if (!whatWeOffer.trim()) return setError('What you offer is required');
-        if (!targetAudience.trim()) return setError('Target audience is required');
+        if (!companyName.trim()) return setFieldError('field-companyName', 'Company name is required');
+        if (!tagline.trim()) return setFieldError('field-tagline', 'Tagline is required');
+        if (!about.trim()) return setFieldError('field-about', 'About your brand is required');
+        if (!industry) return setFieldError('field-industry', 'Please select an industry');
+        if (!foundedYear.trim()) return setFieldError('field-foundedYear', 'Founded year is required');
+        if (!companySize) return setFieldError('field-companySize', 'Please select a company size');
+        if (!contactDesignation.trim()) return setFieldError('field-contactDesignation', 'Your designation is required');
+        if (!whatWeOffer.trim()) return setFieldError('field-whatWeOffer', 'What you offer is required');
+        if (!targetAudience.trim()) return setFieldError('field-targetAudience', 'Target audience is required');
       }
       if (role === 'agency') {
-        if (!companyName.trim()) return setError('Agency name is required');
-        if (!ownerName.trim()) return setError('Contact person is required');
-        if (!city.trim()) return setError('City is required');
-        if (!agencyState.trim()) return setError('State is required');
-        if (!gstNumber.trim()) return setError('GST number is required');
-        if (!teamSize.trim()) return setError('Team size is required');
-        if (!yearsInBusiness.trim()) return setError('Years in business is required');
-        if (!specialization.trim()) return setError('Specialization is required');
+        if (!companyName.trim()) return setFieldError('field-companyName', 'Agency name is required');
+        if (!ownerName.trim()) return setFieldError('field-ownerName', 'Contact person is required');
+        if (!city.trim()) return setFieldError('field-city', 'City is required');
+        if (!agencyState.trim()) return setFieldError('field-agencyState', 'State is required');
+        if (!gstNumber.trim()) return setFieldError('field-gstNumber', 'GST number is required');
+        if (!teamSize.trim()) return setFieldError('field-teamSize', 'Team size is required');
+        if (!yearsInBusiness.trim()) return setFieldError('field-yearsInBusiness', 'Years in business is required');
+        if (!specialization.trim()) return setFieldError('field-specialization', 'Specialization is required');
       }
     }
 
@@ -329,17 +352,18 @@ export default function Signup() {
   };
 
   // Same idea for the 'social' step — photo, and (for creator/brand)
-  // Instagram, are now mandatory, so this step gets its own Continue handler.
+  // Instagram, are now mandatory, so this step gets its own Continue
+  // handler, also wired up to scroll to the offending field.
   const handleSocialNext = () => {
     setError('');
-    if (!photoFile) return setError(`Please upload a ${photoLabel.toLowerCase()} — it's required to create an account`);
+    if (!photoFile) return setFieldError('field-photo', `Please upload a ${photoLabel.toLowerCase()} — it's required to create an account`);
 
     if (role === 'creator' || role === 'brand') {
-      if (!instagram.trim()) return setError('Instagram profile URL is required');
-      if (!isValidSocialUrl('instagram', instagram)) return setError('Please enter a valid Instagram profile URL');
+      if (!instagram.trim()) return setFieldError('field-instagram', 'Instagram profile URL is required');
+      if (!isValidSocialUrl('instagram', instagram)) return setFieldError('field-instagram', 'Please enter a valid Instagram profile URL');
     }
 
-    if (role === 'agency' && !documentFile) return setError('ID / Address proof is required');
+    if (role === 'agency' && !documentFile) return setFieldError('field-document', 'ID / Address proof is required');
 
     goNext();
   };
@@ -916,8 +940,9 @@ export default function Signup() {
                     </div>
                   </div>
 
-                  <TextField label="Full name" icon={User} value={name} onChange={setName} placeholder="e.g. Priya Sharma" required />
+                  <TextField id="field-name" label="Full name" icon={User} value={name} onChange={setName} placeholder="e.g. Priya Sharma" required />
                   <TextField
+                    id="field-phone"
                     label="Phone number"
                     icon={Phone}
                     value={phone}
@@ -927,7 +952,7 @@ export default function Signup() {
                     maxLength={10}
                     required
                   />
-                  <label className="block">
+                  <label className="block" id="field-location">
                     <FieldLabel label="Location" required />
                     <LocationAutocomplete
                       icon={MapPin}
@@ -947,15 +972,16 @@ export default function Signup() {
                 <motion.div key="work" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-6 space-y-5">
                   {role === 'creator' && (
                     <>
-                      <TextField label="Title / Tagline" value={title} onChange={setTitle} placeholder="e.g. Photographer & Filmmaker" required />
+                      <TextField id="field-title" label="Title / Tagline" value={title} onChange={setTitle} placeholder="e.g. Photographer & Filmmaker" required />
                       <label className="block">
                         <FieldLabel label="Bio" required />
-                        <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="A short bio about you and your work" rows={3} maxLength={500} required className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20" />
+                        <textarea id="field-bio" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="A short bio about you and your work" rows={3} maxLength={500} required className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20" />
                       </label>
                       <label className="block">
                         <FieldLabel label="Category" required />
                         <div className="relative">
                           <select
+                            id="field-category"
                             value={category}
                             onChange={(e) => setCategory(e.target.value)}
                             required
@@ -970,11 +996,11 @@ export default function Signup() {
                           <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/40" />
                         </div>
                       </label>
-                      <TextField label="Skills" icon={Tag} value={skills} onChange={setSkills} placeholder="Comma separated, e.g. Editing, Reels" required />
-                      <TextField label="Languages" icon={LanguagesIcon} value={languages} onChange={setLanguages} placeholder="Comma separated" required />
+                      <TextField id="field-skills" label="Skills" icon={Tag} value={skills} onChange={setSkills} placeholder="Comma separated, e.g. Editing, Reels" required />
+                      <TextField id="field-languages" label="Languages" icon={LanguagesIcon} value={languages} onChange={setLanguages} placeholder="Comma separated" required />
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <TextField label="Response time" icon={Clock} value={responseTime} onChange={setResponseTime} placeholder="e.g. Within a day" required />
-                        <TextField label="Years of experience" icon={Briefcase} value={yearsOfExperience} onChange={setYearsOfExperience} placeholder="e.g. 3" type="number" required />
+                        <TextField id="field-responseTime" label="Response time" icon={Clock} value={responseTime} onChange={setResponseTime} placeholder="e.g. Within a day" required />
+                        <TextField id="field-yearsOfExperience" label="Years of experience" icon={Briefcase} value={yearsOfExperience} onChange={setYearsOfExperience} placeholder="e.g. 3" type="number" required />
                       </div>
                       <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3.5">
                         <div className="min-w-0 flex-1">
@@ -1004,17 +1030,18 @@ export default function Signup() {
 
                   {role === 'brand' && (
                     <>
-                      <TextField label="Company name" icon={Building2} value={companyName} onChange={setCompanyName} placeholder="e.g. Glow Cosmetics" required />
-                      <TextField label="Tagline" value={tagline} onChange={setTagline} placeholder="One line that sums up your brand" required />
+                      <TextField id="field-companyName" label="Company name" icon={Building2} value={companyName} onChange={setCompanyName} placeholder="e.g. Glow Cosmetics" required />
+                      <TextField id="field-tagline" label="Tagline" value={tagline} onChange={setTagline} placeholder="One line that sums up your brand" required />
                       <label className="block">
                         <FieldLabel label="About your brand" required />
-                        <textarea value={about} onChange={(e) => setAbout(e.target.value)} placeholder="What does your brand do?" rows={3} maxLength={500} required className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20" />
+                        <textarea id="field-about" value={about} onChange={(e) => setAbout(e.target.value)} placeholder="What does your brand do?" rows={3} maxLength={500} required className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20" />
                       </label>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <label className="block">
                           <FieldLabel label="Industry" required />
                           <div className="relative">
                             <select
+                              id="field-industry"
                               value={industry}
                               onChange={(e) => setIndustry(e.target.value)}
                               required
@@ -1030,13 +1057,14 @@ export default function Signup() {
                             <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/40" />
                           </div>
                         </label>
-                        <TextField label="Founded year" icon={Calendar} value={foundedYear} onChange={setFoundedYear} placeholder="e.g. 2019" type="number" required />
+                        <TextField id="field-foundedYear" label="Founded year" icon={Calendar} value={foundedYear} onChange={setFoundedYear} placeholder="e.g. 2019" type="number" required />
                       </div>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <label className="block">
                           <FieldLabel label="Company size" required />
                           <div className="relative">
                             <select
+                              id="field-companySize"
                               value={companySize}
                               onChange={(e) => setCompanySize(e.target.value)}
                               required
@@ -1052,27 +1080,27 @@ export default function Signup() {
                             <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white/40" />
                           </div>
                         </label>
-                        <TextField label="Your designation" value={contactDesignation} onChange={setContactDesignation} placeholder="e.g. Marketing Head" required />
+                        <TextField id="field-contactDesignation" label="Your designation" value={contactDesignation} onChange={setContactDesignation} placeholder="e.g. Marketing Head" required />
                       </div>
-                      <TextField label="What you offer" icon={Tag} value={whatWeOffer} onChange={setWhatWeOffer} placeholder="Comma separated" required />
-                      <TextField label="Target audience" value={targetAudience} onChange={setTargetAudience} placeholder="e.g. Women 18-30" required />
+                      <TextField id="field-whatWeOffer" label="What you offer" icon={Tag} value={whatWeOffer} onChange={setWhatWeOffer} placeholder="Comma separated" required />
+                      <TextField id="field-targetAudience" label="Target audience" value={targetAudience} onChange={setTargetAudience} placeholder="e.g. Women 18-30" required />
                     </>
                   )}
 
                   {role === 'agency' && (
                     <>
-                      <TextField label="Agency name" icon={Building2} value={companyName} onChange={setCompanyName} placeholder="e.g. Creator Hub Agency" required />
-                      <TextField label="Contact person" icon={User} value={ownerName} onChange={setOwnerName} placeholder="Full name" required />
+                      <TextField id="field-companyName" label="Agency name" icon={Building2} value={companyName} onChange={setCompanyName} placeholder="e.g. Creator Hub Agency" required />
+                      <TextField id="field-ownerName" label="Contact person" icon={User} value={ownerName} onChange={setOwnerName} placeholder="Full name" required />
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <TextField label="City" icon={MapPin} value={city} onChange={setCity} placeholder="e.g. Mumbai" required />
-                        <TextField label="State" value={agencyState} onChange={setAgencyState} placeholder="e.g. Maharashtra" required />
+                        <TextField id="field-city" label="City" icon={MapPin} value={city} onChange={setCity} placeholder="e.g. Mumbai" required />
+                        <TextField id="field-agencyState" label="State" value={agencyState} onChange={setAgencyState} placeholder="e.g. Maharashtra" required />
                       </div>
-                      <TextField label="GST number" icon={FileText} value={gstNumber} onChange={setGstNumber} placeholder="15-character GSTIN" required />
+                      <TextField id="field-gstNumber" label="GST number" icon={FileText} value={gstNumber} onChange={setGstNumber} placeholder="15-character GSTIN" required />
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <TextField label="Team size" icon={Users2} value={teamSize} onChange={setTeamSize} placeholder="e.g. 1-10" required />
-                        <TextField label="Years in business" icon={Calendar} value={yearsInBusiness} onChange={setYearsInBusiness} placeholder="e.g. 2" type="number" required />
+                        <TextField id="field-teamSize" label="Team size" icon={Users2} value={teamSize} onChange={setTeamSize} placeholder="e.g. 1-10" required />
+                        <TextField id="field-yearsInBusiness" label="Years in business" icon={Calendar} value={yearsInBusiness} onChange={setYearsInBusiness} placeholder="e.g. 2" type="number" required />
                       </div>
-                      <TextField label="Specialization" value={specialization} onChange={setSpecialization} placeholder="e.g. Fashion creators" required />
+                      <TextField id="field-specialization" label="Specialization" value={specialization} onChange={setSpecialization} placeholder="e.g. Fashion creators" required />
                       <p className="rounded-xl border border-orange-500/20 bg-orange-500/5 px-4 py-3 text-xs text-white/50">
                         Your agency needs admin approval before the dashboard unlocks.
                       </p>
@@ -1085,7 +1113,7 @@ export default function Signup() {
 
               {currentSlide === 'social' && (
                 <motion.div key="social" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-6 space-y-5">
-                  <div className="flex flex-col items-center gap-2">
+                  <div id="field-photo" className="flex flex-col items-center gap-2">
                     <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
                     <button
                       type="button"
@@ -1110,6 +1138,7 @@ export default function Signup() {
                   {(role === 'creator' || role === 'brand') && (
                     <>
                       <SocialUrlField
+                        id="field-instagram"
                         label="Instagram profile"
                         icon={Instagram}
                         platform="instagram"
@@ -1160,7 +1189,7 @@ export default function Signup() {
                   {role === 'agency' && (
                     <label className="block">
                       <FieldLabel label="ID / Address proof" required />
-                      <input type="file" accept="image/*" onChange={handleDocumentSelect} required className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-sm text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500/20 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-orange-300" />
+                      <input id="field-document" type="file" accept="image/*" onChange={handleDocumentSelect} required className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-sm text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500/20 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-orange-300" />
                     </label>
                   )}
 
@@ -1320,6 +1349,7 @@ function SummaryRow({ icon: Icon, label, value }: { icon: LucideIcon; label: str
 }
 
 function TextField({
+  id,
   label,
   icon: Icon,
   value,
@@ -1329,6 +1359,7 @@ function TextField({
   required = false,
   maxLength,
 }: {
+  id?: string;
   label?: string;
   icon?: LucideIcon;
   value: string;
@@ -1344,6 +1375,7 @@ function TextField({
       <div className="relative">
         {Icon && <Icon size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />}
         <input
+          id={id}
           required={required}
           type={type}
           value={value}
@@ -1363,6 +1395,7 @@ function TextField({
 // Social profile URL field — validates against the platform's URL pattern as
 // the person types, and shows a green check + green border once it matches.
 function SocialUrlField({
+  id,
   label,
   icon: Icon,
   platform,
@@ -1371,6 +1404,7 @@ function SocialUrlField({
   placeholder,
   required = false,
 }: {
+  id?: string;
   label: string;
   icon: LucideIcon;
   platform: keyof typeof SOCIAL_URL_PATTERNS;
@@ -1389,6 +1423,7 @@ function SocialUrlField({
       <div className="relative">
         <Icon size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />
         <input
+          id={id}
           type="url"
           inputMode="url"
           required={required}

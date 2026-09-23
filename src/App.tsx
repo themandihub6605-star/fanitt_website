@@ -4,6 +4,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { MainLayout } from '@/layouts/MainLayout';
 import { ProtectedRoute, APPROVAL_GATED_ROLES } from '@/components/ProtectedRoute';
 import { SuspensionModal } from '@/components/SuspensionModal';
+// FIX: fixes the bug where navigating to a new page kept the previous
+// page's scroll position (e.g. scrolling to the bottom of the feed, then
+// opening another page already scrolled down instead of at the top).
+import { ScrollToTop } from '@/components/ScrollToTop';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setCredentials, setHydrated } from '@/store/slices/authSlice';
 import { authApi } from '@/services/authApi';
@@ -277,8 +281,17 @@ function AppRoutes() {
   useAuthHydration();
   const { isAuthenticated, user, hasHydrated } = useAppSelector((s) => s.auth);
 
+  // FIX: `ScrollToTop` needs to run no matter which of the branches below
+  // ends up rendering (live session room, pending-approval gate, or the
+  // normal layout routes) — otherwise switching pages inside just one of
+  // those branches would still keep the old scroll position. Building the
+  // routed content into a variable first, then always rendering
+  // `<ScrollToTop />` alongside it at the bottom, guarantees it fires on
+  // every navigation regardless of which branch is active.
+  let routedContent: ReactNode;
+
   if (location.pathname.startsWith('/sessions/') && location.pathname.endsWith('/live')) {
-    return (
+    routedContent = (
       <Routes location={location}>
         <Route
           path="/sessions/:id/live"
@@ -290,52 +303,59 @@ function AppRoutes() {
         />
       </Routes>
     );
-  }
+  } else {
+    // Global approval gate: applies to EVERY route, not just ones wrapped in
+    // <ProtectedRoute> — previously an unapproved creator/brand/agency user
+    // could open the public homepage (or any other public page) directly and
+    // browse freely, since those routes never checked profileStatus at all.
+    // This intercepts before the normal route match happens.
+    const isUnapprovedGatedUser =
+      hasHydrated &&
+      isAuthenticated &&
+      !!user &&
+      APPROVAL_GATED_ROLES.includes(user.role) &&
+      !!user.profileStatus &&
+      user.profileStatus !== 'verified';
 
-  // Global approval gate: applies to EVERY route, not just ones wrapped in
-  // <ProtectedRoute> — previously an unapproved creator/brand/agency user
-  // could open the public homepage (or any other public page) directly and
-  // browse freely, since those routes never checked profileStatus at all.
-  // This intercepts before the normal route match happens.
-  const isUnapprovedGatedUser =
-    hasHydrated &&
-    isAuthenticated &&
-    !!user &&
-    APPROVAL_GATED_ROLES.includes(user.role) &&
-    !!user.profileStatus &&
-    user.profileStatus !== 'verified';
+    // Paths an unapproved user must still be able to reach — the resubmit
+    // flow depends on getting to their own edit page, and logging out/into
+    // a different account shouldn't be blocked either.
+    const GATE_EXEMPT_PATHS = ['/get-started', '/login', '/signup', '/dashboard/creator/edit', '/dashboard/brand/edit', '/dashboard/agency/edit'];
 
-  // Paths an unapproved user must still be able to reach — the resubmit
-  // flow depends on getting to their own edit page, and logging out/into
-  // a different account shouldn't be blocked either.
-  const GATE_EXEMPT_PATHS = ['/get-started', '/login', '/signup', '/dashboard/creator/edit', '/dashboard/brand/edit', '/dashboard/agency/edit'];
-
-  if ((location.pathname === '/pending-approval' || isUnapprovedGatedUser) && !GATE_EXEMPT_PATHS.includes(location.pathname)) {
-    return (
-      <Routes location={location}>
-        <Route
-          path="*"
-          element={
-            <ProtectedRoute>
-              <PendingApproval />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-    );
+    if ((location.pathname === '/pending-approval' || isUnapprovedGatedUser) && !GATE_EXEMPT_PATHS.includes(location.pathname)) {
+      routedContent = (
+        <Routes location={location}>
+          <Route
+            path="*"
+            element={
+              <ProtectedRoute>
+                <PendingApproval />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      );
+    } else {
+      routedContent = (
+        <MainLayout>
+          <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname}>
+              {LAYOUT_ROUTES.map((r) => (
+                <Route key={r.path} path={r.path} element={<PageTransition>{r.element}</PageTransition>} />
+              ))}
+              <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
+            </Routes>
+          </AnimatePresence>
+        </MainLayout>
+      );
+    }
   }
 
   return (
-    <MainLayout>
-      <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname}>
-          {LAYOUT_ROUTES.map((r) => (
-            <Route key={r.path} path={r.path} element={<PageTransition>{r.element}</PageTransition>} />
-          ))}
-          <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
-        </Routes>
-      </AnimatePresence>
-    </MainLayout>
+    <>
+      <ScrollToTop />
+      {routedContent}
+    </>
   );
 }
 

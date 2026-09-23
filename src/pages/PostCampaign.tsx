@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Check, AlertCircle, Loader2, Plus, X, ImagePlus, Minus, Sparkles } from 'lucide-react';
@@ -38,6 +38,27 @@ const INDIAN_STATES = [
   'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
 ];
 
+// Scrolls a field into the center of the viewport and focuses it, so a
+// validation error is fixed by looking exactly where the page took you
+// instead of hunting from a top banner. Wrapped in rAF so it runs after
+// the just-set error/border styling has painted.
+function scrollToField(ref: React.RefObject<HTMLElement>) {
+  requestAnimationFrame(() => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    (ref.current as HTMLInputElement | HTMLTextAreaElement | null)?.focus?.();
+  });
+}
+
+// Small inline error line shown directly under a field — this is what
+// replaces the old "scroll up to read the banner" pattern.
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-red-300">
+      <AlertCircle size={12} className="shrink-0" /> {message}
+    </p>
+  );
+}
 
 // Prefix matches ("Ban..." -> "Bangalore") rank above mid-string matches
 // ("Ban..." -> "Karban") — both are kept, prefix ones just surface
@@ -50,6 +71,8 @@ function TextField({
   placeholder,
   type = 'text',
   required,
+  inputRef,
+  error,
 }: {
   label: string;
   value: string;
@@ -57,18 +80,27 @@ function TextField({
   placeholder?: string;
   type?: string;
   required?: boolean;
+  inputRef?: React.Ref<HTMLInputElement>;
+  error?: string;
 }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-semibold text-white/80">{label}</span>
       <input
+        ref={inputRef}
         required={required}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-white/10 bg-navy-800/55 px-4 py-3 text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+        className={cn(
+          'w-full rounded-xl border bg-navy-800/55 px-4 py-3 text-white placeholder:text-white/30 focus:ring-2',
+          error
+            ? 'border-red-500/60 focus:border-red-400 focus:ring-red-400/20'
+            : 'border-white/10 focus:border-orange-400 focus:ring-orange-400/20'
+        )}
       />
+      <FieldError message={error} />
     </label>
   );
 }
@@ -201,6 +233,15 @@ interface LocalProduct {
   imageUrl?: string;
 }
 
+// Which field a validation error belongs to — drives both the inline
+// message under that field and where the page scrolls to.
+interface FieldErrors {
+  title?: string;
+  cost?: string;
+  products?: string;
+  description?: string;
+}
+
 export default function PostCampaign() {
   const navigate = useNavigate();
 
@@ -209,12 +250,24 @@ export default function PostCampaign() {
 
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // `error` is now reserved for genuine failures (network/API) that
+  // aren't tied to one specific field — those still show as a banner,
+  // since there's nowhere more specific to put them. Field-level
+  // validation problems live in `fieldErrors` instead and render right
+  // under the field that caused them.
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [quotaExceeded, setQuotaExceeded] = useState(false);
 
   const [categories, setCategories] = useState<ApiCategory[]>([]);
 
   const [mySubscription, setMySubscription] = useState<ApiUserSubscription | null>(null);
+
+  // Refs used to scroll to + focus the field a validation error belongs to.
+  const titleRef = useRef<HTMLInputElement>(null);
+  const costRef = useRef<HTMLInputElement>(null);
+  const productsSectionRef = useRef<HTMLDivElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
   // step 1
   const [title, setTitle] = useState('');
@@ -241,6 +294,7 @@ export default function PostCampaign() {
   };
   const [products, setProducts] = useState<LocalProduct[]>([]);
   const [showAddProduct, setShowAddProduct] = useState(false);
+  const [productFormError, setProductFormError] = useState('');
   const [productDraft, setProductDraft] = useState<LocalProduct>({
     name: '',
     description: '',
@@ -301,10 +355,10 @@ export default function PostCampaign() {
   const handleAddProduct = async () => {
     if (!campaignId) return;
     if (!productDraft.name.trim() || !productDraft.price) {
-      setError('Product name and price are required');
+      setProductFormError('Product name and price are required');
       return;
     }
-    setError('');
+    setProductFormError('');
     try {
       const saved = await campaignApi.addProduct(
         campaignId,
@@ -322,8 +376,10 @@ export default function PostCampaign() {
       ]);
       setProductDraft({ name: '', description: '', quantity: 1, price: '', imageFile: null, imagePreview: '' });
       setShowAddProduct(false);
+      // A product now exists — clear any "add at least one product" error.
+      setFieldErrors((f) => ({ ...f, products: undefined }));
     } catch (err) {
-      setError(getApiErrorMessage(err));
+      setProductFormError(getApiErrorMessage(err));
     }
   };
 
@@ -339,8 +395,10 @@ export default function PostCampaign() {
 
   const handleStepOneNext = async () => {
     setError('');
+    setFieldErrors({});
     if (!title.trim()) {
-      setError('Campaign name is required');
+      setFieldErrors({ title: 'Campaign name is required' });
+      scrollToField(titleRef);
       return;
     }
     setLoading(true);
@@ -354,6 +412,7 @@ export default function PostCampaign() {
       setStepIndex(1);
     } catch (err) {
       setError(getApiErrorMessage(err));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -362,15 +421,18 @@ export default function PostCampaign() {
   const handleStepTwoNext = async () => {
     if (!campaignId) return;
     setError('');
+    setFieldErrors({});
 
     if (campaignType === 'paid') {
       const paise = Math.round((parseFloat(costPerInfluencer) || 0) * 100);
       if (!paise || paise <= 0) {
-        setError('Please enter a valid cost per influencer');
+        setFieldErrors({ cost: 'Please enter a valid cost per influencer' });
+        scrollToField(costRef);
         return;
       }
     } else if (products.length === 0) {
-      setError('Add at least one barter product');
+      setFieldErrors({ products: 'Add at least one barter product' });
+      scrollToField(productsSectionRef);
       return;
     }
 
@@ -393,6 +455,7 @@ export default function PostCampaign() {
       setStepIndex(2);
     } catch (err) {
       setError(getApiErrorMessage(err));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -401,8 +464,10 @@ export default function PostCampaign() {
   const handleStepThreeNext = async () => {
     if (!campaignId) return;
     setError('');
+    setFieldErrors({});
     if (description.trim().length < 10) {
-      setError('Description should be at least 10 characters');
+      setFieldErrors({ description: 'Description should be at least 10 characters' });
+      scrollToField(descriptionRef);
       return;
     }
     setLoading(true);
@@ -420,6 +485,7 @@ export default function PostCampaign() {
       setStepIndex(3);
     } catch (err) {
       setError(getApiErrorMessage(err));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -438,6 +504,7 @@ export default function PostCampaign() {
       setStepIndex(4);
     } catch (err) {
       setError(getApiErrorMessage(err));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -462,6 +529,7 @@ export default function PostCampaign() {
       } else {
         setError(getApiErrorMessage(err));
       }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setPublishing(false);
     }
@@ -500,6 +568,10 @@ export default function PostCampaign() {
             </div>
           )}
 
+          {/* Reserved for genuine server/network failures only — field-level
+              validation errors render inline under their own field instead
+              (see FieldError usage below) so you don't have to scroll up to
+              find out what's wrong. */}
           {error && (
             <div className="mt-5 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
               <AlertCircle size={16} className="shrink-0" /> {error}
@@ -535,7 +607,15 @@ export default function PostCampaign() {
               <motion.div key={step} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-7 space-y-4">
                 {step === 'Basics' && (
                   <>
-                    <TextField label="Campaign Name" value={title} onChange={setTitle} placeholder="e.g. Collection launch alert" required />
+                    <TextField
+                      label="Campaign Name"
+                      value={title}
+                      onChange={setTitle}
+                      placeholder="e.g. Collection launch alert"
+                      required
+                      inputRef={titleRef}
+                      error={fieldErrors.title}
+                    />
 
                     <div>
                       <span className="mb-1.5 block text-sm font-semibold text-white/80">Influencer's Location</span>
@@ -636,7 +716,16 @@ export default function PostCampaign() {
 
                     {campaignType === 'paid' && (
                       <div>
-                        <TextField label="Cost Per Influencer (₹)" type="number" value={costPerInfluencer} onChange={setCostPerInfluencer} placeholder="e.g. 5000" required />
+                        <TextField
+                          label="Cost Per Influencer (₹)"
+                          type="number"
+                          value={costPerInfluencer}
+                          onChange={setCostPerInfluencer}
+                          placeholder="e.g. 5000"
+                          required
+                          inputRef={costRef}
+                          error={fieldErrors.cost}
+                        />
                         <p className="mt-1.5 text-xs text-white/40">Total Budget: {formatRupees(totalBudgetPreview)}</p>
                       </div>
                     )}
@@ -710,7 +799,7 @@ export default function PostCampaign() {
                       </div>
                     )}
 
-                    <div>
+                    <div ref={productsSectionRef}>
                       <span className="mb-1.5 block text-sm font-semibold text-white/80">
                         {campaignType === 'barter' ? 'Barter Products' : 'Add Free Products (optional)'}
                       </span>
@@ -758,8 +847,16 @@ export default function PostCampaign() {
                               />
                               {productDraft.imagePreview && <img src={productDraft.imagePreview} alt="" className="mt-2 h-20 w-20 rounded-lg object-cover" />}
                             </label>
+                            <FieldError message={productFormError || undefined} />
                             <div className="flex gap-2">
-                              <button type="button" onClick={() => setShowAddProduct(false)} className="flex-1 rounded-full border border-white/15 py-2.5 text-sm font-semibold text-white/70 hover:border-white/30">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowAddProduct(false);
+                                  setProductFormError('');
+                                }}
+                                className="flex-1 rounded-full border border-white/15 py-2.5 text-sm font-semibold text-white/70 hover:border-white/30"
+                              >
                                 Cancel
                               </button>
                               <button type="button" onClick={handleAddProduct} className="flex-1 rounded-full bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-600">
@@ -771,11 +868,15 @@ export default function PostCampaign() {
                           <button
                             type="button"
                             onClick={() => setShowAddProduct(true)}
-                            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 py-3 text-sm font-semibold text-white/50 hover:border-orange-400/50 hover:text-orange-300"
+                            className={cn(
+                              'flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed py-3 text-sm font-semibold hover:border-orange-400/50 hover:text-orange-300',
+                              fieldErrors.products ? 'border-red-500/50 text-red-300' : 'border-white/15 text-white/50'
+                            )}
                           >
                             <Plus size={15} /> Add Product
                           </button>
                         )}
+                        <FieldError message={fieldErrors.products} />
                       </div>
                     </div>
 
@@ -806,12 +907,19 @@ export default function PostCampaign() {
                     <label className="block">
                       <span className="mb-1.5 block text-sm font-semibold text-white/80">Campaign Description</span>
                       <textarea
+                        ref={descriptionRef}
                         rows={4}
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         placeholder="Enter description"
-                        className="w-full resize-none rounded-xl border border-white/10 bg-navy-800/55 px-4 py-3 text-white placeholder:text-white/30 focus:border-orange-400"
+                        className={cn(
+                          'w-full resize-none rounded-xl border bg-navy-800/55 px-4 py-3 text-white placeholder:text-white/30',
+                          fieldErrors.description
+                            ? 'border-red-500/60 focus:border-red-400'
+                            : 'border-white/10 focus:border-orange-400'
+                        )}
                       />
+                      <FieldError message={fieldErrors.description} />
                     </label>
 
                     <div>
