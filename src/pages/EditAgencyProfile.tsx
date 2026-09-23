@@ -5,7 +5,10 @@ import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { agencyApi, type ApiAgency } from '@/services/agencyApi';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
+import { userApi } from '@/services/userApi';
 import { getApiErrorMessage } from '@/services/apiClient';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { updateUser } from '@/store/slices/authSlice';
 
 // Small label row used above every field: shows a required "*" in orange,
 // or a muted "(optional)" hint when the field isn't mandatory — same
@@ -25,6 +28,8 @@ function FieldLabel({ label, required }: { label: string; required?: boolean }) 
 
 export default function EditAgencyProfile() {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const authUser = useAppSelector((s) => s.auth.user);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -32,6 +37,10 @@ export default function EditAgencyProfile() {
   const [saved, setSaved] = useState(false);
   const [status, setStatus] = useState<ApiAgency['verificationStatus']>('unverified');
 
+  // Lives on the User document, separate from `ownerName` below (which
+  // is the agency's own contact-person field on AgencyProfile) — this
+  // page never had a field to fix/set the account's own name at all.
+  const [name, setName] = useState(authUser?.name || '');
   const [agencyName, setAgencyName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [mobile, setMobile] = useState('');
@@ -76,20 +85,63 @@ export default function EditAgencyProfile() {
     setDocumentFile(file);
   };
 
+  // Same pattern as Signup.tsx's setFieldError — sets the error text AND
+  // scrolls/focuses the exact field that's wrong. The 320ms delay matches
+  // the fix applied to Signup.tsx: the error banner takes 250ms to
+  // animate its height open, so scrolling before that finishes lands in
+  // the wrong spot because the layout is still shifting.
+  const setFieldError = (fieldId: string, message: string) => {
+    setError(message);
+    setTimeout(() => {
+      const el = document.getElementById(fieldId);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (typeof (el as HTMLElement).focus === 'function') {
+        (el as HTMLElement).focus({ preventScroll: true });
+      }
+    }, 320);
+  };
+
   // Same required set as the Signup flow's "work" step for agencies
   // (agencyName, ownerName, city, state, gstNumber), plus mobile (phone was
-  // required on Signup's "personal" step). Signup also requires teamSize,
-  // yearsInBusiness and specialization, but this edit form has no fields
-  // for those, so they're left out here.
-  const validate = (): string | null => {
-    if (!agencyName.trim()) return 'Agency name is required';
-    if (!ownerName.trim()) return 'Owner name is required';
-    if (!mobile.trim()) return 'Mobile number is required';
-    if (!city.trim()) return 'City is required';
-    if (!state.trim()) return 'State is required';
-    if (!gstNumber.trim()) return 'GST number is required';
-    if (!documentFile && !hasExistingDocument) return 'ID / Address proof is required';
-    return null;
+  // required on Signup's "personal" step) and now name (User.name — was
+  // previously not editable anywhere on this page). Signup also requires
+  // teamSize, yearsInBusiness and specialization, but this edit form has
+  // no fields for those, so they're left out here. Returns true if valid.
+  const validate = (): boolean => {
+    if (!name.trim()) {
+      setFieldError('field-name', 'Your full name is required');
+      return false;
+    }
+    if (!agencyName.trim()) {
+      setFieldError('field-agencyName', 'Agency name is required');
+      return false;
+    }
+    if (!ownerName.trim()) {
+      setFieldError('field-ownerName', 'Owner name is required');
+      return false;
+    }
+    if (!mobile.trim() || mobile.trim().length !== 10) {
+      setFieldError('field-mobile', 'A valid 10-digit mobile number is required');
+      return false;
+    }
+    if (!city.trim()) {
+      setFieldError('field-city', 'City is required');
+      return false;
+    }
+    if (!state.trim()) {
+      setFieldError('field-state', 'State is required');
+      return false;
+    }
+    if (!gstNumber.trim()) {
+      setFieldError('field-gstNumber', 'GST number is required');
+      return false;
+    }
+    if (!documentFile && !hasExistingDocument) {
+      setFieldError('field-document', 'ID / Address proof is required');
+      return false;
+    }
+    return true;
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -97,17 +149,19 @@ export default function EditAgencyProfile() {
     setError('');
     setSaved(false);
 
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
+    if (!validate()) return;
 
     setSaving(true);
     try {
       if (documentFile) {
         await agencyApi.uploadDocument(documentFile);
         setHasExistingDocument(true);
+      }
+
+      // Name lives on the User document, not AgencyProfile.
+      if (name.trim() !== (authUser?.name || '')) {
+        await userApi.updateMe({ name: name.trim() });
+        dispatch(updateUser({ name: name.trim() }));
       }
 
       await agencyApi.updateMyProfile({
@@ -170,7 +224,7 @@ export default function EditAgencyProfile() {
         )}
 
         <form onSubmit={handleSave} className="mt-6 space-y-4 rounded-2xl border border-white/10 bg-navy-800/50 p-5">
-          <label className="block">
+          <label className="block" id="field-document">
             <span className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-white/80">
               ID / Address proof <span className="font-bold text-orange-400">*</span>
             </span>
@@ -190,10 +244,25 @@ export default function EditAgencyProfile() {
           </label>
 
           <label className="block">
+            <FieldLabel label="Your full name" required />
+            <div className="relative">
+              <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
+              <input
+                id="field-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Priya Sharma"
+                className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400"
+              />
+            </div>
+          </label>
+
+          <label className="block">
             <FieldLabel label="Agency name" required />
             <div className="relative">
               <Building2 size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
               <input
+                id="field-agencyName"
                 required
                 value={agencyName}
                 onChange={(e) => setAgencyName(e.target.value)}
@@ -207,6 +276,7 @@ export default function EditAgencyProfile() {
             <div className="relative">
               <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
               <input
+                id="field-ownerName"
                 value={ownerName}
                 onChange={(e) => setOwnerName(e.target.value)}
                 className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white focus:border-orange-400"
@@ -217,21 +287,26 @@ export default function EditAgencyProfile() {
           <label className="block">
             <FieldLabel label="Mobile number" required />
             <input
+              id="field-mobile"
+              type="tel"
+              inputMode="numeric"
               value={mobile}
-              onChange={(e) => setMobile(e.target.value)}
-              placeholder="+91"
+              onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              placeholder="10-digit mobile number"
+              maxLength={10}
               className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/30 focus:border-orange-400"
             />
           </label>
 
           <div className="grid grid-cols-2 gap-4">
-            <label className="block">
+            <label className="block" id="field-city">
               <FieldLabel label="City" required />
               <LocationAutocomplete icon={MapPin} mode="api" value={city} onChange={setCity} placeholder="" />
             </label>
             <label className="block">
               <FieldLabel label="State" required />
               <input
+                id="field-state"
                 value={state}
                 onChange={(e) => setState(e.target.value)}
                 className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white focus:border-orange-400"
@@ -244,6 +319,7 @@ export default function EditAgencyProfile() {
             <div className="relative">
               <FileText size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
               <input
+                id="field-gstNumber"
                 value={gstNumber}
                 onChange={(e) => setGstNumber(e.target.value)}
                 className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white focus:border-orange-400"

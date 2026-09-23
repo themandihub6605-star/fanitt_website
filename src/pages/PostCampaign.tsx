@@ -345,7 +345,15 @@ export default function PostCampaign() {
       .catch(() => setMySubscription(null));
   }, []);
 
-  const goBack = () => setStepIndex((i) => Math.max(0, i - 1));
+  // BUG FIX: all 5 steps live on ONE url (/campaigns/new) — stepIndex is
+  // just local state, so App.tsx's ScrollToTop (which only reacts to the
+  // URL changing) never fires between these steps. Without this, going
+  // back could leave you scrolled wherever the step you just left had you,
+  // instead of starting the previous step from its top.
+  const goBack = () => {
+    setStepIndex((i) => Math.max(0, i - 1));
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+  };
 
   const totalBudgetPreview = Math.round((parseFloat(costPerInfluencer) || 0) * 100) * maxInfluencers;
   // Point 11: daily applicant limit is a Pro/Exclusive-only feature —
@@ -410,6 +418,10 @@ export default function PostCampaign() {
         await campaignApi.updateDraft(campaignId, { title, campaignType, locationType, locationValue: locationType === 'pan_india' ? undefined : locationValue });
       }
       setStepIndex(1);
+      // BUG FIX: same reasoning as goBack above — stepIndex changing
+      // doesn't trigger App.tsx's URL-based ScrollToTop, so each
+      // successful step advance needs its own explicit scroll-to-top.
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
     } catch (err) {
       setError(getApiErrorMessage(err));
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -453,6 +465,7 @@ export default function PostCampaign() {
           : {}),
       });
       setStepIndex(2);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
     } catch (err) {
       setError(getApiErrorMessage(err));
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -483,6 +496,7 @@ export default function PostCampaign() {
         donts: [...dontsSelected, ...dontsCustom],
       });
       setStepIndex(3);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
     } catch (err) {
       setError(getApiErrorMessage(err));
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -502,6 +516,7 @@ export default function PostCampaign() {
       const fresh = await campaignApi.getDraft(campaignId);
       setPreviewCampaign(fresh);
       setStepIndex(4);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
     } catch (err) {
       setError(getApiErrorMessage(err));
       window.scrollTo({ top: 0, behavior: 'smooth' });

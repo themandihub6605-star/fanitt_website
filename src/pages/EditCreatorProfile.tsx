@@ -13,6 +13,7 @@ import {
   Languages as LanguagesIcon,
   Tag,
   Phone,
+  User,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
@@ -72,6 +73,7 @@ const toProfileUrl = (platform: 'instagram' | 'youtube', value: string) => {
 // the person types, and shows a green check + green border once it matches.
 // Copied from the Signup flow so Edit Profile enforces the exact same rules.
 function SocialUrlField({
+  id,
   label,
   icon: Icon,
   platform,
@@ -80,6 +82,7 @@ function SocialUrlField({
   placeholder,
   required = false,
 }: {
+  id?: string;
   label: string;
   icon: typeof Instagram;
   platform: keyof typeof SOCIAL_URL_PATTERNS;
@@ -98,6 +101,7 @@ function SocialUrlField({
       <div className="relative">
         <Icon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
         <input
+          id={id}
           type="url"
           inputMode="url"
           value={value}
@@ -138,15 +142,16 @@ export default function EditCreatorProfile() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState('');
 
+  // Both live on the User document, not CreatorProfile — same gap for
+  // both: a Google-signup creator could end up with no way to fix/add
+  // their name or phone after signup, since this page never had fields
+  // for either before.
+  const [name, setName] = useState(authUser?.name || '');
+  const [phone, setPhone] = useState(authUser?.phone || '');
   const [title, setTitle] = useState('');
   const [bio, setBio] = useState('');
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
-  // Lives on the User document, not CreatorProfile — a Google-signup
-  // creator can end up with no phone at all (Google never provides one),
-  // and there was previously no way to add it after signup since this
-  // page never had a field for it.
-  const [phone, setPhone] = useState(authUser?.phone || '');
   const [isAvailableForWork, setIsAvailableForWork] = useState(true);
   const [responseTime, setResponseTime] = useState('');
   const [languages, setLanguages] = useState('');
@@ -197,26 +202,82 @@ export default function EditCreatorProfile() {
     setPhotoPreview(URL.createObjectURL(file));
   };
 
+  // Same pattern as Signup.tsx's setFieldError — sets the error text AND
+  // scrolls/focuses the exact field that's wrong, instead of just showing
+  // a banner at the top of this (long) form that the person then has to
+  // hunt down the field for themselves. The 320ms delay (not less) is
+  // deliberate — matches the fix applied to Signup.tsx: the error banner
+  // takes 250ms to animate its height open, so scrolling before that
+  // finishes calculates the field's position against a layout that's
+  // still shifting and lands in the wrong spot.
+  const setFieldError = (fieldId: string, message: string) => {
+    setError(message);
+    setTimeout(() => {
+      const el = document.getElementById(fieldId);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (typeof (el as HTMLElement).focus === 'function') {
+        (el as HTMLElement).focus({ preventScroll: true });
+      }
+    }, 320);
+  };
+
   // Same required set as the Signup flow's "work" step for creators (title,
   // bio, category, skills, languages, responseTime), plus location (required
   // on Signup's "personal" step) and Instagram (required on Signup's
   // "social" step for creators). Everything else here stays optional.
-  const validate = (): string | null => {
-    // photoPreview is populated either from the existing avatar loaded on
-    // mount, or from a newly selected file — so this only blocks people who
-    // have never had a photo, not everyone on every edit.
-    if (!photoPreview) return 'Profile photo is required';
-    if (!phone.trim() || phone.trim().length < 10) return 'A valid phone number is required';
-    if (!title.trim()) return 'Title / Tagline is required';
-    if (!bio.trim()) return 'Bio is required';
-    if (!category) return 'Please select a category';
-    if (!location.trim()) return 'Location is required';
-    if (!responseTime.trim()) return 'Response time is required';
-    if (!languages.trim()) return 'Languages are required';
-    if (!skills.trim()) return 'Skills are required';
-    if (!instagram.trim()) return 'Instagram profile is required';
-    if (!isValidSocialUrl('instagram', instagram)) return 'Please enter a valid Instagram profile URL';
-    return null;
+  // Returns true if valid — false means it already called setFieldError
+  // and scrolled to the offending field, so the caller just returns.
+  const validate = (): boolean => {
+    if (!photoPreview) {
+      setFieldError('field-photo', 'Profile photo is required');
+      return false;
+    }
+    if (!name.trim()) {
+      setFieldError('field-name', 'Full name is required');
+      return false;
+    }
+    if (!phone.trim() || phone.trim().length !== 10) {
+      setFieldError('field-phone', 'A valid 10-digit phone number is required');
+      return false;
+    }
+    if (!title.trim()) {
+      setFieldError('field-title', 'Title / Tagline is required');
+      return false;
+    }
+    if (!bio.trim()) {
+      setFieldError('field-bio', 'Bio is required');
+      return false;
+    }
+    if (!category) {
+      setFieldError('field-category', 'Please select a category');
+      return false;
+    }
+    if (!location.trim()) {
+      setFieldError('field-location', 'Location is required');
+      return false;
+    }
+    if (!responseTime.trim()) {
+      setFieldError('field-responseTime', 'Response time is required');
+      return false;
+    }
+    if (!languages.trim()) {
+      setFieldError('field-languages', 'Languages are required');
+      return false;
+    }
+    if (!skills.trim()) {
+      setFieldError('field-skills', 'Skills are required');
+      return false;
+    }
+    if (!instagram.trim()) {
+      setFieldError('field-instagram', 'Instagram profile is required');
+      return false;
+    }
+    if (!isValidSocialUrl('instagram', instagram)) {
+      setFieldError('field-instagram', 'Please enter a valid Instagram profile URL');
+      return false;
+    }
+    return true;
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -224,11 +285,7 @@ export default function EditCreatorProfile() {
     setError('');
     setSaved(false);
 
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
+    if (!validate()) return;
 
     setSaving(true);
     try {
@@ -237,10 +294,10 @@ export default function EditCreatorProfile() {
         dispatch(updateUser({ avatarUrl }));
       }
 
-      if (phone.trim() !== (authUser?.phone || '')) {
-        await userApi.updateMe({ phone: phone.trim() });
-        dispatch(updateUser({ phone: phone.trim() }));
-      }
+      // Name + phone both live on the User document (not CreatorProfile) —
+      // one call covers both since they're both required now anyway.
+      await userApi.updateMe({ name: name.trim(), phone: phone.trim() });
+      dispatch(updateUser({ name: name.trim(), phone: phone.trim() }));
 
       await creatorApi.updateMyProfile({
         title,
@@ -308,7 +365,7 @@ export default function EditCreatorProfile() {
 
         <form className="mt-6 space-y-6" onSubmit={handleSave}>
           {/* Photo */}
-          <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-navy-800/50 p-5">
+          <div id="field-photo" className="flex items-center gap-4 rounded-2xl border border-white/10 bg-navy-800/50 p-5">
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
             <button
               type="button"
@@ -353,8 +410,23 @@ export default function EditCreatorProfile() {
             <p className="text-xs font-bold uppercase tracking-wide text-white/40">Basics</p>
 
             <label className="block">
+              <FieldLabel label="Full name" required />
+              <div className="relative">
+                <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
+                <input
+                  id="field-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Priya Sharma"
+                  className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+                />
+              </div>
+            </label>
+
+            <label className="block">
               <FieldLabel label="Title / Tagline" required />
               <input
+                id="field-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Photographer & Cinematographer"
@@ -368,11 +440,13 @@ export default function EditCreatorProfile() {
               <div className="relative">
                 <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
                 <input
+                  id="field-phone"
                   type="tel"
-                  inputMode="tel"
+                  inputMode="numeric"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+91 98765 43210"
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="10-digit mobile number"
+                  maxLength={10}
                   className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
                 />
               </div>
@@ -381,6 +455,7 @@ export default function EditCreatorProfile() {
             <label className="block">
               <FieldLabel label="Bio" required />
               <textarea
+                id="field-bio"
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 placeholder="Tell brands and fans what you do..."
@@ -394,6 +469,7 @@ export default function EditCreatorProfile() {
             <label className="block">
               <FieldLabel label="Category" required />
               <select
+                id="field-category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white focus:border-orange-400"
@@ -405,7 +481,7 @@ export default function EditCreatorProfile() {
               </select>
             </label>
 
-            <label className="block">
+            <label className="block" id="field-location">
               <FieldLabel label="Location" required />
               <LocationAutocomplete
                 icon={MapPin}
@@ -426,6 +502,7 @@ export default function EditCreatorProfile() {
               <div className="relative">
                 <Clock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
                 <input
+                  id="field-responseTime"
                   value={responseTime}
                   onChange={(e) => setResponseTime(e.target.value)}
                   placeholder="e.g. Within 2 hours"
@@ -439,6 +516,7 @@ export default function EditCreatorProfile() {
               <div className="relative">
                 <LanguagesIcon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
                 <input
+                  id="field-languages"
                   value={languages}
                   onChange={(e) => setLanguages(e.target.value)}
                   placeholder="English, Hindi"
@@ -452,6 +530,7 @@ export default function EditCreatorProfile() {
               <div className="relative">
                 <Tag size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
                 <input
+                  id="field-skills"
                   value={skills}
                   onChange={(e) => setSkills(e.target.value)}
                   placeholder="Portrait, Lifestyle, Travel, Commercial"
@@ -466,6 +545,7 @@ export default function EditCreatorProfile() {
             <p className="text-xs font-bold uppercase tracking-wide text-white/40">Social Links</p>
 
             <SocialUrlField
+              id="field-instagram"
               label="Instagram profile"
               icon={Instagram}
               platform="instagram"

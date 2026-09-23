@@ -277,8 +277,20 @@ export default function Signup() {
     }
   }, [role, categories.length]);
 
-  const goNext = () => setSlideIndex((i) => Math.min(i + 1, slides.length - 1));
-  const goBack = () => setSlideIndex((i) => Math.max(i - 1, 0));
+  // BUG FIX: advancing/going back between slides is pure local state
+  // (slideIndex) — the URL never changes (stays /signup or /get-started
+  // the whole time), so App.tsx's ScrollToTop (which only fires on
+  // pathname change) never runs for these transitions. Without this, a
+  // new slide could open still scrolled to wherever the previous slide
+  // left off, instead of always starting at the top.
+  const goNext = () => {
+    setSlideIndex((i) => Math.min(i + 1, slides.length - 1));
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+  };
+  const goBack = () => {
+    setSlideIndex((i) => Math.max(i - 1, 0));
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+  };
 
   // UX FIX: previously a failed validation only set the error text, which
   // renders at the TOP of the card — invisible if the person is scrolled
@@ -288,9 +300,15 @@ export default function Signup() {
   // instead of having to scroll up to find out what's wrong.
   const setFieldError = (fieldId: string, message: string) => {
     setError(message);
-    // A short delay lets the error banner's mount/height animation start
-    // and the current step's fields (already on screen, since we don't
-    // advance the step on failure) settle before we measure and scroll.
+    // BUG FIX: the error banner animates its height open over 250ms
+    // (see the AnimatePresence/motion block that renders it below). The
+    // old 50ms delay fired well before that animation finished, so the
+    // scroll target's real on-screen position was still shifting
+    // (everything below the growing banner moves down as it expands) —
+    // the page would scroll to where the field WAS about to be, not
+    // where it actually ends up, landing in the wrong spot depending on
+    // how far down the field is. Waiting slightly longer than the
+    // animation's own duration lets layout fully settle first.
     setTimeout(() => {
       const el = document.getElementById(fieldId);
       if (!el) return;
@@ -298,7 +316,7 @@ export default function Signup() {
       if (typeof (el as HTMLElement).focus === 'function') {
         (el as HTMLElement).focus({ preventScroll: true });
       }
-    }, 50);
+    }, 320);
   };
 
   // Validates the current step before letting the person move on — every

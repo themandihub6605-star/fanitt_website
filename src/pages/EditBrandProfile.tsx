@@ -13,6 +13,7 @@ import {
   Calendar,
   Users,
   Phone,
+  User,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
@@ -55,9 +56,11 @@ export default function EditBrandProfile() {
   const [logoPreview, setLogoPreview] = useState('');
 
   const [companyName, setCompanyName] = useState('');
-  // Lives on the User document — same gap as the creator edit page, a
-  // Google-signup brand contact had no way to add a phone number after
-  // signup since this page never had a field for it.
+  // Both live on the User document — same gap as the creator edit page:
+  // a Google-signup brand contact had no way to fix/add their own name
+  // or phone number after signup, since this page never had fields for
+  // either before.
+  const [name, setName] = useState(authUser?.name || '');
   const [phone, setPhone] = useState(authUser?.phone || '');
   const [tagline, setTagline] = useState('');
   const [about, setAbout] = useState('');
@@ -108,29 +111,80 @@ export default function EditBrandProfile() {
     setLogoPreview(URL.createObjectURL(file));
   };
 
+  // Same pattern as Signup.tsx's setFieldError — sets the error text AND
+  // scrolls/focuses the exact field that's wrong. The 320ms delay matches
+  // the fix applied to Signup.tsx: the error banner takes 250ms to
+  // animate its height open, so scrolling before that finishes lands in
+  // the wrong spot because the layout is still shifting.
+  const setFieldError = (fieldId: string, message: string) => {
+    setError(message);
+    setTimeout(() => {
+      const el = document.getElementById(fieldId);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (typeof (el as HTMLElement).focus === 'function') {
+        (el as HTMLElement).focus({ preventScroll: true });
+      }
+    }, 320);
+  };
+
   // Same required set as the Signup flow's "work" step for brands
   // (companyName, tagline, about, industry, foundedYear, companySize,
   // whatWeOffer), plus location (required on Signup's "personal" step) and
   // Instagram (required on Signup's "social" step for brands). Signup also
   // requires contactDesignation and targetAudience, but this edit form has
   // no fields for those, so they're left out here. Website/YouTube/LinkedIn
-  // stay optional.
-  const validate = (): string | null => {
-    // logoPreview is populated either from the existing logo loaded on
-    // mount, or from a newly selected file — so this only blocks brands
-    // that have never had a logo, not everyone on every edit.
-    if (!logoPreview) return 'Company logo is required';
-    if (!phone.trim() || phone.trim().length < 10) return 'A valid phone number is required';
-    if (!companyName.trim()) return 'Company name is required';
-    if (!tagline.trim()) return 'Tagline is required';
-    if (!about.trim()) return 'About your brand is required';
-    if (!industry.trim()) return 'Industry is required';
-    if (!location.trim()) return 'Headquarters location is required';
-    if (!foundedYear.trim()) return 'Founded year is required';
-    if (!companySize.trim()) return 'Company size is required';
-    if (!whatWeOffer.trim()) return 'What you offer is required';
-    if (!instagram.trim()) return 'Instagram handle is required';
-    return null;
+  // stay optional. Returns true if valid.
+  const validate = (): boolean => {
+    if (!logoPreview) {
+      setFieldError('field-logo', 'Company logo is required');
+      return false;
+    }
+    if (!name.trim()) {
+      setFieldError('field-name', 'Full name is required');
+      return false;
+    }
+    if (!phone.trim() || phone.trim().length !== 10) {
+      setFieldError('field-phone', 'A valid 10-digit phone number is required');
+      return false;
+    }
+    if (!companyName.trim()) {
+      setFieldError('field-companyName', 'Company name is required');
+      return false;
+    }
+    if (!tagline.trim()) {
+      setFieldError('field-tagline', 'Tagline is required');
+      return false;
+    }
+    if (!about.trim()) {
+      setFieldError('field-about', 'About your brand is required');
+      return false;
+    }
+    if (!industry.trim()) {
+      setFieldError('field-industry', 'Industry is required');
+      return false;
+    }
+    if (!location.trim()) {
+      setFieldError('field-location', 'Headquarters location is required');
+      return false;
+    }
+    if (!foundedYear.trim()) {
+      setFieldError('field-foundedYear', 'Founded year is required');
+      return false;
+    }
+    if (!companySize.trim()) {
+      setFieldError('field-companySize', 'Company size is required');
+      return false;
+    }
+    if (!whatWeOffer.trim()) {
+      setFieldError('field-whatWeOffer', 'What you offer is required');
+      return false;
+    }
+    if (!instagram.trim()) {
+      setFieldError('field-instagram', 'Instagram handle is required');
+      return false;
+    }
+    return true;
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -138,11 +192,7 @@ export default function EditBrandProfile() {
     setError('');
     setSaved(false);
 
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
+    if (!validate()) return;
 
     setSaving(true);
     try {
@@ -150,10 +200,10 @@ export default function EditBrandProfile() {
         await brandApi.uploadLogo(logoFile);
       }
 
-      if (phone.trim() !== (authUser?.phone || '')) {
-        await userApi.updateMe({ phone: phone.trim() });
-        dispatch(updateUser({ phone: phone.trim() }));
-      }
+      // Name + phone both live on the User document — one call covers
+      // both since they're both required now anyway.
+      await userApi.updateMe({ name: name.trim(), phone: phone.trim() });
+      dispatch(updateUser({ name: name.trim(), phone: phone.trim() }));
 
       await brandApi.updateMyProfile({
         companyName,
@@ -216,7 +266,7 @@ export default function EditBrandProfile() {
         )}
 
         <form className="mt-6 space-y-6" onSubmit={handleSave}>
-          <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-navy-800/50 p-5">
+          <div id="field-logo" className="flex items-center gap-4 rounded-2xl border border-white/10 bg-navy-800/50 p-5">
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoSelect} className="hidden" />
             <button
               type="button"
@@ -240,8 +290,23 @@ export default function EditBrandProfile() {
             <p className="text-xs font-bold uppercase tracking-wide text-white/40">Basics</p>
 
             <label className="block">
+              <FieldLabel label="Your full name" required />
+              <div className="relative">
+                <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
+                <input
+                  id="field-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Priya Sharma"
+                  className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+                />
+              </div>
+            </label>
+
+            <label className="block">
               <FieldLabel label="Company name" required />
               <input
+                id="field-companyName"
                 required
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
@@ -254,11 +319,13 @@ export default function EditBrandProfile() {
               <div className="relative">
                 <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
                 <input
+                  id="field-phone"
                   type="tel"
-                  inputMode="tel"
+                  inputMode="numeric"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+91 98765 43210"
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="10-digit mobile number"
+                  maxLength={10}
                   className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
                 />
               </div>
@@ -267,6 +334,7 @@ export default function EditBrandProfile() {
             <label className="block">
               <FieldLabel label="Tagline" required />
               <input
+                id="field-tagline"
                 value={tagline}
                 onChange={(e) => setTagline(e.target.value)}
                 placeholder="e.g. Clean Beauty • Skin Care • Self Care"
@@ -278,6 +346,7 @@ export default function EditBrandProfile() {
             <label className="block">
               <FieldLabel label="About" required />
               <textarea
+                id="field-about"
                 value={about}
                 onChange={(e) => setAbout(e.target.value)}
                 rows={4}
@@ -288,10 +357,10 @@ export default function EditBrandProfile() {
 
             <label className="block">
               <FieldLabel label="Industry" required />
-              <input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="e.g. Beauty & Personal Care" className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/30 focus:border-orange-400" />
+              <input id="field-industry" value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="e.g. Beauty & Personal Care" className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-4 py-3 text-white placeholder:text-white/30 focus:border-orange-400" />
             </label>
 
-            <label className="block">
+            <label className="block" id="field-location">
               <FieldLabel label="Headquarters" required />
               <LocationAutocomplete
                 icon={MapPin}
@@ -307,14 +376,14 @@ export default function EditBrandProfile() {
                 <FieldLabel label="Founded year" required />
                 <div className="relative">
                   <Calendar size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
-                  <input type="number" value={foundedYear} onChange={(e) => setFoundedYear(e.target.value)} placeholder="2019" className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400" />
+                  <input id="field-foundedYear" type="number" value={foundedYear} onChange={(e) => setFoundedYear(e.target.value)} placeholder="2019" className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400" />
                 </div>
               </label>
               <label className="block">
                 <FieldLabel label="Company size" required />
                 <div className="relative">
                   <Users size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
-                  <input value={companySize} onChange={(e) => setCompanySize(e.target.value)} placeholder="51-200" className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400" />
+                  <input id="field-companySize" value={companySize} onChange={(e) => setCompanySize(e.target.value)} placeholder="51-200" className="w-full rounded-xl border border-white/10 bg-navy-800/70 py-3 pl-10 pr-4 text-white placeholder:text-white/30 focus:border-orange-400" />
                 </div>
               </label>
             </div>
@@ -322,6 +391,7 @@ export default function EditBrandProfile() {
             <label className="block">
               <FieldLabel label="What We Offer (comma separated)" required />
               <input
+                id="field-whatWeOffer"
                 value={whatWeOffer}
                 onChange={(e) => setWhatWeOffer(e.target.value)}
                 placeholder="Brand Collaborations, Product Reviews, Social Media Campaigns"
@@ -341,7 +411,7 @@ export default function EditBrandProfile() {
               </div>
             </label>
 
-            <label className="block">
+            <label className="block" id="field-instagram">
               <FieldLabel label="Instagram handle" required />
               <div className="relative">
                 <Instagram size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40" />
