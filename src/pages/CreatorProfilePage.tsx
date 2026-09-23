@@ -332,15 +332,9 @@ export default function CreatorProfilePage() {
                 <Button className="w-full sm:w-auto" onClick={handleFollow}>
                   {following ? 'Following' : 'Follow'}
                 </Button>
-                {/* Point-Fix: hidden entirely when a brand is viewing —
-                    creator<->brand messaging is proposal-scoped now (see
-                    chat.controller.js). Fans and everyone else still see
-                    this exactly as before. */}
-                {authUser?.role !== 'brand' && (
-                  <Button variant="outline" className="w-full sm:w-auto" onClick={handleMessageClick}>
-                    <MessageCircle size={15} /> Message
-                  </Button>
-                )}
+                {/* Message button hidden per request — handleMessageClick
+                    and the role/plan gating above are left in place in
+                    case this needs to come back later. */}
                 <button
                   onClick={() => setGiftOpen(true)}
                   className="flex w-full items-center justify-center gap-1.5 rounded-full border border-fuchsia-500/40 px-6 py-3 text-sm font-semibold text-fuchsia-300 hover:bg-fuchsia-500/10 sm:w-auto"

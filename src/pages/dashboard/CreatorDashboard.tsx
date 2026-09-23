@@ -634,6 +634,8 @@ export default function CreatorDashboard() {
             (via overflow-x-auto) instead of pushing the page wider. */}
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.7fr_1fr]">
           <div className="min-w-0 space-y-6">
+            {/* COMMENTED OUT — Upcoming bookings card (per request: hide for now,
+                keep the code so it can be turned back on later without rewriting it).
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -674,6 +676,7 @@ export default function CreatorDashboard() {
                 </div>
               )}
             </motion.div>
+            */}
 
             <motion.div
               initial={{ opacity: 0, y: 16 }}
