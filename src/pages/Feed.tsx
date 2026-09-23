@@ -1,6 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, AlertCircle, Home, Users2, Compass, UserSearch, Flame, Radio, MessageSquare, Crown, ArrowRight, Image as ImageIcon, Video as VideoIcon, Tag, Plus } from 'lucide-react';
+import {
+  Loader2,
+  AlertCircle,
+  Home,
+  Users2,
+  Compass,
+  UserSearch,
+  Flame,
+  Radio,
+  MessageSquare,
+  Crown,
+  ArrowRight,
+  Image as ImageIcon,
+  Video as VideoIcon,
+  Tag,
+  Plus,
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Container } from '@/components/ui/Container';
 import { FeedPostCard } from '@/components/FeedPostCard';
@@ -10,7 +26,6 @@ import { creatorApi, type ApiCreator } from '@/services/creatorApi';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { CATEGORIES } from '@/constants/content';
 import { useAppSelector } from '@/store/hooks';
-import { cn } from '@/utils/cn';
 import { resolveIcon } from '@/utils/icons';
 
 function RecommendedCreators() {
@@ -19,9 +34,12 @@ function RecommendedCreators() {
 
   useEffect(() => {
     creatorApi
-      .list({ limit: 20 }) // fetch more than needed since we filter out already-followed ones below
+      .list({ limit: 20 })
       .then((d) => {
-        const filtered = d.creators.filter((c) => c.user && !c.isFollowing).slice(0, 5);
+        const filtered = d.creators
+          .filter((c) => c.user && !c.isFollowing)
+          .slice(0, 5);
+
         setCreators(filtered);
       })
       .catch(() => setCreators([]))
@@ -31,12 +49,11 @@ function RecommendedCreators() {
   const handleFollow = async (creator: ApiCreator) => {
     try {
       const result = await creatorApi.follow(creator._id);
+
       if (result.following) {
-        // Now followed — drop it out of "Recommended" immediately rather
-        // than flipping the button to "Following" and leaving it sitting
-        // there, since this list's whole point is showing who you don't
-        // follow yet.
-        setCreators((prev) => prev.filter((c) => c._id !== creator._id));
+        setCreators((prev) =>
+          prev.filter((c) => c._id !== creator._id)
+        );
       }
     } catch {
       // non-critical
@@ -48,28 +65,59 @@ function RecommendedCreators() {
   return (
     <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-4 shadow-card">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold text-white">Recommended Creators</h2>
-        <Link to="/explore" className="flex items-center gap-1 text-xs font-semibold text-orange-400 hover:underline">
+        <h2 className="text-sm font-bold text-white">
+          Recommended Creators
+        </h2>
+
+        <Link
+          to="/explore"
+          className="flex items-center gap-1 text-xs font-semibold text-orange-400 hover:underline"
+        >
           See All <ArrowRight size={11} />
         </Link>
       </div>
+
       {loading ? (
-        <div className="mt-4 flex justify-center py-4"><Loader2 size={18} className="animate-spin text-white/30" /></div>
+        <div className="mt-4 flex justify-center py-4">
+          <Loader2
+            size={18}
+            className="animate-spin text-white/30"
+          />
+        </div>
       ) : (
         <div className="mt-3 space-y-3">
           {creators.map((c) => (
-            <div key={c._id} className="flex items-center gap-2.5">
-              <Link to={`/creator/${c.slug}`} className="shrink-0">
+            <div
+              key={c._id}
+              className="flex items-center gap-2.5"
+            >
+              <Link
+                to={`/creator/${c.slug}`}
+                className="shrink-0"
+              >
                 <img
-                  src={c.user.avatarUrl || `https://i.pravatar.cc/100?u=${c._id}`}
+                  src={
+                    c.user.avatarUrl ||
+                    `https://i.pravatar.cc/100?u=${c._id}`
+                  }
                   alt={c.user.name}
                   className="h-10 w-10 rounded-full object-cover"
                 />
               </Link>
-              <Link to={`/creator/${c.slug}`} className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-white">{c.user.name}</p>
-                <p className="truncate text-xs text-white/40">{c.title || c.category?.label}</p>
+
+              <Link
+                to={`/creator/${c.slug}`}
+                className="min-w-0 flex-1"
+              >
+                <p className="truncate text-sm font-semibold text-white">
+                  {c.user.name}
+                </p>
+
+                <p className="truncate text-xs text-white/40">
+                  {c.title || c.category?.label}
+                </p>
               </Link>
+
               <button
                 onClick={() => handleFollow(c)}
                 className="shrink-0 rounded-full border border-orange-400/60 px-3 py-1.5 text-xs font-bold text-orange-300 transition-colors hover:bg-orange-500/10"
@@ -83,21 +131,35 @@ function RecommendedCreators() {
     </div>
   );
 }
+
 export default function Feed() {
   const [posts, setPosts] = useState<ApiPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
-  const authUser = useAppSelector((s) => s.auth.user);
 
-  const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
+  const authUser = useAppSelector(
+    (s) => s.auth.user
+  );
+
+  const [followingIds, setFollowingIds] =
+    useState<Set<string>>(new Set());
+
+  // Global audio state
+  // false = sound ON
+  // true = sound OFF
+  const [feedMuted, setFeedMuted] =
+    useState(false);
 
   const loadFeed = () => {
     setLoading(true);
+
     postApi
       .getFeed(50)
       .then(setPosts)
-      .catch((err) => setError(getApiErrorMessage(err)))
+      .catch((err) =>
+        setError(getApiErrorMessage(err))
+      )
       .finally(() => setLoading(false));
   };
 
@@ -105,19 +167,34 @@ export default function Feed() {
 
   useEffect(() => {
     const ids = new Set<string>();
+
     posts.forEach((p) => {
-      if (typeof p.creator === 'object' && p.creator.isFollowing) ids.add(p.creator._id);
+      if (
+        typeof p.creator === 'object' &&
+        p.creator.isFollowing
+      ) {
+        ids.add(p.creator._id);
+      }
     });
+
     setFollowingIds(ids);
   }, [posts]);
 
   const visiblePosts = posts;
 
-  const handleFollowChange = (creatorId: string, following: boolean) => {
+  const handleFollowChange = (
+    creatorId: string,
+    following: boolean
+  ) => {
     setFollowingIds((prev) => {
       const next = new Set(prev);
-      if (following) next.add(creatorId);
-      else next.delete(creatorId);
+
+      if (following) {
+        next.add(creatorId);
+      } else {
+        next.delete(creatorId);
+      }
+
       return next;
     });
   };
@@ -126,39 +203,82 @@ export default function Feed() {
     <div className="pt-24 pb-24 sm:pt-28">
       <Container className="!px-0 sm:!px-gutter">
         <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)_300px] lg:items-start lg:gap-6 xl:grid-cols-[240px_minmax(0,1fr)_320px]">
+
+          {/* =========================
+              LEFT SIDEBAR
+          ========================== */}
           <aside className="sticky top-28 hidden max-h-[calc(100vh-8rem)] space-y-6 overflow-y-auto lg:block">
             <nav className="space-y-1">
-              <Link to="/feed" className="flex items-center gap-3 rounded-xl bg-orange-500/15 px-3 py-2.5 text-sm font-bold text-orange-300">
-                <Home size={17} /> Home
+              <Link
+                to="/feed"
+                className="flex items-center gap-3 rounded-xl bg-orange-500/15 px-3 py-2.5 text-sm font-bold text-orange-300"
+              >
+                <Home size={17} />
+                Home
               </Link>
-              <Link to="/explore" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/5 hover:text-white">
-                <Users2 size={17} /> Following
+
+              <Link
+                to="/explore"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+              >
+                <Users2 size={17} />
+                Following
               </Link>
-              <Link to="/explore" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/5 hover:text-white">
-                <Compass size={17} /> Discover
+
+              <Link
+                to="/explore"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+              >
+                <Compass size={17} />
+                Discover
               </Link>
             </nav>
 
             <div>
-              <p className="mb-2 px-3 text-xs font-bold uppercase tracking-wide text-white/30">Explore</p>
+              <p className="mb-2 px-3 text-xs font-bold uppercase tracking-wide text-white/30">
+                Explore
+              </p>
+
               <nav className="space-y-1">
-                <Link to="/explore" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/5 hover:text-white">
-                  <UserSearch size={17} /> Creators
+                <Link
+                  to="/explore"
+                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  <UserSearch size={17} />
+                  Creators
                 </Link>
-                <a href="#categories" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/5 hover:text-white">
-                  <Flame size={17} /> Trending
+
+                <a
+                  href="#categories"
+                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  <Flame size={17} />
+                  Trending
                 </a>
-                <Link to="/sessions" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/5 hover:text-white">
-                  <Radio size={17} /> Live Sessions
+
+                <Link
+                  to="/sessions"
+                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  <Radio size={17} />
+                  Live Sessions
                 </Link>
-                <Link to="/messages" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/5 hover:text-white">
-                  <MessageSquare size={17} /> Messages
+
+                <Link
+                  to="/messages"
+                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  <MessageSquare size={17} />
+                  Messages
                 </Link>
               </nav>
             </div>
 
             <div>
-              <p className="mb-2 px-3 text-xs font-bold uppercase tracking-wide text-white/30">For You</p>
+              <p className="mb-2 px-3 text-xs font-bold uppercase tracking-wide text-white/30">
+                For You
+              </p>
+
               <div className="flex flex-wrap gap-2 px-3">
                 {CATEGORIES.slice(0, 6).map((c) => (
                   <Link
@@ -176,115 +296,269 @@ export default function Feed() {
               to="/pricing"
               className="group block overflow-hidden rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-pink-500/10 p-4 transition-all duration-300 ease-out hover:border-orange-400/50"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/15 text-orange-300"><Crown size={16} /></span>
-              <p className="mt-2.5 text-sm font-bold text-white">Go Pro</p>
-              <p className="mt-1 text-xs leading-relaxed text-white/50">Unlock exclusive content, more reach &amp; premium tools.</p>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/15 text-orange-300">
+                <Crown size={16} />
+              </span>
+
+              <p className="mt-2.5 text-sm font-bold text-white">
+                Go Pro
+              </p>
+
+              <p className="mt-1 text-xs leading-relaxed text-white/50">
+                Unlock exclusive content, more reach &amp; premium tools.
+              </p>
+
               <span className="mt-3 flex items-center gap-1 text-xs font-bold text-orange-300">
-                Upgrade Now <ArrowRight size={12} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+                Upgrade Now
+                <ArrowRight
+                  size={12}
+                  className="transition-transform duration-200 group-hover:translate-x-0.5"
+                />
               </span>
             </Link>
           </aside>
 
+          {/* =========================
+              MAIN FEED
+          ========================== */}
           <div className="mx-auto w-full min-w-0 max-w-xl lg:mx-0 lg:max-w-2xl">
-            {authUser && (authUser.role === 'creator' || authUser.role === 'brand') && (
-              <button
-                onClick={() => setComposerOpen(true)}
-                className="mb-4 hidden w-full items-center gap-3 rounded-2xl border border-white/10 bg-navy-800/60 px-4 py-3 text-left shadow-card transition-colors hover:border-orange-400/30 lg:flex"
-              >
-                {authUser.avatarUrl ? (
-                  <img src={authUser.avatarUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
-                ) : (
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-500/20 text-sm font-bold text-orange-300">
-                    {authUser.name.charAt(0).toUpperCase()}
-                  </span>
-                )}
-                <span className="flex-1 text-sm text-white/40">What's on your mind?</span>
-                <ImageIcon size={17} className="text-white/30" />
-                <VideoIcon size={17} className="text-white/30" />
-                <Tag size={17} className="text-white/30" />
-                <span className="flex items-center gap-1 rounded-full bg-orange-500 px-4 py-1.5 text-xs font-bold text-white">
-                  <Plus size={12} /> Post
-                </span>
-              </button>
-            )}
 
+            {/* =================================
+                CREATE POST / COMPOSER
+
+                IMPORTANT:
+                Previously:
+                hidden ... lg:flex
+
+                Now:
+                flex
+
+                So it appears on mobile too.
+            ================================== */}
+            {authUser &&
+              (authUser.role === 'creator' ||
+                authUser.role === 'brand') && (
+                <button
+                  onClick={() =>
+                    setComposerOpen(true)
+                  }
+                  className="mb-3 flex w-full items-center gap-2.5 rounded-2xl border border-white/10 bg-navy-800/60 px-3 py-3 text-left shadow-card transition-colors hover:border-orange-400/30 sm:mb-4 sm:gap-3 sm:px-4"
+                >
+                  {/* Avatar */}
+                  {authUser.avatarUrl ? (
+                    <img
+                      src={authUser.avatarUrl}
+                      alt=""
+                      className="h-9 w-9 shrink-0 rounded-full object-cover sm:h-10 sm:w-10"
+                    />
+                  ) : (
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-500/20 text-sm font-bold text-orange-300 sm:h-10 sm:w-10">
+                      {authUser.name
+                        .charAt(0)
+                        .toUpperCase()}
+                    </span>
+                  )}
+
+                  {/* Text */}
+                  <span className="min-w-0 flex-1 truncate text-xs text-white/40 sm:text-sm">
+                    What's on your mind?
+                  </span>
+
+                  {/* Desktop / Tablet icons */}
+                  <ImageIcon
+                    size={17}
+                    className="hidden shrink-0 text-white/30 sm:block"
+                  />
+
+                  <VideoIcon
+                    size={17}
+                    className="hidden shrink-0 text-white/30 sm:block"
+                  />
+
+                  <Tag
+                    size={17}
+                    className="hidden shrink-0 text-white/30 sm:block"
+                  />
+
+                  {/* Post Button */}
+                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-orange-500 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-orange-400 sm:px-4 sm:py-2 sm:text-xs">
+                    <Plus size={12} />
+                    <span>Post</span>
+                  </span>
+                </button>
+              )}
+
+            {/* LOADING */}
             {loading && (
               <div className="flex flex-col items-center gap-3 py-16 text-white/50">
-                <Loader2 size={28} className="animate-spin" />
-                <p className="text-sm">Loading feed...</p>
+                <Loader2
+                  size={28}
+                  className="animate-spin"
+                />
+
+                <p className="text-sm">
+                  Loading feed...
+                </p>
               </div>
             )}
 
+            {/* ERROR */}
             {!loading && error && (
               <div className="flex flex-col items-center gap-3 py-16 text-center text-white/60">
-                <AlertCircle size={28} className="text-red-400" />
-                <p className="text-sm">{error}</p>
+                <AlertCircle
+                  size={28}
+                  className="text-red-400"
+                />
+
+                <p className="text-sm">
+                  {error}
+                </p>
               </div>
             )}
 
-            {!loading && !error && visiblePosts.length === 0 && (
-              <p className="py-16 text-center text-white/50">No posts yet — check back once creators start sharing.</p>
-            )}
+            {/* EMPTY */}
+            {!loading &&
+              !error &&
+              visiblePosts.length === 0 && (
+                <p className="py-16 text-center text-white/50">
+                  No posts yet — check back once creators start sharing.
+                </p>
+              )}
 
-            {!loading && !error && visiblePosts.length > 0 && (
-              <div className="mt-2 divide-y divide-white/10 border-y border-white/10 sm:mt-0 sm:divide-y-0 sm:border-none sm:space-y-4">
-                {visiblePosts.map((post, i) => {
-                  const creatorId = typeof post.creator === 'object' ? post.creator._id : null;
-                  return (
-                    <motion.div
-                      key={post._id}
-                      initial={{ opacity: 0, y: 16 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.35, delay: Math.min(i, 5) * 0.05 }}
-                    >
-                      <FeedPostCard
-                        post={post}
-                        isFollowing={creatorId ? followingIds.has(creatorId) : false}
-                        onFollowChange={handleFollowChange}
-                      />
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
+            {/* POSTS */}
+            {!loading &&
+              !error &&
+              visiblePosts.length > 0 && (
+                <div className="mt-2 divide-y divide-white/10 border-y border-white/10 sm:mt-0 sm:divide-y-0 sm:border-none sm:space-y-4">
+                  {visiblePosts.map(
+                    (post, i) => {
+                      const creatorId =
+                        typeof post.creator ===
+                        'object'
+                          ? post.creator._id
+                          : null;
+
+                      return (
+                        <motion.div
+                          key={post._id}
+                          initial={{
+                            opacity: 0,
+                            y: 16,
+                          }}
+                          animate={{
+                            opacity: 1,
+                            y: 0,
+                          }}
+                          transition={{
+                            duration: 0.35,
+                            delay:
+                              Math.min(
+                                i,
+                                5
+                              ) *
+                              0.05,
+                          }}
+                        >
+                          <FeedPostCard
+                            post={post}
+                            isFollowing={
+                              creatorId
+                                ? followingIds.has(
+                                    creatorId
+                                  )
+                                : false
+                            }
+                            onFollowChange={
+                              handleFollowChange
+                            }
+
+                            // GLOBAL AUDIO
+                            muted={feedMuted}
+                            onToggleMute={() =>
+                              setFeedMuted(
+                                (current) =>
+                                  !current
+                              )
+                            }
+                          />
+                        </motion.div>
+                      );
+                    }
+                  )}
+                </div>
+              )}
           </div>
 
+          {/* =========================
+              RIGHT SIDEBAR
+          ========================== */}
           <aside className="sticky top-28 hidden max-h-[calc(100vh-8rem)] space-y-6 overflow-y-auto lg:block">
             <RecommendedCreators />
 
             <div className="relative overflow-hidden rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-pink-500/5 p-4 shadow-card">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/15 text-orange-300"><Crown size={16} /></span>
-              <p className="mt-2.5 text-sm font-bold text-white">Create. Grow. Get Paid.</p>
-              <p className="mt-1 text-xs leading-relaxed text-white/50">
-                Join <span className="font-semibold text-orange-300">Fanitt Pro</span> and unlock exclusive features, higher earnings and more opportunities.
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/15 text-orange-300">
+                <Crown size={16} />
+              </span>
+
+              <p className="mt-2.5 text-sm font-bold text-white">
+                Create. Grow. Get Paid.
               </p>
+
+              <p className="mt-1 text-xs leading-relaxed text-white/50">
+                Join{' '}
+                <span className="font-semibold text-orange-300">
+                  Fanitt Pro
+                </span>{' '}
+                and unlock exclusive features, higher earnings and more
+                opportunities.
+              </p>
+
               <Link
                 to="/pricing"
                 className="mt-3 flex items-center justify-center gap-1.5 rounded-full bg-orange-500 py-2.5 text-sm font-bold text-white transition-colors hover:bg-orange-400"
               >
-                Upgrade to Pro <ArrowRight size={14} />
+                Upgrade to Pro
+                <ArrowRight size={14} />
               </Link>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-4 shadow-card">
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-1.5 text-sm font-bold text-white">
-                  <Flame size={14} className="text-orange-400" /> Explore Categories
+                  <Flame
+                    size={14}
+                    className="text-orange-400"
+                  />
+                  Explore Categories
                 </h2>
-                <Link to="/explore" className="flex items-center gap-1 text-xs font-semibold text-orange-400 hover:underline">
-                  See All <ArrowRight size={11} />
+
+                <Link
+                  to="/explore"
+                  className="flex items-center gap-1 text-xs font-semibold text-orange-400 hover:underline"
+                >
+                  See All
+                  <ArrowRight size={11} />
                 </Link>
               </div>
+
               <div className="mt-3 flex flex-wrap gap-2">
-                {CATEGORIES.slice(0, 6).map((c) => {
-                  const Icon = resolveIcon(c.icon);
+                {CATEGORIES.slice(
+                  0,
+                  6
+                ).map((c) => {
+                  const Icon =
+                    resolveIcon(
+                      c.icon
+                    );
+
                   return (
                     <Link
                       key={c.label}
                       to={`/explore?category=${c.label}`}
                       className="flex items-center gap-1 rounded-full bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/60 transition-colors hover:bg-orange-500/10 hover:text-orange-300"
                     >
-                      <Icon size={11} /> {c.label}
+                      <Icon size={11} />
+                      {c.label}
                     </Link>
                   );
                 })}
@@ -294,7 +568,14 @@ export default function Feed() {
         </div>
       </Container>
 
-      <CreatePostModal open={composerOpen} onClose={() => setComposerOpen(false)} onCreated={loadFeed} />
+      {/* CREATE POST MODAL */}
+      <CreatePostModal
+        open={composerOpen}
+        onClose={() =>
+          setComposerOpen(false)
+        }
+        onCreated={loadFeed}
+      />
     </div>
   );
 }
