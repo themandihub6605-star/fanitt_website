@@ -37,6 +37,9 @@ export interface ApiCampaign {
   dos: string[];
   donts: string[];
   campaignImageUrl: string;
+  // Reference links (e.g. Instagram/YouTube post URLs) the brand pastes
+  // in as examples of the kind of content they want, instead of
+  // uploading sample files.
   sampleMedia: string[];
   deliverables: { reel: number; story: number; post: number };
   status: 'draft' | 'open' | 'in_progress' | 'submitted' | 'approved' | 'completed' | 'disputed' | 'cancelled';
@@ -142,6 +145,10 @@ export interface UpdateDraftPayload {
   dailyApplicantLimit?: number;
   milestoneCount?: number;
   milestoneTitles?: string[];
+  // Sample media is now supplied as external reference links (e.g.
+  // Instagram/YouTube post URLs) instead of uploaded files, so it's sent
+  // through updateDraft rather than the file-upload media endpoint.
+  sampleMedia?: string[];
 }
 
 export interface ApplyPayload {
@@ -208,6 +215,9 @@ export const campaignApi = {
 
   removeProduct: (id: string, productId: string) => apiClient.delete(`/campaigns/${id}/products/${productId}`),
 
+  // `media` (File uploads) kept for backward compatibility, but the
+  // PostCampaign flow no longer sends it — sample media is collected as
+  // links via updateDraft's `sampleMedia` field instead.
   uploadMedia: (id: string, files: { campaignImage?: File | null; media?: File[] }) => {
     const formData = new FormData();
     if (files.campaignImage) formData.append('campaignImage', files.campaignImage);

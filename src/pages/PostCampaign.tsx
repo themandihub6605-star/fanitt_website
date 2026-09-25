@@ -240,6 +240,7 @@ interface FieldErrors {
   cost?: string;
   products?: string;
   description?: string;
+  campaignImage?: string;
 }
 
 export default function PostCampaign() {
@@ -268,6 +269,7 @@ export default function PostCampaign() {
   const costRef = useRef<HTMLInputElement>(null);
   const productsSectionRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const campaignImageRef = useRef<HTMLDivElement>(null);
 
   // step 1
   const [title, setTitle] = useState('');
@@ -320,7 +322,40 @@ export default function PostCampaign() {
   // step 4
   const [campaignImageFile, setCampaignImageFile] = useState<File | null>(null);
   const [campaignImagePreview, setCampaignImagePreview] = useState('');
-  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+  // Sample media is now a list of reference links (e.g. Instagram/YouTube
+  // post URLs) instead of uploaded files.
+  const [mediaLinks, setMediaLinks] = useState<string[]>([]);
+  const [mediaLinkDraft, setMediaLinkDraft] = useState('');
+  const [mediaLinkError, setMediaLinkError] = useState('');
+
+  const isValidUrl = (v: string) => {
+    try {
+      const u = new URL(v);
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
+  const handleAddMediaLink = () => {
+    const v = mediaLinkDraft.trim();
+    if (!v) return;
+    if (!isValidUrl(v)) {
+      setMediaLinkError('Enter a valid link starting with http:// or https://');
+      return;
+    }
+    if (mediaLinks.includes(v)) {
+      setMediaLinkError('This link is already added');
+      return;
+    }
+    setMediaLinkError('');
+    setMediaLinks((prev) => [...prev, v]);
+    setMediaLinkDraft('');
+  };
+
+  const handleRemoveMediaLink = (link: string) => {
+    setMediaLinks((prev) => prev.filter((l) => l !== link));
+  };
 
   // step 5
   const [previewCampaign, setPreviewCampaign] = useState<ApiCampaign | null>(null);
@@ -508,10 +543,21 @@ export default function PostCampaign() {
   const handleStepFourNext = async () => {
     if (!campaignId) return;
     setError('');
+    setFieldErrors({});
+
+    // Campaign image is now mandatory — brand cannot move to Preview
+    // (and therefore cannot publish) without adding one.
+    if (!campaignImageFile) {
+      setFieldErrors({ campaignImage: 'Campaign image is required to publish' });
+      scrollToField(campaignImageRef);
+      return;
+    }
+
     setLoading(true);
     try {
-      if (campaignImageFile || mediaFiles.length > 0) {
-        await campaignApi.uploadMedia(campaignId, { campaignImage: campaignImageFile, media: mediaFiles });
+      await campaignApi.uploadMedia(campaignId, { campaignImage: campaignImageFile });
+      if (mediaLinks.length > 0) {
+        await campaignApi.updateDraft(campaignId, { sampleMedia: mediaLinks });
       }
       const fresh = await campaignApi.getDraft(campaignId);
       setPreviewCampaign(fresh);
@@ -531,6 +577,14 @@ export default function PostCampaign() {
 
   const handlePublish = async () => {
     if (!campaignId) return;
+    // Safety net: even if someone reaches Preview without an image
+    // (e.g. by editing state directly), block publish here too.
+    if (!previewCampaign?.campaignImageUrl) {
+      setError('Please add a campaign image before publishing.');
+      setStepIndex(3);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     setPublishing(true);
     setError('');
     setQuotaExceeded(false);
@@ -983,8 +1037,10 @@ export default function PostCampaign() {
 
                 {step === 'Media' && (
                   <>
-                    <div>
-                      <span className="mb-1.5 block text-sm font-semibold text-white/80">Add Campaign Image (Optional)</span>
+                    <div ref={campaignImageRef}>
+                      <span className="mb-1.5 block text-sm font-semibold text-white/80">
+                        Add Campaign Image <span className="text-red-400">*</span>
+                      </span>
                       <input
                         type="file"
                         accept="image/*"
@@ -993,34 +1049,62 @@ export default function PostCampaign() {
                           if (file) {
                             setCampaignImageFile(file);
                             setCampaignImagePreview(URL.createObjectURL(file));
+                            setFieldErrors((f) => ({ ...f, campaignImage: undefined }));
                           }
                         }}
-                        className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500/20 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-orange-300"
+                        className={cn(
+                          'w-full rounded-xl border bg-navy-800/70 px-3 py-2 text-xs text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500/20 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-orange-300',
+                          fieldErrors.campaignImage ? 'border-red-500/60' : 'border-white/10'
+                        )}
                       />
                       {campaignImagePreview && <img src={campaignImagePreview} alt="" className="mt-3 h-40 w-full rounded-xl object-cover" />}
+                      <FieldError message={fieldErrors.campaignImage} />
+                      {!fieldErrors.campaignImage && (
+                        <p className="mt-1.5 text-xs text-white/40">
+                          A campaign image is required — this is what influencers see first.
+                        </p>
+                      )}
                     </div>
 
                     <div>
-                      <span className="mb-1.5 block text-sm font-semibold text-white/80">Add Sample Media (Optional)</span>
-                      <input
-                        type="file"
-                        accept="image/*,video/*"
-                        multiple
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          setMediaFiles((prev) => [...prev, ...files]);
-                        }}
-                        className="w-full rounded-xl border border-white/10 bg-navy-800/70 px-3 py-2 text-xs text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-500/20 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-orange-300"
-                      />
-                      {mediaFiles.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {mediaFiles.map((f, i) => (
-                            <span key={i} className="flex items-center gap-1.5 rounded-full bg-navy-700 px-3 py-1 text-xs text-white/70">
-                              {f.name}
-                              <button type="button" onClick={() => setMediaFiles((prev) => prev.filter((_, idx) => idx !== i))} className="text-white/40 hover:text-white">
-                                <X size={11} />
+                      <span className="mb-1.5 block text-sm font-semibold text-white/80">Sample Media Link (Optional)</span>
+                      <div className="flex gap-2">
+                        <input
+                          type="url"
+                          value={mediaLinkDraft}
+                          onChange={(e) => {
+                            setMediaLinkDraft(e.target.value);
+                            if (mediaLinkError) setMediaLinkError('');
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddMediaLink();
+                            }
+                          }}
+                          placeholder="https://instagram.com/reel/..."
+                          className={cn(
+                            'min-w-0 flex-1 rounded-xl border bg-navy-800/55 px-4 py-2.5 text-sm text-white placeholder:text-white/30',
+                            mediaLinkError ? 'border-red-500/60 focus:border-red-400' : 'border-white/10 focus:border-orange-400'
+                          )}
+                        />
+                        <button type="button" onClick={handleAddMediaLink} className="shrink-0 rounded-xl bg-orange-500/15 px-4 text-sm font-bold text-orange-300 hover:bg-orange-500/25">
+                          Add
+                        </button>
+                      </div>
+                      <FieldError message={mediaLinkError || undefined} />
+                      <p className="mt-1.5 text-xs text-white/40">Paste a link to a reference reel, post or video instead of uploading a file.</p>
+                      {mediaLinks.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {mediaLinks.map((link) => (
+                            <div key={link} className="flex items-center gap-2 rounded-xl border border-white/10 bg-navy-800/50 px-3 py-2">
+                              <a href={link} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-xs font-semibold text-orange-300 hover:underline">
+                                {link}
+                              </a>
+                              <button type="button" onClick={() => handleRemoveMediaLink(link)} className="shrink-0 text-white/30 hover:text-red-400">
+                                <X size={14} />
                               </button>
-                            </span>
+                            </div>
                           ))}
                         </div>
                       )}

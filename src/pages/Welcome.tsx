@@ -8,6 +8,9 @@ import { useAuth } from '@/hooks/useAuth';
 
 const APPROVAL_GATED_ROLES = ['creator', 'brand', 'agency'];
 
+// Keep in sync with the route that renders PrivacyPolicy.tsx in App.tsx.
+const PRIVACY_POLICY_PATH = '/privacy-policy';
+
 export default function Welcome() {
   const navigate = useNavigate();
   const { loginWithGoogle } = useAuth();
@@ -135,11 +138,11 @@ export default function Welcome() {
             ))}
           </motion.div>
 
-         <h1 className="text-[1.75rem] font-bold leading-[1.15] tracking-tight text-white sm:text-5xl lg:text-6xl lg:leading-[1.1]">
-  Where Creators
-  <br />
-  <span className="brand-gradient-text">Live. Connect. Earn.</span>
-</h1>
+          <h1 className="text-[1.75rem] font-bold leading-[1.15] tracking-tight text-white sm:text-5xl lg:text-6xl lg:leading-[1.1]">
+            Where Creators
+            <br />
+            <span className="brand-gradient-text">Live. Connect. Earn.</span>
+          </h1>
           <p className="mx-auto mt-3.5 max-w-xs text-sm leading-relaxed text-white/60 sm:max-w-sm sm:text-base lg:max-w-md lg:text-lg">
             Join a community that celebrates talent and turns passion into income.
           </p>
@@ -210,9 +213,10 @@ export default function Welcome() {
           </p>
 
           <p className="mx-auto mt-3 max-w-sm text-xs text-white/40">
-            By continuing, you agree to our{' '}
-            <a href="#" className="text-orange-400 hover:underline">Terms of Service</a> and{' '}
-            <a href="#" className="text-orange-400 hover:underline">Privacy Policy</a>
+            By continuing, you agree to our <span className="text-white/60">Terms of Service</span> and{' '}
+            <Link to={PRIVACY_POLICY_PATH} className="text-orange-400 hover:underline">
+              Privacy Policy
+            </Link>
           </p>
         </motion.div>
 

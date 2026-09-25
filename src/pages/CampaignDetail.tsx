@@ -88,55 +88,25 @@ function ExpandableImage({
   );
 }
 
-// Adaptive sample-media layout for the sidebar: 1 item gets the full
-// tile, 2 split side-by-side, 3 becomes one big tile + two below —
-// fills the leftover sidebar space instead of a cramped thumbnail row.
-function SampleMediaGrid({ media, onExpand }: { media: string[]; onExpand: (url: string) => void }) {
-  if (media.length === 1) {
-    return (
-      <ExpandableImage
-        src={media[0]}
-        className="h-64 w-full object-cover"
-        onExpand={onExpand}
-        isVideo={isVideoUrl(media[0])}
-        roundedClassName="rounded-2xl"
-      />
-    );
-  }
-  if (media.length === 2) {
-    return (
-      <div className="grid grid-cols-2 gap-3">
-        {media.map((url, i) => (
-          <ExpandableImage
-            key={i}
-            src={url}
-            className="h-40 w-full object-cover"
-            onExpand={onExpand}
-            isVideo={isVideoUrl(url)}
-            roundedClassName="rounded-2xl"
-          />
-        ))}
-      </div>
-    );
-  }
+// Sample media is now a list of external reference links (e.g.
+// Instagram/YouTube post URLs) the brand pasted in, not uploaded
+// image/video files — so it renders as a list of open-in-new-tab link
+// cards instead of an image/video grid + lightbox.
+function SampleMediaLinks({ links }: { links: string[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <ExpandableImage
-        src={media[0]}
-        className="col-span-2 h-40 w-full object-cover"
-        onExpand={onExpand}
-        isVideo={isVideoUrl(media[0])}
-        roundedClassName="rounded-2xl"
-      />
-      {media.slice(1, 3).map((url, i) => (
-        <ExpandableImage
+    <div className="space-y-2.5">
+      {links.map((link, i) => (
+        <a
           key={i}
-          src={url}
-          className="h-28 w-full object-cover"
-          onExpand={onExpand}
-          isVideo={isVideoUrl(url)}
-          roundedClassName="rounded-2xl"
-        />
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2.5 rounded-2xl border border-white/10 bg-navy-800/40 px-4 py-3 text-xs font-semibold text-white/70 transition-colors hover:border-orange-400/40 hover:text-orange-300"
+        >
+          <Link2 size={14} className="shrink-0 text-white/40" />
+          <span className="min-w-0 flex-1 truncate">{link}</span>
+          <ExternalLink size={13} className="shrink-0 text-white/30" />
+        </a>
       ))}
     </div>
   );
@@ -1082,13 +1052,14 @@ export default function CampaignDetail() {
     </div>
   );
 
-  // Sample media card — adaptive grid (1 = full tile, 2 = split,
-  // 3 = big + two small) — sits right under the facts card so it fills
-  // the sidebar's leftover height instead of leaving it blank.
+  // Sample media card — a list of reference links (Instagram/YouTube
+  // etc.) the brand pasted in, each opening in a new tab. Sits right
+  // under the facts card so it fills the sidebar's leftover height
+  // instead of leaving it blank.
   const sampleMediaCard = hasSampleMedia && (
     <div className="rounded-[28px] border border-white/10 bg-navy-800/50 p-5">
-      <SectionHeading icon={<ImagePlus size={14} />}>Sample media</SectionHeading>
-      <SampleMediaGrid media={campaign.sampleMedia} onExpand={setLightboxUrl} />
+      <SectionHeading icon={<Link2 size={14} />}>Sample media</SectionHeading>
+      <SampleMediaLinks links={campaign.sampleMedia} />
     </div>
   );
 
