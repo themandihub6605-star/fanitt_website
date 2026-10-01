@@ -1029,7 +1029,23 @@ export default function CampaignDetail() {
         </div>
       )}
 
-      {isBrandOwner && campaign.status === 'open' && (
+      {isBrandOwner && campaign.approvalStatus === 'pending' && (
+        <div className="mt-4 rounded-2xl border border-yellow-400/30 bg-yellow-400/10 p-4 text-sm text-yellow-100">
+          <p className="font-bold">Waiting for review</p>
+          <p className="mt-1 text-yellow-100/80">Our team is checking this campaign. It goes live for creators as soon as it's approved — we'll notify you.</p>
+        </div>
+      )}
+      {isBrandOwner && campaign.approvalStatus === 'rejected' && (
+        <div className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
+          <p className="font-bold">Not approved</p>
+          {campaign.rejectionReason && <p className="mt-1 text-red-100/85">Reason: {campaign.rejectionReason}</p>}
+          <p className="mt-1 text-red-100/70">Your campaign slot has been returned — post a new campaign with the changes.</p>
+          <Link to="/campaigns/new" className="mt-3 inline-block">
+            <Button className="justify-center">Post a new campaign</Button>
+          </Link>
+        </div>
+      )}
+      {isBrandOwner && campaign.status === 'open' && campaign.approvalStatus !== 'pending' && campaign.approvalStatus !== 'rejected' && (
         <Link to={`/campaigns/${id}/applications`} className="mt-4 block">
           <Button className="w-full justify-center" variant="outline">
             View {campaign.applicantCount} applicant{campaign.applicantCount === 1 ? '' : 's'}

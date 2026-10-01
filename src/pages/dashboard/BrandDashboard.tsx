@@ -328,7 +328,9 @@ export default function BrandDashboard() {
                         <td className="py-3 pr-4 text-white/60">{c.applicantCount}</td>
                         <td className="whitespace-nowrap py-3 pr-4 text-white/50">{formatRupees(c.budget)}</td>
                         <td className="py-3 pr-4 text-right">
-                          <StatusBadge status={c.status} />
+                          <StatusBadge
+                            status={c.approvalStatus === 'pending' ? 'in_review' : c.approvalStatus === 'rejected' ? 'rejected' : c.status}
+                          />
                         </td>
                         <td className="py-3">
                           <ChevronRight size={16} className="text-white/20 transition-colors group-hover:text-orange-400" />

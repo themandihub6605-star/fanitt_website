@@ -6,7 +6,7 @@ import { Container } from '@/components/ui/Container';
 import { Button } from '@/components/ui/Button';
 import { categoryApi, type ApiCategory } from '@/services/categoryApi';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
-import { campaignApi, type ApiCampaign, type CampaignType, type LocationType, type GenderTarget } from '@/services/campaignApi';
+import { campaignApi, type ApiCampaign, type CampaignType, type LocationType, type GenderTarget, type CampaignRules } from '@/services/campaignApi';
 import { subscriptionApi, type ApiUserSubscription } from '@/services/subscriptionApi';
 import { getApiErrorMessage, getApiErrorCode } from '@/services/apiClient';
 import { cn } from '@/utils/cn';
@@ -361,6 +361,11 @@ export default function PostCampaign() {
   const [previewCampaign, setPreviewCampaign] = useState<ApiCampaign | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
+  // Admin-set posting rules (minimum budget, review before going live).
+  const [rules, setRules] = useState<CampaignRules>({ minCampaignBudget: 20000, requireCampaignApproval: true });
+  useEffect(() => {
+    campaignApi.getRules().then(setRules).catch(() => {});
+  }, []);
 
   useEffect(() => {
     categoryApi.list().then((cats) => {
@@ -474,6 +479,13 @@ export default function PostCampaign() {
       const paise = Math.round((parseFloat(costPerInfluencer) || 0) * 100);
       if (!paise || paise <= 0) {
         setFieldErrors({ cost: 'Please enter a valid cost per influencer' });
+        scrollToField(costRef);
+        return;
+      }
+      if (paise * maxInfluencers < rules.minCampaignBudget) {
+        setFieldErrors({
+          cost: `The minimum total budget is ${formatRupees(rules.minCampaignBudget)}. Increase the cost per influencer or the number of influencers.`,
+        });
         scrollToField(costRef);
         return;
       }
@@ -670,7 +682,12 @@ export default function PostCampaign() {
                 <span className="flex h-12 w-12 items-center justify-center rounded-full bg-teal-500 text-white">
                   <Check size={22} />
                 </span>
-                <p className="font-bold text-teal-200">Campaign published — redirecting...</p>
+                <p className="font-bold text-teal-200">
+                  {rules.requireCampaignApproval ? 'Campaign submitted for review — redirecting...' : 'Campaign published — redirecting...'}
+                </p>
+                {rules.requireCampaignApproval && (
+                  <p className="max-w-sm text-xs text-white/60">Our team checks every campaign. It goes live for creators as soon as it's approved — we'll notify you.</p>
+                )}
               </motion.div>
             ) : (
               <motion.div key={step} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.25 }} className="mt-7 space-y-4">
@@ -795,7 +812,9 @@ export default function PostCampaign() {
                           inputRef={costRef}
                           error={fieldErrors.cost}
                         />
-                        <p className="mt-1.5 text-xs text-white/40">Total Budget: {formatRupees(totalBudgetPreview)}</p>
+                        <p className={cn('mt-1.5 text-xs', totalBudgetPreview > 0 && totalBudgetPreview < rules.minCampaignBudget ? 'text-red-400' : 'text-white/40')}>
+                          Total Budget: {formatRupees(totalBudgetPreview)} · Minimum {formatRupees(rules.minCampaignBudget)}
+                        </p>
                       </div>
                     )}
 

@@ -1,29 +1,62 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
 import { GoogleIcon } from '@/components/GoogleIcon';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  REFERRAL_CODE_LENGTH,
+  captureReferralFromUrl,
+  clearStoredReferral,
+  getStoredReferral,
+  isValidReferralCode,
+  normalizeReferralInput,
+} from '@/utils/referral';
 
 const APPROVAL_GATED_ROLES = ['creator', 'brand', 'agency'];
 
 // Keep in sync with the route that renders PrivacyPolicy.tsx in App.tsx.
 const PRIVACY_POLICY_PATH = '/privacy-policy';
 
+
 export default function Welcome() {
   const navigate = useNavigate();
   const { loginWithGoogle } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showReferral, setShowReferral] = useState(false);
-  const [referralCode, setReferralCode] = useState('');
+  // A code from an invite link (?ref=CODE) — or one remembered from an
+  // earlier visit — is filled in automatically.
+  const [referralCode, setReferralCode] = useState(() => captureReferralFromUrl() || getStoredReferral());
+  const [showReferral, setShowReferral] = useState(() => referralCode.length > 0);
+
+  useEffect(() => {
+    const code = captureReferralFromUrl() || getStoredReferral();
+    if (code) {
+      setReferralCode(code);
+      setShowReferral(true);
+    }
+  }, []);
+
+  const referralInvalid = referralCode.length > 0 && !isValidReferralCode(referralCode);
+
+  const handleReferralChange = (value: string) => {
+    // Letters and digits only, uppercase, never more than 8.
+    setReferralCode(normalizeReferralInput(value));
+    if (error) setError('');
+  };
 
   const handleGoogle = async () => {
     setError('');
+    if (referralInvalid) {
+      setError('Referral code must be exactly 8 characters');
+      return;
+    }
     setGoogleLoading(true);
     try {
       const user = await loginWithGoogle(undefined, referralCode || undefined);
+      // The code has been sent with the sign-up — forget it.
+      if (referralCode) clearStoredReferral();
 
       if (user.isNewUser) {
         // Fresh account, defaulted to Fan — send them into the wizard to
@@ -170,13 +203,27 @@ export default function Welcome() {
 
           <div className="mx-auto mt-7 max-w-sm space-y-3 lg:max-w-md">
             {showReferral ? (
-              <input
-                autoFocus
-                value={referralCode}
-                onChange={(e) => setReferralCode(e.target.value)}
-                placeholder="Enter referral code"
-                className="w-full rounded-full border border-white/15 bg-white/[0.05] px-5 py-2.5 text-center text-sm text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
-              />
+              <div>
+                <input
+                  autoFocus
+                  value={referralCode}
+                  onChange={(e) => handleReferralChange(e.target.value)}
+                  maxLength={REFERRAL_CODE_LENGTH}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="Referral code (e.g. CRK7F3QX)"
+                  className={
+                    'w-full rounded-full border bg-white/[0.05] px-5 py-2.5 text-center text-sm uppercase tracking-[0.2em] text-white placeholder:normal-case placeholder:tracking-normal placeholder:text-white/30 focus:ring-2 ' +
+                    (referralInvalid
+                      ? 'border-red-400/60 focus:border-red-400 focus:ring-red-400/20'
+                      : 'border-white/15 focus:border-orange-400 focus:ring-orange-400/20')
+                  }
+                />
+                <p className={'mt-1.5 text-[11px] ' + (referralInvalid ? 'text-red-400' : 'text-white/35')}>
+                  {referralCode.length}/{REFERRAL_CODE_LENGTH} characters
+                </p>
+              </div>
             ) : (
               <button
                 type="button"

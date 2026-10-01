@@ -45,6 +45,9 @@ import NotFound from '@/pages/NotFound';
 import MyWallet from '@/pages/MyWallet';
 import Messages from '@/pages/Messages';
 import Communities from '@/pages/Communities';
+import ReferAndEarn from '@/pages/ReferAndEarn';
+import CommunityDetail from '@/pages/CommunityDetail';
+import CommunityPostPage from '@/pages/CommunityPostPage';
 import Feed from '@/pages/Feed';
 import ContactUs from '@/pages/ContactUs';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
@@ -154,6 +157,16 @@ const LAYOUT_ROUTES: { path: string; element: ReactNode }[] = [
   },
   { path: '/sessions', element: <LiveSessions /> },
   { path: '/communities', element: <Communities /> },
+  { path: '/communities/post/:postId', element: <CommunityPostPage /> },
+  { path: '/communities/:slug', element: <CommunityDetail /> },
+  {
+    path: '/refer',
+    element: (
+      <ProtectedRoute>
+        <ReferAndEarn />
+      </ProtectedRoute>
+    ),
+  },
   {
     path: '/wallet',
     element: (

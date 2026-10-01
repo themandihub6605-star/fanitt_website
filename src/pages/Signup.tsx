@@ -36,6 +36,14 @@ import { GoogleIcon } from '@/components/GoogleIcon';
 import { Logo } from '@/components/Logo';
 import { LocationAutocomplete } from '@/components/LocationAutocomplete';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  REFERRAL_CODE_LENGTH,
+  captureReferralFromUrl,
+  clearStoredReferral,
+  getStoredReferral,
+  isValidReferralCode,
+  normalizeReferralInput,
+} from '@/utils/referral';
 import { updateUser } from '@/store/slices/authSlice';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { authApi } from '@/services/authApi';
@@ -173,7 +181,9 @@ export default function Signup() {
 
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
-  const [referralCode, setReferralCode] = useState('');
+  // Filled in automatically from an invite link (?ref=CODE).
+  const [referralCode, setReferralCode] = useState(() => captureReferralFromUrl() || getStoredReferral());
+  const referralInvalid = referralCode.length > 0 && !isValidReferralCode(referralCode);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -430,9 +440,14 @@ export default function Signup() {
 
   const handleGoogle = async () => {
     setError('');
+    if (referralInvalid) {
+      setError(`Referral code must be exactly ${REFERRAL_CODE_LENGTH} characters`);
+      return;
+    }
     setGoogleLoading(true);
     try {
       const user = await loginWithGoogle(role, referralCode || undefined);
+      if (referralCode) clearStoredReferral();
       if (user.isNewUser) {
         setName(user.name);
         setEmail(user.email);
@@ -911,10 +926,19 @@ export default function Signup() {
                       <FieldLabel label="Referral code" />
                       <input
                         value={referralCode}
-                        onChange={(e) => setReferralCode(e.target.value)}
-                        placeholder="Enter a referral code"
-                        className="w-full rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20"
+                        onChange={(e) => setReferralCode(normalizeReferralInput(e.target.value))}
+                        maxLength={REFERRAL_CODE_LENGTH}
+                        autoComplete="off"
+                        spellCheck={false}
+                        placeholder="Referral code (e.g. CRK7F3QX)"
+                        className={
+                          'w-full rounded-xl border bg-navy-800/50 px-4 py-3 text-sm uppercase tracking-[0.15em] text-white placeholder:normal-case placeholder:tracking-normal placeholder:text-white/30 focus:ring-2 ' +
+                          (referralInvalid ? 'border-red-400/60 focus:border-red-400 focus:ring-red-400/20' : 'border-white/10 focus:border-orange-400 focus:ring-orange-400/20')
+                        }
                       />
+                      <span className={'mt-1 block text-[11px] ' + (referralInvalid ? 'text-red-400' : 'text-white/35')}>
+                        {referralCode.length}/{REFERRAL_CODE_LENGTH} characters · optional
+                      </span>
                     </label>
                   )}
 

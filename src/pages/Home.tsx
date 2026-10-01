@@ -13,11 +13,14 @@ import { ForBrands } from '@/sections/ForBrands';
 import { Testimonials } from '@/sections/Testimonials';
 import { FAQSection } from '@/sections/FAQSection';
 import { ClosingCTA } from '@/sections/ClosingCTA';
+import { StoreAppBanner } from '@/sections/StoreAppBanner';
 
 export default function Home() {
   return (
     <>
       <Hero />
+      {/* Fanitt Store banner — shown only when switched on in the admin panel. */}
+      <StoreAppBanner />
       {/* Temporarily hidden — stats look empty pre-launch (0+ sessions etc).
           Re-enable once there's real traction to show. */}
       {/* <TrustBar /> */}

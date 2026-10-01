@@ -14,6 +14,7 @@ const TONE_MAP: Record<string, string> = {
   in_progress: 'bg-yellow-400/15 text-yellow-300',
   in_escrow: 'bg-yellow-400/15 text-yellow-300',
   submitted: 'bg-yellow-400/15 text-yellow-300',
+  in_review: 'bg-yellow-400/15 text-yellow-300',
 
   failed: 'bg-red-500/15 text-red-400',
   rejected: 'bg-red-500/15 text-red-400',

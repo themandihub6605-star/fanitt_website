@@ -44,6 +44,9 @@ export interface ApiCampaign {
   deliverables: { reel: number; story: number; post: number };
   status: 'draft' | 'open' | 'in_progress' | 'submitted' | 'approved' | 'completed' | 'disputed' | 'cancelled';
   publishedAt?: string | null;
+  // Admin review — only 'approved' (or missing, for older campaigns) is public.
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string;
   // Set automatically at publish time from the posting brand's plan —
   // 'exclusive' means only Pro/Exclusive creators can apply. Used to show
   // a plan badge on campaign cards, matching the brand's own plan badge.
@@ -181,7 +184,15 @@ export interface ListCampaignsParams {
   gender?: string;
 }
 
+export interface CampaignRules {
+  /** In paise. Paid campaigns can't be published below this total budget. */
+  minCampaignBudget: number;
+  requireCampaignApproval: boolean;
+}
+
 export const campaignApi = {
+  getRules: () => apiClient.get<ApiEnvelope<CampaignRules>>('/campaigns/rules').then((r) => r.data.data),
+
   list: (params?: ListCampaignsParams) =>
     apiClient
       .get<ApiEnvelope<{ campaigns: ApiCampaign[]; total: number }>>('/campaigns', { params })

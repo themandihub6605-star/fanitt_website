@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { LayoutDashboard, LogOut, ChevronDown, CalendarCheck, FileText, UserCircle } from 'lucide-react';
+import { LayoutDashboard, LogOut, ChevronDown, CalendarCheck, FileText, UserCircle, Gift } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getUploadUrl } from '@/services/apiClient';
 
@@ -84,6 +84,15 @@ export function UserMenu() {
                   className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
                 >
                   <FileText size={15} /> My Proposals
+                </Link>
+              )}
+              {user.role !== 'admin' && (
+                <Link
+                  to="/refer"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/10"
+                >
+                  <Gift size={15} /> Refer & earn
                 </Link>
               )}
               <button

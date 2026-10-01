@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Bell, CalendarCheck, Gift, ShieldCheck, Megaphone, Loader2, AlertCircle, CheckCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, CalendarCheck, Gift, ShieldCheck, Megaphone, Loader2, AlertCircle, CheckCheck, Users2, MessageCircle, AtSign, UserPlus } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { notificationApi, type ApiNotification } from '@/services/notificationApi';
 import { getApiErrorMessage } from '@/services/apiClient';
@@ -16,7 +17,23 @@ const ICON_MAP: Record<string, typeof CalendarCheck> = {
   account_verified: ShieldCheck,
   feedback_received: Bell,
   general: Bell,
+  community_mention: AtSign,
+  community_reply: MessageCircle,
+  community_join_request: UserPlus,
+  community_join_approved: Users2,
+  community_announcement: Megaphone,
 };
+
+/** Where a notification should take the user, if anywhere. */
+function targetFor(n: ApiNotification): string | null {
+  // Admin broadcasts can carry their own link (a website path or a full URL).
+  if (n.link) return n.link;
+  const id = typeof n.relatedId === 'string' ? n.relatedId : n.relatedId?._id;
+  if (!id) return null;
+  if (n.relatedModel === 'CommunityPost') return `/communities/post/${id}`;
+  if (n.relatedModel === 'Community') return `/communities/${id}`;
+  return null;
+}
 
 const toneForType = (type: string) => {
   if (['payment_success', 'payout_released', 'account_verified'].includes(type)) return 'bg-teal-500/15 text-teal-300';
@@ -35,6 +52,7 @@ function timeAgo(dateStr: string) {
 }
 
 export default function NotificationsPage() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<ApiNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -56,9 +74,14 @@ export default function NotificationsPage() {
   };
 
   const handleClickNotification = async (n: ApiNotification) => {
-    if (n.isRead) return;
-    await notificationApi.markAsRead(n._id);
-    setNotifications((prev) => prev.map((x) => (x._id === n._id ? { ...x, isRead: true } : x)));
+    const target = targetFor(n);
+    if (!n.isRead) {
+      notificationApi.markAsRead(n._id).catch(() => {});
+      setNotifications((prev) => prev.map((x) => (x._id === n._id ? { ...x, isRead: true } : x)));
+    }
+    if (!target) return;
+    if (/^https?:\/\//i.test(target)) window.open(target, '_blank', 'noopener,noreferrer');
+    else navigate(target);
   };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
@@ -117,7 +140,10 @@ export default function NotificationsPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-white">{n.title}</p>
-                    <p className="mt-0.5 text-sm text-white/60">{n.message}</p>
+                    <p className="mt-0.5 whitespace-pre-line text-sm text-white/60">{n.message}</p>
+                    {n.imageUrl && (
+                      <img src={n.imageUrl} alt="" loading="lazy" className="mt-2 max-h-56 w-full max-w-md rounded-xl object-cover" />
+                    )}
                     <p className="mt-1 text-xs text-white/40">{timeAgo(n.createdAt)}</p>
                   </div>
                   {!n.isRead && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-orange-500" />}

@@ -17,6 +17,7 @@ import {
   Megaphone,
   Tag,
   ChevronRight,
+  Gift,
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { Button } from './ui/Button';
@@ -361,6 +362,9 @@ export function Navbar() {
                     />
                     {user.role === 'creator' && (
                       <MobileMenuRow to="/proposals" icon={FileText} label="My Proposals" onClick={() => dispatch(closeMobileNav())} />
+                    )}
+                    {user.role !== 'admin' && (
+                      <MobileMenuRow to="/refer" icon={Gift} label="Refer & earn" onClick={() => dispatch(closeMobileNav())} />
                     )}
                   </div>
 

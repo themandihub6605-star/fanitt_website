@@ -10,6 +10,10 @@ export interface ApiNotification {
   createdAt: string;
   fromUser?: { _id: string; name: string; avatarUrl?: string };
   post?: { _id: string; mediaItems: { url: string; type: 'image' | 'video' }[] };
+  relatedModel?: string | null;
+  imageUrl?: string;
+  link?: string;
+  relatedId?: string | { _id: string } | null;
 }
 
 export const notificationApi = {
