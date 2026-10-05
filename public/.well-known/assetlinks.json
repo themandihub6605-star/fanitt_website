@@ -1,0 +1,14 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "fanitt.comapp.fanittapp",
+      "sha256_cert_fingerprints": [
+        "18:B4:42:AA:C1:9A:E4:D5:EA:D5:A6:D4:8D:5B:B3:B1:EA:EC:87:DF:D0:23:04:5E:5E:E9:A0:C2:74:76:9D:9D",
+        "C5:27:8A:C8:AE:7F:7D:58:51:C2:2D:E1:D2:34:AA:B3:61:80:65:EB:F2:10:4A:BF:C5:75:2F:9A:C1:FB:02:49",
+        "8D:A5:60:99:A8:5F:3B:10:B2:9E:65:82:66:63:63:C0:4A:50:F7:34:A4:05:02:3A:8C:71:B1:85:ED:C5:F9:C9"
+      ]
+    }
+  }
+]

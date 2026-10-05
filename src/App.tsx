@@ -51,6 +51,8 @@ import CommunityPostPage from '@/pages/CommunityPostPage';
 import Feed from '@/pages/Feed';
 import ContactUs from '@/pages/ContactUs';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import TermsOfUse from '@/pages/TermsOfUse';
+import OpenLink from '@/pages/OpenLink';
 import FAQ from '@/pages/FAQ';
 import Pricing from '@/pages/Pricing';
 
@@ -127,6 +129,9 @@ const LAYOUT_ROUTES: { path: string; element: ReactNode }[] = [
   { path: '/signup', element: <Signup /> },
   { path: '/contact', element: <ContactUs /> },
   { path: '/privacy-policy', element: <PrivacyPolicy /> },
+  { path: '/terms', element: <TermsOfUse /> },
+  { path: '/terms-of-use', element: <TermsOfUse /> },
+  { path: '/open/:type/:id', element: <OpenLink /> },
   { path: '/faq', element: <FAQ /> },
   { path: '/pricing', element: <Pricing /> },
   { path: '/campaigns', element: <Campaigns /> },
