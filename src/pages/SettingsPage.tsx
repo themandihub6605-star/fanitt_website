@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 const HELP_LINKS = [
   { to: '/contact', label: 'Contact Us', icon: Phone },
   { to: '/privacy-policy', label: 'Privacy Policy', icon: FileText },
+  { to: '/terms', label: 'Terms of Use', icon: FileText },
   { to: '/faq', label: 'FAQ', icon: HelpCircle },
 ];
 
