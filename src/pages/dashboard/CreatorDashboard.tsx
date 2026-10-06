@@ -17,7 +17,8 @@ import { RecommendedSessionCard } from '@/components/RecommendedSessionCard';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { creatorApi, type CreatorDashboardData, type ApiCreator } from '@/services/creatorApi';
 import { postApi, type ApiPost, MAX_POSTS_PER_CREATOR } from '@/services/postApi';
-import { sessionApi, type ApiSession } from '@/services/sessionApi';
+// import { sessionApi } from '@/services/sessionApi'; // Hidden — meets are app-only.
+import type { ApiSession } from '@/services/sessionApi';
 import { categoryApi, type ApiCategory } from '@/services/categoryApi';
 import { walletApi } from '@/services/walletApi';
 import { campaignApi, type ApiProposal, type SuggestedCampaign } from '@/services/campaignApi';
@@ -321,7 +322,7 @@ export default function CreatorDashboard() {
   const [data, setData] = useState<CreatorDashboardData | null>(null);
   const [profile, setProfile] = useState<ApiCreator | null>(null);
   const [posts, setPosts] = useState<ApiPost[]>([]);
-  const [recommended, setRecommended] = useState<ApiSession[]>([]);
+  const [recommended] = useState<ApiSession[]>([]); // Hidden — meets are app-only.
   const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [mySubscription, setMySubscription] = useState<ApiUserSubscription | null>(null);
@@ -382,10 +383,11 @@ export default function CreatorDashboard() {
           setSuggestedCampaigns([]);
         }
       });
-    sessionApi
-      .list({ page: 1 })
-      .then((d) => setRecommended(d.sessions.slice(0, 4)))
-      .catch(() => setRecommended([]));
+    // Hidden — meets are app-only.
+    // sessionApi
+    //   .list({ page: 1 })
+    //   .then((d) => setRecommended(d.sessions.slice(0, 4)))
+    //   .catch(() => setRecommended([]));
   };
 
   useEffect(loadDashboard, []);

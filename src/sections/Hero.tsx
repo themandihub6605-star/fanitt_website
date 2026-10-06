@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { ApiSessionCard } from '@/components/ApiSessionCard';
 import { HeroBackdrop } from '@/components/HeroBackdrop';
 import { CATEGORIES } from '@/constants/content';
-import { sessionApi, type ApiSession } from '@/services/sessionApi';
+// import { sessionApi } from '@/services/sessionApi'; // Hidden — meets are app-only.
+import type { ApiSession } from '@/services/sessionApi';
 import { resolveIcon } from '@/utils/icons';
 import { useAppSelector } from '@/store/hooks';
 
@@ -38,16 +39,16 @@ function dashboardHrefFor(role?: string) {
 
 export function Hero() {
   const [active, setActive] = useState(0);
-  const [sessions, setSessions] = useState<ApiSession[]>([]);
+  const [sessions] = useState<ApiSession[]>([]); // Hidden — meets are app-only.
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAppSelector((s) => s.auth);
 
-  useEffect(() => {
-    sessionApi
-      .list({ page: 1 })
-      .then((d) => setSessions(d.sessions.slice(0, 3)))
-      .catch(() => setSessions([]));
-  }, []);
+  // useEffect(() => {
+  //   sessionApi
+  //     .list({ page: 1 })
+  //     .then((d) => setSessions(d.sessions.slice(0, 3)))
+  //     .catch(() => setSessions([]));
+  // }, []);
 
   useEffect(() => {
     if (sessions.length < 2) return;
@@ -105,7 +106,7 @@ export function Hero() {
               variants={fadeUp}
               className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center xl:justify-start"
             >
-                           <Button
+              <Button
                 size="lg"
                 onClick={goToPrimary}
                 className="!bg-orange-500 hover:!bg-orange-400 !bg-none !px-5 !py-2.5 !text-sm sm:!px-8 sm:!py-3.5 sm:!text-base w-full sm:w-auto sm:min-w-[220px] justify-center"

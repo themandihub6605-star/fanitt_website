@@ -15,7 +15,8 @@ export const SITE = {
 export const NAV_LINKS = [
   { label: 'Feed', href: '/feed' },
   { label: 'Explore Creators', href: '/explore' },
-  { label: 'Live Sessions', href: '/sessions' },
+   // { label: 'Live Sessions', href: '/sessions' }, // Hidden — meets are app-only.
+  { label: 'Brands', href: '/brands' },
   { label: 'Communities', href: '/communities' },
   { label: 'Campaigns', href: '/campaigns' },
   { label: 'Pricing', href: '/pricing' },

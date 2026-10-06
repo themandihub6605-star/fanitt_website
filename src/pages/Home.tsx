@@ -30,11 +30,12 @@ export default function Home() {
       {/* <CreatorGrid /> */}
       {/* <TopCreators /> */}
       {/* <LatestPosts /> */}
-      <LiveSessionsRail />
-      <LiveSessionsShowcase />
+            {/* Hidden — meets/sessions are app-only. */}
+      {/* <LiveSessionsRail /> */}
+      {/* <LiveSessionsShowcase /> */}
       {/* Temporarily hidden per request. */}
       {/* <CategoryBrowse /> */}
-      <FreeSessions />
+           {/* <FreeSessions /> */}
       <ForCreators />
       <ForBrands />
       <Testimonials />
