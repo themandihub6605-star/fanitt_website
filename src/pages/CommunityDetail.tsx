@@ -25,7 +25,8 @@ import { PostComposer } from '@/components/community/PostComposer';
 import { PostCard } from '@/components/community/PostCard';
 import { CommunityChat } from '@/components/community/CommunityChat';
 import { MembersPanel } from '@/components/community/MembersPanel';
-import { communityApi, type ApiCommunity, type CommunityPost } from '@/services/communityApi';
+import { PaidPlansModal } from '@/components/community/PaidPlansModal';
+import { communityApi, communityPriceLabel, needsPlan, PLAN_SUFFIX, rupees, type ApiCommunity, type CommunityPost } from '@/services/communityApi';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
 import { cn } from '@/utils/cn';
@@ -45,6 +46,7 @@ export default function CommunityDetail() {
   const [joinBusy, setJoinBusy] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   const [logoOpen, setLogoOpen] = useState(false);
+  const [plansOpen, setPlansOpen] = useState(false);
 
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [postSort, setPostSort] = useState<'new' | 'top'>('new');
@@ -69,7 +71,8 @@ export default function CommunityDetail() {
   }, [slug, isAuthenticated]);
 
   const isMember = community?.membership?.status === 'active';
-  const canView = Boolean(community && (community.visibility === 'public' || isMember));
+  const canView = Boolean(community && ((community.visibility === 'public' && !community.isPaid) || isMember));
+  const mustPay = Boolean(community && needsPlan(community));
 
   const loadPosts = (page = 1) => {
     if (!community) return;
@@ -97,7 +100,19 @@ export default function CommunityDetail() {
       navigate('/login');
       return;
     }
-    if (isMember && !window.confirm(`Leave ${community.name}?`)) return;
+    if (mustPay) {
+      setPlansOpen(true);
+      return;
+    }
+    if (
+      isMember &&
+      !window.confirm(
+        community.membership?.access === 'paid'
+          ? `Leave ${community.name}? You’ll lose the time left on your plan — joining again means paying again.`
+          : `Leave ${community.name}?`
+      )
+    )
+      return;
     setJoinBusy(true);
     try {
       await communityApi.toggleJoin(community._id);
@@ -149,7 +164,34 @@ export default function CommunityDetail() {
   }
 
   const status = community.membership?.status;
-  const joinLabel = isMember ? 'Leave' : status === 'pending' ? 'Cancel request' : community.visibility === 'private' ? 'Request to join' : 'Join community';
+  const joinLabel = mustPay
+    ? `${status === 'expired' ? 'Renew' : 'Join'} · ${communityPriceLabel(community)}`
+    : isMember
+      ? 'Leave'
+      : status === 'pending'
+        ? 'Cancel request'
+        : status === 'expired'
+          ? 'Join again'
+          : community.visibility === 'private'
+            ? 'Request to join'
+            : 'Join community';
+
+  // Paid membership info for the strip under the description.
+  const m = community.membership;
+  const paidLine = community.isOwner && community.isPaid
+    ? `Paid community · ${rupees(community.paidStats?.revenue ?? 0)} earned from ${community.paidStats?.payments ?? 0} payments — goes to your wallet`
+    : status === 'expired'
+      ? 'Your membership ended — renew to get back into posts, chat and lives.'
+      : isMember && m?.access === 'paid'
+        ? m.plan === 'lifetime' || !m.paidUntil
+          ? 'Lifetime member — you paid once.'
+          : `${m.plan === 'yearly' ? 'Yearly' : 'Monthly'} member · active till ${new Date(m.paidUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+        : isMember && community.isPaid
+          ? 'You have free access — you joined before this community went paid.'
+          : '';
+  const showRenew =
+    status === 'expired' ||
+    Boolean(isMember && m?.access === 'paid' && m.plan !== 'lifetime' && m.paidUntil && new Date(m.paidUntil).getTime() - Date.now() < 7 * 86400000);
 
   const tabs: { key: Tab; label: string; icon: typeof Users2; hidden?: boolean; badge?: number }[] = [
     { key: 'posts', label: 'Posts', icon: ScrollText },
@@ -158,7 +200,33 @@ export default function CommunityDetail() {
     { key: 'about', label: 'About', icon: Crown },
   ];
 
-  const locked = (
+  const locked = community.isPaid ? (
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-navy-800/60 px-6 py-12 text-center">
+      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#F4511E] to-[#EC2A78] text-white shadow-lg shadow-orange-500/25">
+        <Crown size={28} />
+      </span>
+      <p className="text-lg font-bold text-white">{status === 'expired' ? 'Your membership ended' : 'Members-only community'}</p>
+      <p className="max-w-sm text-sm text-white/55">
+        {status === 'expired' ? 'Renew to get back into the posts, chat and lives.' : 'Get a plan to read posts, join the chat and watch community lives.'}
+      </p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {(community.planOptions || []).map((p) => (
+          <span key={p.key} className="rounded-full bg-orange-500/10 px-3 py-1.5 text-xs font-bold text-orange-300">
+            {p.key === 'lifetime' ? 'One-time' : p.label} · {rupees(p.price)}
+            {p.key === 'lifetime' ? '' : PLAN_SUFFIX[p.key]}
+          </span>
+        ))}
+      </div>
+      {status !== 'banned' && (
+        <button
+          onClick={() => (isAuthenticated ? setPlansOpen(true) : navigate('/login'))}
+          className="mt-2 flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#F4511E] to-[#EC2A78] px-5 py-2.5 text-sm font-bold text-white"
+        >
+          <Crown size={15} /> {isAuthenticated ? (status === 'expired' ? 'Renew membership' : 'See plans') : 'Log in to join'}
+        </button>
+      )}
+    </div>
+  ) : (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-navy-800/60 px-6 py-14 text-center">
       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/[0.06] text-white/60">
         <Lock size={24} />
@@ -224,10 +292,15 @@ export default function CommunityDetail() {
                     disabled={joinBusy}
                     className={cn(
                       'flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold',
-                      isMember || status === 'pending' ? 'bg-white/10 text-white/80 hover:bg-white/15' : 'bg-orange-500 text-white hover:bg-orange-600'
+                      mustPay
+                        ? 'bg-gradient-to-r from-[#F4511E] to-[#EC2A78] text-white hover:opacity-90'
+                        : isMember || status === 'pending'
+                          ? 'bg-white/10 text-white/80 hover:bg-white/15'
+                          : 'bg-orange-500 text-white hover:bg-orange-600'
                     )}
                   >
                     {joinBusy && <Loader2 size={15} className="animate-spin" />}
+                    {mustPay && !joinBusy && <Crown size={15} />}
                     {joinLabel}
                   </button>
                 )}
@@ -237,10 +310,16 @@ export default function CommunityDetail() {
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold text-white sm:text-3xl">{community.name}</h1>
               {community.isVerified && <BadgeCheck size={20} className="text-sky-400" />}
-              {community.visibility === 'private' && (
-                <span className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-bold text-white/65">
-                  <Lock size={11} /> Private
+              {community.isPaid ? (
+                <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-[#F4511E] to-[#EC2A78] px-2.5 py-0.5 text-[11px] font-bold text-white">
+                  <Crown size={11} /> Paid
                 </span>
+              ) : (
+                community.visibility === 'private' && (
+                  <span className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-bold text-white/65">
+                    <Lock size={11} /> Private
+                  </span>
+                )
               )}
             </div>
             {community.description && <p className="mt-2 max-w-3xl text-sm text-white/65">{community.description}</p>}
@@ -249,6 +328,17 @@ export default function CommunityDetail() {
               {community.memberCount.toLocaleString('en-IN')} members · {community.discussionCount.toLocaleString('en-IN')} posts
             </p>
             {status === 'banned' && <p className="mt-2 text-sm font-semibold text-red-400">You have been removed from this community.</p>}
+            {paidLine && (
+              <div className="mt-3 flex max-w-2xl items-center gap-3 rounded-xl border border-orange-500/25 bg-orange-500/[0.07] px-3.5 py-2.5">
+                <Crown size={16} className="shrink-0 text-orange-300" />
+                <p className="flex-1 text-sm text-white/80">{paidLine}</p>
+                {showRenew && (
+                  <button onClick={() => setPlansOpen(true)} className="shrink-0 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-600">
+                    Renew
+                  </button>
+                )}
+              </div>
+            )}
             {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
           </div>
 
@@ -288,7 +378,7 @@ export default function CommunityDetail() {
                     {isMember && !community.canPost && (
                       <p className="rounded-xl bg-white/[0.04] px-4 py-3 text-sm text-white/55">Only the owner and moderators can post here.</p>
                     )}
-                    {!isMember && status !== 'banned' && (
+                    {!isMember && status !== 'banned' && !mustPay && (
                       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-orange-500/20 bg-orange-500/[0.05] px-4 py-3">
                         <p className="text-sm text-white/75">Join to post, comment, vote and chat.</p>
                         <button onClick={toggleJoin} className="rounded-lg bg-orange-500 px-3.5 py-2 text-xs font-bold text-white">
@@ -378,7 +468,13 @@ export default function CommunityDetail() {
                     </div>
                     <div className="rounded-2xl border border-white/10 bg-navy-800/60 p-5 text-sm text-white/60">
                       <p>Created {new Date(community.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                      <p className="mt-1">{community.visibility === 'private' ? 'Private — members approved by moderators' : 'Public — anyone can join'}</p>
+                      <p className="mt-1">
+                        {community.isPaid
+                          ? `Paid — ${(community.planOptions || []).map((p) => `${p.key === 'lifetime' ? 'One-time' : p.label} ${rupees(p.price)}`).join(' · ')}`
+                          : community.visibility === 'private'
+                            ? 'Private — members approved by moderators'
+                            : 'Public — anyone can join'}
+                      </p>
                       <p className="mt-1">{community.postPermission === 'all' ? 'All members can post' : 'Only owner & moderators post'}</p>
                     </div>
                     {community.isOwner && (
@@ -398,6 +494,7 @@ export default function CommunityDetail() {
       </Container>
 
       <CommunityFormModal open={editing} onClose={() => setEditing(false)} community={community} onSaved={() => loadCommunity()} />
+      <PaidPlansModal open={plansOpen} community={community} onClose={() => setPlansOpen(false)} onJoined={() => loadCommunity()} />
 
       {logoOpen && community.iconUrl && (
         <ImageLightbox url={community.iconUrl} alt={`${community.name} logo`} onClose={() => setLogoOpen(false)} />

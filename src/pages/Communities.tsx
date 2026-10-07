@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AlertCircle, BadgeCheck, Flame, Loader2, Lock, MessagesSquare, Plus, Search, Sparkles, TrendingUp, Users2 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { CommunityFormModal } from '@/components/community/CommunityFormModal';
 import { CommunityCover, CommunityIcon, ImageLightbox } from '@/components/community/CommunityAvatar';
-import { communityApi, type ApiCommunity, type CommunitySort } from '@/services/communityApi';
+import { communityPriceLabel, needsPlan, communityApi, type ApiCommunity, type CommunitySort } from '@/services/communityApi';
 import { categoryApi, type ApiCategory } from '@/services/categoryApi';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
@@ -61,8 +61,14 @@ export default function Communities() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, sort, search, category, isAuthenticated]);
 
+  const navigate = useNavigate();
   const handleJoin = async (c: ApiCommunity) => {
     if (!isAuthenticated) return;
+    // Paid community: plans and payment are on its page.
+    if (needsPlan(c)) {
+      navigate(`/communities/${c.slug}`);
+      return;
+    }
     setBusyId(c._id);
     try {
       const res = await communityApi.toggleJoin(c._id);
@@ -220,7 +226,16 @@ export default function Communities() {
 
 function CommunityCard({ community: c, busy, canJoin, onJoin }: { community: ApiCommunity; busy: boolean; canJoin: boolean; onJoin: () => void }) {
   const status = c.membership?.status;
-  const joinLabel = status === 'active' ? 'Joined' : status === 'pending' ? 'Requested' : c.visibility === 'private' ? 'Request' : 'Join';
+  const mustPay = needsPlan(c);
+  const joinLabel = mustPay
+    ? `${status === 'expired' ? 'Renew' : 'Join'} · ${communityPriceLabel(c)}`
+    : status === 'active'
+      ? 'Joined'
+      : status === 'pending'
+        ? 'Requested'
+        : c.visibility === 'private'
+          ? 'Request'
+          : 'Join';
   const [logoOpen, setLogoOpen] = useState(false);
 
   return (
@@ -259,7 +274,11 @@ function CommunityCard({ community: c, busy, canJoin, onJoin }: { community: Api
         <Link to={`/communities/${c.slug}`} className="mt-2 flex items-center gap-1.5">
           <p className="truncate font-bold text-white group-hover:text-orange-200">{c.name}</p>
           {c.isVerified && <BadgeCheck size={15} className="shrink-0 text-sky-400" />}
-          {c.visibility === 'private' && <Lock size={13} className="shrink-0 text-white/40" />}
+          {c.isPaid ? (
+            <span className="shrink-0 rounded-full bg-gradient-to-r from-[#F4511E] to-[#EC2A78] px-1.5 py-0.5 text-[9px] font-black uppercase text-white">Paid</span>
+          ) : (
+            c.visibility === 'private' && <Lock size={13} className="shrink-0 text-white/40" />
+          )}
         </Link>
         {c.category && <p className="text-xs text-white/45">{c.category.label}</p>}
         {c.description && <p className="mt-2 line-clamp-2 text-sm text-white/60">{c.description}</p>}
@@ -273,7 +292,11 @@ function CommunityCard({ community: c, busy, canJoin, onJoin }: { community: Api
               disabled={busy}
               className={cn(
                 'flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold',
-                status ? 'bg-white/10 text-white/70 hover:bg-white/15' : 'bg-orange-500 text-white hover:bg-orange-600'
+                mustPay
+                  ? 'bg-gradient-to-r from-[#F4511E] to-[#EC2A78] text-white hover:opacity-90'
+                  : status
+                    ? 'bg-white/10 text-white/70 hover:bg-white/15'
+                    : 'bg-orange-500 text-white hover:bg-orange-600'
               )}
             >
               {busy && <Loader2 size={12} className="animate-spin" />}

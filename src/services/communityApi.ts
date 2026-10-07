@@ -2,7 +2,27 @@ import { apiClient } from './apiClient';
 import type { ApiEnvelope, Role } from '@/types/api';
 
 export type CommunityRole = 'member' | 'moderator' | 'admin';
-export type MembershipStatus = 'active' | 'pending' | 'banned';
+export type MembershipStatus = 'active' | 'pending' | 'banned' | 'expired';
+export type CommunityPlanKey = 'monthly' | 'yearly' | 'lifetime';
+
+/** A plan the owner turned on — price in paise. */
+export interface CommunityPlanOption {
+  key: CommunityPlanKey;
+  label: string;
+  price: number;
+}
+
+export type CommunityPlans = Partial<Record<CommunityPlanKey, { enabled: boolean; price: number }>>;
+
+export interface CommunityMembership {
+  role: CommunityRole;
+  status: MembershipStatus;
+  notificationsMuted: boolean;
+  /** free = joined while it was free; paid = bought a plan. */
+  access?: 'free' | 'paid';
+  plan?: CommunityPlanKey | null;
+  paidUntil?: string | null;
+}
 export type CommunityVisibility = 'public' | 'private';
 export type PostPermission = 'all' | 'moderators';
 export type CommunitySort = 'trending' | 'popular' | 'new';
@@ -34,7 +54,13 @@ export interface ApiCommunity {
   lastActivityAt?: string;
   createdAt: string;
   createdBy?: CommunityUser | string;
-  membership: { role: CommunityRole; status: MembershipStatus; notificationsMuted: boolean } | null;
+  membership: CommunityMembership | null;
+  // Paid community
+  isPaid?: boolean;
+  plans?: CommunityPlans;
+  planOptions?: CommunityPlanOption[];
+  /** Owner only. */
+  paidStats?: { revenue: number; payments: number };
   canPost: boolean;
   canModerate: boolean;
   isOwner: boolean;
@@ -116,6 +142,35 @@ export interface CommunityFormPayload {
   rules?: string[];
   icon?: File | null;
   cover?: File | null;
+  isPaid?: boolean;
+  plans?: Record<CommunityPlanKey, { enabled: boolean; price: number }>;
+}
+
+/** What the create / edit form needs to know. */
+export interface CommunityConfig {
+  requireSubscription: boolean;
+  hasSubscription: boolean;
+  planName: string;
+  paidCommunitiesEnabled: boolean;
+  canSell: boolean;
+  feePercent: number;
+  minPrice: number;
+  maxPrice: number;
+}
+
+/** Store checkout started for a plan (Razorpay unless it was free). */
+export interface CommunityCheckout {
+  order: { _id: string; amount: number; status: string };
+  paid: boolean;
+  razorpay: {
+    keyId: string;
+    orderId: string;
+    amount: number;
+    currency: string;
+    name: string;
+    description: string;
+    prefill?: { name?: string; email?: string; contact?: string };
+  } | null;
 }
 
 export interface NewPostPayload {
@@ -137,6 +192,8 @@ function toFormData(payload: CommunityFormPayload) {
   if (payload.rules) form.append('rules', JSON.stringify(payload.rules));
   if (payload.icon) form.append('icon', payload.icon);
   if (payload.cover) form.append('cover', payload.cover);
+  if (payload.isPaid !== undefined) form.append('isPaid', String(payload.isPaid));
+  if (payload.plans) form.append('plans', JSON.stringify(payload.plans));
   return form;
 }
 
@@ -163,6 +220,16 @@ export const communityApi = {
     apiClient
       .post<ApiEnvelope<{ joined: boolean; status: MembershipStatus | null }>>(`/communities/${id}/join`)
       .then((r) => r.data.data),
+
+  config: () => apiClient.get<ApiEnvelope<CommunityConfig>>('/communities/config').then((r) => r.data.data),
+
+  /** Starts buying a plan of a paid community. */
+  checkout: (id: string, plan: CommunityPlanKey) =>
+    apiClient.post<ApiEnvelope<CommunityCheckout>>(`/communities/${id}/checkout`, { plan, payWith: 'razorpay' }).then((r) => r.data.data),
+
+  /** Confirms a Razorpay payment (same endpoint as every Fanitt Store order). */
+  verifyPayment: (orderId: string, payment: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string }) =>
+    apiClient.post(`/store/orders/${orderId}/verify`, payment).then((r) => r.data.data),
 
   setMuted: (id: string, notificationsMuted: boolean) =>
     apiClient.patch(`/communities/${id}/me`, { notificationsMuted }).then((r) => r.data.data),
@@ -266,4 +333,24 @@ export function initialsOf(name: string) {
   if (parts.length === 0) return '?';
   if (parts.length === 1) return parts[0][0].toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+export const PLAN_SUFFIX: Record<CommunityPlanKey, string> = { monthly: '/month', yearly: '/year', lifetime: ' once' };
+
+export function rupees(paise: number) {
+  return `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+}
+
+/** "₹199/month" for the cheapest plan, or '' for free communities. */
+export function communityPriceLabel(c: ApiCommunity) {
+  const plans = c.planOptions || [];
+  if (!c.isPaid || plans.length === 0) return '';
+  const cheapest = [...plans].sort((a, b) => a.price - b.price)[0];
+  return `${rupees(cheapest.price)}${PLAN_SUFFIX[cheapest.key]}`;
+}
+
+/** Paid community and this viewer still has to buy a plan. */
+export function needsPlan(c: ApiCommunity) {
+  const status = c.membership?.status;
+  return Boolean(c.isPaid && !c.isOwner && status !== 'active' && status !== 'banned');
 }
