@@ -8,6 +8,7 @@ import {
   Bell,
   BellOff,
   Crown,
+  Globe,
   Loader2,
   Lock,
   MessagesSquare,
@@ -33,6 +34,114 @@ import { cn } from '@/utils/cn';
 
 type Tab = 'posts' | 'chat' | 'members' | 'about';
 
+/** A paid post seen without a plan: author, first line fading out, a
+ * blurred picture with a lock, and the counts. Click → plans. */
+function LockedPostCard({ post, onOpen }: { post: CommunityPost; onOpen: () => void }) {
+  const hasMedia = (post.mediaCount ?? 0) > 0;
+  const mediaLabel =
+    post.hasPoll && !hasMedia ? 'Poll for members' : post.hasVideo ? 'Video for members' : (post.mediaCount ?? 0) > 1 ? `${post.mediaCount} photos for members` : 'Photo for members';
+  return (
+    <button onClick={onOpen} className="block w-full rounded-2xl border border-white/10 bg-navy-800/60 p-4 text-left transition-colors hover:border-orange-500/30 sm:p-5">
+      <div className="flex items-center gap-3">
+        <UserAvatar user={post.author} size={40} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-white">{post.author?.name}</p>
+          <p className="text-xs text-white/45">{new Date(post.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+        </div>
+        <span className="flex items-center gap-1 rounded-full bg-orange-500/15 px-2.5 py-1 text-[11px] font-bold text-orange-300">
+          <Lock size={11} /> Members only
+        </span>
+      </div>
+      {post.text && (
+        <p
+          className="mt-3 line-clamp-2 text-sm leading-relaxed text-white/80"
+          style={{ WebkitMaskImage: 'linear-gradient(to bottom, black 35%, transparent)', maskImage: 'linear-gradient(to bottom, black 35%, transparent)' }}
+        >
+          {post.text}
+        </p>
+      )}
+      {(hasMedia || post.hasPoll) && (
+        <div className="relative mt-3 h-40 overflow-hidden rounded-xl">
+          {post.teaserImage ? (
+            <img src={post.teaserImage} alt="" className="h-full w-full scale-110 object-cover blur-xl" />
+          ) : (
+            <div className="h-full w-full bg-gradient-to-br from-orange-500/30 to-pink-600/30" />
+          )}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/30">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-orange-500 shadow-lg">
+              <Lock size={20} />
+            </span>
+            <span className="text-sm font-bold text-white drop-shadow">{mediaLabel}</span>
+          </div>
+        </div>
+      )}
+      <div className="mt-3 flex items-center gap-4 text-xs text-white/50">
+        <span>❤ {post.likeCount}</span>
+        <span>💬 {post.commentCount}</span>
+        <span className="ml-auto font-bold text-orange-400">Join to read ›</span>
+      </div>
+    </button>
+  );
+}
+
+/** After the locked previews: "+28 more posts", what members get, and the plans. */
+function UnlockCard({ community, rest, paidTotal, canBuy, onOpen }: { community: ApiCommunity; rest: number; paidTotal: number; canBuy: boolean; onOpen: () => void }) {
+  const plans = community.planOptions || [];
+  const cheapest = plans.length ? plans.reduce((a, b) => (b.price < a.price ? b : a)) : null;
+  const highlights = [
+    { icon: Users2, value: community.memberCount.toLocaleString('en-IN'), label: 'members' },
+    { icon: ScrollText, value: paidTotal.toLocaleString('en-IN'), label: 'member posts' },
+    ...(community.chatEnabled ? [{ icon: MessagesSquare, value: 'Live', label: 'group chat' }] : []),
+    { icon: Crown, value: 'All', label: 'community lives' },
+  ];
+  return (
+    <div className="rounded-[22px] bg-gradient-to-r from-[#F4511E] to-[#EC2A78] p-[1.5px] shadow-lg shadow-pink-500/15">
+      <div className="rounded-[21px] bg-navy-800 px-5 py-6 text-center">
+        <p className="bg-gradient-to-r from-[#F4511E] to-[#EC2A78] bg-clip-text text-5xl font-black tracking-tight text-transparent">
+          {rest > 0 ? `+${rest.toLocaleString('en-IN')}` : paidTotal.toLocaleString('en-IN')}
+        </p>
+        <p className="mt-1 text-base font-bold text-white">
+          {rest > 0 ? `more ${rest === 1 ? 'post' : 'posts'} unlock with a plan` : `members-only ${paidTotal === 1 ? 'post' : 'posts'} unlock with a plan`}
+        </p>
+        <p className="mt-0.5 text-xs text-white/50">Read every post, join the chat and watch the lives in {community.name}.</p>
+        <div className="mt-4 grid rounded-2xl bg-white/[0.04] py-3" style={{ gridTemplateColumns: `repeat(${highlights.length}, minmax(0, 1fr))` }}>
+          {highlights.map((h, i) => (
+            <div key={h.label} className={cn('flex flex-col items-center gap-0.5 px-1', i > 0 && 'border-l border-white/10')}>
+              <h.icon size={17} className="text-orange-400" />
+              <span className="text-sm font-extrabold text-white">{h.value}</span>
+              <span className="truncate text-[11px] text-white/45">{h.label}</span>
+            </div>
+          ))}
+        </div>
+        {plans.length > 0 && (
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            {plans.map((p) => (
+              <span
+                key={p.key}
+                className={cn(
+                  'rounded-full border px-3 py-1.5 text-xs font-bold',
+                  p.key === cheapest?.key ? 'border-orange-500/40 bg-orange-500/10 text-orange-300' : 'border-white/10 text-white/70'
+                )}
+              >
+                {p.key === 'lifetime' ? 'One-time' : p.label} · {rupees(p.price)}
+                {p.key === 'lifetime' ? '' : PLAN_SUFFIX[p.key]}
+              </span>
+            ))}
+          </div>
+        )}
+        {canBuy && (
+          <button
+            onClick={onOpen}
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#F4511E] to-[#EC2A78] px-5 py-3 text-sm font-bold text-white"
+          >
+            <Lock size={15} /> {cheapest ? `Unlock from ${rupees(cheapest.price)}` : 'Unlock everything'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function CommunityDetail() {
   const { slug = '' } = useParams();
   const navigate = useNavigate();
@@ -54,6 +163,8 @@ export default function CommunityDetail() {
   const [postPages, setPostPages] = useState(1);
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsError, setPostsError] = useState('');
+  // Paid community without a plan: only the free posts come back.
+  const [lockedCount, setLockedCount] = useState(0);
 
   const loadCommunity = () =>
     communityApi
@@ -73,6 +184,8 @@ export default function CommunityDetail() {
   const isMember = community?.membership?.status === 'active';
   const canView = Boolean(community && ((community.visibility === 'public' && !community.isPaid) || isMember));
   const mustPay = Boolean(community && needsPlan(community));
+  // Paid community, no plan (not banned): read the free posts only.
+  const previewOnly = Boolean(community && community.isPaid && !isMember && community.membership?.status !== 'banned');
 
   const loadPosts = (page = 1) => {
     if (!community) return;
@@ -81,18 +194,21 @@ export default function CommunityDetail() {
     communityApi
       .posts(community._id, { page, sort: postSort })
       .then((res) => {
-        setPosts((prev) => (page === 1 ? res.posts : [...prev, ...res.posts]));
+        // No plan: up to 2 locked previews come after the free posts.
+        const items = [...res.posts, ...(res.locked ?? [])];
+        setPosts((prev) => (page === 1 ? items : [...prev, ...items]));
         setPostPage(res.page);
         setPostPages(res.pages);
+        setLockedCount(res.lockedCount ?? 0);
       })
       .catch((err) => setPostsError(getApiErrorMessage(err)))
       .finally(() => setPostsLoading(false));
   };
 
   useEffect(() => {
-    if (canView && tab === 'posts') loadPosts(1);
+    if ((canView || previewOnly) && tab === 'posts') loadPosts(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [community?._id, canView, postSort, tab]);
+  }, [community?._id, canView, previewOnly, postSort, tab]);
 
   const toggleJoin = async () => {
     if (!community) return;
@@ -368,7 +484,57 @@ export default function CommunityDetail() {
           <AnimatePresence mode="wait">
             <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
               {tab === 'posts' &&
-                (!canView ? (
+                (previewOnly ? (
+                  <div className="mx-auto max-w-2xl space-y-4">
+                    {postsLoading && posts.length === 0 && (
+                      <div className="flex justify-center py-6 text-white/40">
+                        <Loader2 size={22} className="animate-spin" />
+                      </div>
+                    )}
+                    {posts.some((p) => !p.isLocked) && (
+                      <p className="flex items-center gap-1.5 text-sm font-bold text-white/80">
+                        <Globe size={15} className="text-emerald-400" />
+                        {posts.filter((p) => !p.isLocked).length === 1
+                          ? 'Free post — read it without a plan'
+                          : `${posts.filter((p) => !p.isLocked).length} free posts — read them without a plan`}
+                      </p>
+                    )}
+                    {posts.filter((p) => !p.isLocked).map((post) => (
+                      <PostCard
+                        key={post._id}
+                        post={post}
+                        canInteract={false}
+                        canModerate={false}
+                        showFreeTag
+                        onChange={(updated) => setPosts((prev) => prev.map((p) => (p._id === updated._id ? updated : p)))}
+                        onDelete={(id) => setPosts((prev) => prev.filter((p) => p._id !== id))}
+                      />
+                    ))}
+                    {posts.some((p) => p.isLocked) && (
+                      <>
+                        <p className="flex items-center gap-1.5 pt-2 text-sm font-bold text-white/80">
+                          <Lock size={14} className="text-orange-400" /> Members-only posts
+                        </p>
+                        {posts
+                          .filter((p) => p.isLocked)
+                          .map((post) => (
+                            <LockedPostCard key={post._id} post={post} onOpen={() => (isAuthenticated ? setPlansOpen(true) : navigate('/login'))} />
+                          ))}
+                      </>
+                    )}
+                    {posts.length > 0 && status !== 'expired' ? (
+                      <UnlockCard
+                        community={community}
+                        rest={lockedCount}
+                        paidTotal={Math.max(posts.filter((p) => p.isLocked).length, community.discussionCount - posts.filter((p) => !p.isLocked).length)}
+                        canBuy={status !== 'banned'}
+                        onOpen={() => (isAuthenticated ? setPlansOpen(true) : navigate('/login'))}
+                      />
+                    ) : (
+                      locked
+                    )}
+                  </div>
+                ) : !canView ? (
                   locked
                 ) : (
                   <div className="mx-auto max-w-2xl space-y-4">
@@ -406,6 +572,8 @@ export default function CommunityDetail() {
                         post={post}
                         canInteract={isMember}
                         canModerate={community.canModerate}
+                        showFreeTag={Boolean(community.isPaid && community.canModerate)}
+                        canMarkFree={Boolean(community.isPaid && community.canModerate)}
                         onChange={(updated) => setPosts((prev) => prev.map((p) => (p._id === updated._id ? updated : p)))}
                         onDelete={(id) => setPosts((prev) => prev.filter((p) => p._id !== id))}
                       />

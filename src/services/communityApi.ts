@@ -86,6 +86,14 @@ export interface CommunityPost {
   poll: CommunityPoll | null;
   isAnnouncement: boolean;
   isPinned: boolean;
+  /** Paid communities: free preview post anyone can read without a plan. */
+  isFree?: boolean;
+  /** Paid post shown locked (no plan): text is only the first line, teaserImage a tiny blurred data URI. */
+  isLocked?: boolean;
+  teaserImage?: string;
+  mediaCount?: number;
+  hasVideo?: boolean;
+  hasPoll?: boolean;
   likeCount: number;
   commentCount: number;
   isLiked: boolean;
@@ -178,6 +186,8 @@ export interface NewPostPayload {
   media: File[];
   poll?: { question: string; options: string[]; durationHours: number } | null;
   isAnnouncement?: boolean;
+  /** Paid communities only — owner / moderators, max 3. */
+  isFree?: boolean;
   mentions?: string[];
 }
 
@@ -246,7 +256,18 @@ export const communityApi = {
   // Posts
   posts: (id: string, params?: { page?: number; sort?: 'new' | 'top'; announcements?: boolean }) =>
     apiClient
-      .get<ApiEnvelope<{ posts: CommunityPost[]; total: number; page: number; pages: number }>>(`/communities/${id}/posts`, { params })
+      .get<
+        ApiEnvelope<{
+          posts: CommunityPost[];
+          locked?: CommunityPost[];
+          total: number;
+          page: number;
+          pages: number;
+          preview?: boolean;
+          lockedCount?: number;
+          freeCount?: number;
+        }>
+      >(`/communities/${id}/posts`, { params })
       .then((r) => r.data.data),
 
   createPost: (id: string, payload: NewPostPayload) => {
@@ -255,6 +276,7 @@ export const communityApi = {
     payload.media.forEach((file) => form.append('media', file));
     if (payload.poll) form.append('poll', JSON.stringify(payload.poll));
     if (payload.isAnnouncement) form.append('isAnnouncement', 'true');
+    if (payload.isFree) form.append('isFree', 'true');
     if (payload.mentions?.length) form.append('mentions', JSON.stringify(payload.mentions));
     return apiClient.post<ApiEnvelope<CommunityPost>>(`/communities/${id}/posts`, form).then((r) => r.data.data);
   },
@@ -276,6 +298,12 @@ export const communityApi = {
 
   pinPost: (postId: string) =>
     apiClient.post<ApiEnvelope<{ isPinned: boolean }>>(`/communities/posts/${postId}/pin`).then((r) => r.data.data),
+
+  /** Open a paid community's post to everyone, or back to members only. */
+  setPostFree: (postId: string, isFree: boolean) =>
+    apiClient
+      .post<ApiEnvelope<{ isFree: boolean; freeCount: number; maxFree: number }>>(`/communities/posts/${postId}/free`, { isFree })
+      .then((r) => r.data.data),
 
   vote: (postId: string, optionIndex: number) =>
     apiClient.post<ApiEnvelope<CommunityPoll>>(`/communities/posts/${postId}/vote`, { optionIndex }).then((r) => r.data.data),

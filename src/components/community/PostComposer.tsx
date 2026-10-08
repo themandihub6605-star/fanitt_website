@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AtSign, BarChart3, ImagePlus, Loader2, Megaphone, Plus, Send, X, AlertCircle } from 'lucide-react';
+import { AtSign, BarChart3, ImagePlus, Loader2, Megaphone, Plus, Send, X, AlertCircle, Globe } from 'lucide-react';
 import { communityApi, type ApiCommunity, type CommunityPost, type CommunityUser } from '@/services/communityApi';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
@@ -26,6 +26,8 @@ export function PostComposer({ community, onPosted }: Props) {
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [pollDays, setPollDays] = useState(3);
   const [isAnnouncement, setIsAnnouncement] = useState(false);
+  const [isFree, setIsFree] = useState(false);
+  const canMakeFree = Boolean(community.isPaid && community.canModerate);
   const [mentions, setMentions] = useState<CommunityUser[]>([]);
   const [showMention, setShowMention] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
@@ -97,6 +99,7 @@ export function PostComposer({ community, onPosted }: Props) {
         media,
         poll: showPoll ? { question: pollQuestion.trim(), options, durationHours: pollDays * 24 } : null,
         isAnnouncement,
+        isFree: canMakeFree && isFree,
         // Only keep people still named in the text.
         mentions: mentions.filter((m) => text.includes(`@${m.name}`)).map((m) => m._id),
       });
@@ -249,6 +252,11 @@ export function PostComposer({ community, onPosted }: Props) {
                 {community.canModerate && (
                   <ToolButton label="Announcement — notifies every member" active={isAnnouncement} onClick={() => setIsAnnouncement((v) => !v)}>
                     <Megaphone size={17} />
+                  </ToolButton>
+                )}
+                {canMakeFree && (
+                  <ToolButton label="Free post — anyone can read it without a plan (max 3)" active={isFree} onClick={() => setIsFree((v) => !v)}>
+                    <Globe size={17} />
                   </ToolButton>
                 )}
                 <input

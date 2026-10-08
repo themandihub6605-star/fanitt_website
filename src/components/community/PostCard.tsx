@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, MessageCircle, MoreHorizontal, Pin, Megaphone, Trash2, Pencil, Check, X, Loader2 } from 'lucide-react';
+import { Heart, MessageCircle, MoreHorizontal, Pin, Megaphone, Trash2, Pencil, Check, X, Loader2, Globe, Lock } from 'lucide-react';
 import { communityApi, timeAgo, type CommunityPost, type CommunityPoll } from '@/services/communityApi';
 import { getApiErrorMessage } from '@/services/apiClient';
 import { useAppSelector } from '@/store/hooks';
@@ -15,9 +15,13 @@ interface Props {
   onChange: (post: CommunityPost) => void;
   onDelete: (postId: string) => void;
   defaultShowComments?: boolean;
+  /** Paid community: show the "Free post" tag (visitors and moderators — not paying members). */
+  showFreeTag?: boolean;
+  /** Owner / moderator of a paid community: can open the post to everyone. */
+  canMarkFree?: boolean;
 }
 
-export function PostCard({ post, canInteract, canModerate, onChange, onDelete, defaultShowComments = false }: Props) {
+export function PostCard({ post, canInteract, canModerate, onChange, onDelete, defaultShowComments = false, showFreeTag = false, canMarkFree = false }: Props) {
   const user = useAppSelector((s) => s.auth.user);
   const [showComments, setShowComments] = useState(defaultShowComments);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -56,6 +60,12 @@ export function PostCard({ post, canInteract, canModerate, onChange, onDelete, d
       onChange({ ...post, isPinned: res.isPinned });
     });
 
+  const toggleFree = () =>
+    run(async () => {
+      const res = await communityApi.setPostFree(post._id, !post.isFree);
+      onChange({ ...post, isFree: res.isFree });
+    });
+
   const remove = () => {
     if (!window.confirm('Delete this post and its comments?')) return;
     run(async () => {
@@ -88,8 +98,13 @@ export function PostCard({ post, canInteract, canModerate, onChange, onDelete, d
         post.isAnnouncement ? 'border-orange-500/30 bg-orange-500/[0.04]' : 'border-white/10'
       )}
     >
-      {(post.isPinned || post.isAnnouncement) && (
+      {(post.isPinned || post.isAnnouncement || (showFreeTag && post.isFree)) && (
         <div className="mb-3 flex flex-wrap gap-2">
+          {showFreeTag && post.isFree && (
+            <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-300">
+              <Globe size={11} /> Free post
+            </span>
+          )}
           {post.isPinned && (
             <span className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white/70">
               <Pin size={11} /> Pinned
@@ -119,9 +134,12 @@ export function PostCard({ post, canInteract, canModerate, onChange, onDelete, d
               {busy ? <Loader2 size={16} className="animate-spin" /> : <MoreHorizontal size={16} />}
             </button>
             {menuOpen && (
-              <div className="absolute right-0 z-10 mt-1 w-40 overflow-hidden rounded-xl border border-white/10 bg-[#1b1b1b] py-1 shadow-lifted">
+              <div className="absolute right-0 z-10 mt-1 w-52 overflow-hidden rounded-xl border border-white/10 bg-[#1b1b1b] py-1 shadow-lifted">
                 {isAuthor && (
                   <MenuItem icon={Pencil} label="Edit" onClick={() => { setEditing(true); setMenuOpen(false); }} />
+                )}
+                {canMarkFree && (
+                  <MenuItem icon={post.isFree ? Lock : Globe} label={post.isFree ? 'Make members only' : 'Make free for everyone'} onClick={toggleFree} />
                 )}
                 {canModerate && <MenuItem icon={Pin} label={post.isPinned ? 'Unpin' : 'Pin to top'} onClick={pin} />}
                 <MenuItem icon={Trash2} label="Delete" danger onClick={remove} />
